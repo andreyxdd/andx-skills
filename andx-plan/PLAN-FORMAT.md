@@ -10,6 +10,8 @@ name: Human-readable title
 overview: One sentence describing outcome
 andx_ready: true
 domain_grilled: true
+pipeline_stage: 03-build
+knowledge_refs: [knowledge/domain/glossary.md]
 source: thread
 todos: []
 isProject: false
@@ -49,6 +51,8 @@ verification: pnpm --filter web test src/pages/foo.test.tsx
 | `overview` | yes | One sentence |
 | `andx_ready` | yes | `true` when structured steps present |
 | `domain_grilled` | yes | `true` \| `skipped` |
+| `pipeline_stage` | when OKF layout present | ICM stage id from `ROUTING.md` (e.g. `03-build`, `02-draft`) |
+| `knowledge_refs` | when OKF layout present | Bracket list of `knowledge/` paths cited by this plan |
 | `source` | yes | `thread` \| `plan-mode` \| issue URL |
 | `todos` | no | Cursor todos; execution steps live in body |
 | `isProject` | yes | `false` for feature plans |
@@ -71,11 +75,12 @@ Step ids must match `step-\d+` (e.g. `step-1`, `step-2`).
 ## Parsing rules (`/andx-execute` Orchestrator)
 
 1. Prefer plans with `andx_ready: true`.
-2. Parse each `### step-N` block into the verification table.
-3. Missing `depends` on step-N (N>1) → treat as `depends: [step-{N-1}]` (sequential chain).
-4. Missing `kind` → ask once; default `backend` only if user confirms.
-5. `touch: unknown` in a wave → force sequential execution (future `/andx-schedule` uses same rule).
-6. Topological sort on `depends` → log computed waves in orchestrator progress (single worker today).
+2. Parse `pipeline_stage` and `knowledge_refs` from frontmatter when present.
+3. Parse each `### step-N` block into the verification table.
+4. Missing `depends` on step-N (N>1) → treat as `depends: [step-{N-1}]` (sequential chain).
+5. Missing `kind` → ask once; default `backend` only if user confirms.
+6. `touch: unknown` in a wave → force sequential execution (future `/andx-schedule` uses same rule).
+7. Topological sort on `depends` → log computed waves in orchestrator progress (single worker today).
 
 ## Wave computation (informational)
 

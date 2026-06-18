@@ -6,6 +6,7 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 
 | Skill | Purpose |
 |-------|---------|
+| `andx-init` | Scaffold OKF + ICM layout (presets: app, data, content) |
 | `andx-plan` | Grill + write `<repo>/.cursor/plans/*.plan.md` |
 | `andx-execute` | Worktree execution + TDD + merge |
 | `andx-execute-and-review` | Execute + adversarial review gate |
@@ -13,6 +14,29 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 | `andx-debug-and-fix` | Debug worktree + fix loop |
 | `andx-deploy` | Deploy + health check |
 | `andx-orchestration` | Shared parent/worktree protocol |
+
+## Hybrid layout (OKF + ICM)
+
+Target repos can use a **hybrid** structure scaffolded by `/andx-init`:
+
+| Layer | Paths | Role |
+|-------|-------|------|
+| **OKF** | `IDENTITY.md`, `knowledge/` | Who/what/why — glossary, APIs, datasets, voice, etc. |
+| **ICM** | `ROUTING.md`, `pipeline/<stage>/` | Where work happens — stage CONTEXT + ephemeral `output/` |
+
+**Presets:** `app` (software), `data` (analytics/ETL), `content` (editorial). Each preset ships pipeline stages and knowledge subtrees suited to that domain.
+
+**Git policy:**
+
+- Commit scaffold skeleton (`IDENTITY`, `ROUTING`, `knowledge/`, `pipeline/*/CONTEXT.md`).
+- Gitignore ephemeral dirs: `pipeline/*/output/`, `.cursor/plans/`.
+- Re-run scaffold is **additive** — never overwrites existing files.
+
+Run once on a new or brownfield repo before `/andx-plan`:
+
+```bash
+andx-init/scripts/scaffold.sh app /path/to/repo
+```
 
 ## Install
 

@@ -59,15 +59,20 @@ Run once; do not skip:
 1. **Worktree** — run orchestration Step 1 (always; never skip for clean tree).
 2. **Anchor the plan** — source (file path, issue URL, or message) and step IDs/titles. Prefer **project-local** `.cursor/plans/*.plan.md` with `andx_ready: true` (workspace root = target repo; never `~/.cursor/plans`). If the plan omits steps or lacks `depends`/`touch`/`verification`, suggest **`/andx-plan`** once; do not invent scope.
 3. **Parse andx plan steps** — when the plan has `### step-N` blocks, extract `kind`, `depends`, `touch`, `success`, `verification` per [/andx-plan/PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md). Missing `depends` on step-N (N>1) → sequential chain. Topological sort → log computed waves in progress (single worker today).
-4. **Discover toolchain** — from `package.json`, `pyproject.toml`, `Makefile`, `.github/workflows`, or repo docs: test runner, lint, build, e2e.
-5. **Reuse existing gates** — align verification table with plan step `verification` fields, `VERIFICATION.md`, plan appendix, or CI.
-6. **Classify steps** — use plan `kind` when present; else each `backend` | `ui` | `mixed`. `ui` and `mixed` trigger `/impeccable` in the worker prompt.
+4. **Load OKF context** — when plan frontmatter includes `pipeline_stage` and/or `knowledge_refs`:
+   - Read each path in `knowledge_refs` (relative to project root)
+   - Read `pipeline/<pipeline_stage>/CONTEXT.md` when `pipeline_stage` is set
+   - Include loaded content in the worker spawn prompt (cited concepts + active stage Inputs/Process/Outputs)
+5. **Discover toolchain** — from `package.json`, `pyproject.toml`, `Makefile`, `.github/workflows`, or repo docs: test runner, lint, build, e2e.
+6. **Reuse existing gates** — align verification table with plan step `verification` fields, `VERIFICATION.md`, plan appendix, or CI.
+7. **Classify steps** — use plan `kind` when present; else each `backend` | `ui` | `mixed`. `ui` and `mixed` trigger `/impeccable` in the worker prompt.
 
 ## Spawn worker
 
 After preflight, spawn subagent per orchestration Step 2. Prompt must include:
 
 - Full anchored plan and step classification
+- OKF context block (when plan has `knowledge_refs` / `pipeline_stage`): cited concept files + active `pipeline/<stage>/CONTEXT.md`
 - Draft verification table (or instruct worker to build in Phase 0)
 - Pointer: **§ Worker** section below
 - Handoff schema from orchestration

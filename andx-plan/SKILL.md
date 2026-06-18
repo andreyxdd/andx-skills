@@ -21,12 +21,13 @@ Bridge from **idea** to **`/andx-execute`**: grill domain terms, then write an e
 | Skill | Role |
 |-------|------|
 | [/grill-with-docs](../grill-with-docs/SKILL.md) | Domain interview rules (Phase 1) |
+| [/andx-init](../andx-init/SKILL.md) | Scaffold OKF + ICM when `knowledge/` missing |
 | [PLAN-FORMAT.md](./PLAN-FORMAT.md) | Output template and parsing rules |
 
 ## Workflow overview
 
 ```
-Phase 0 — Anchor (read CONTEXT, decide domain grill)
+Phase 0 — Anchor (read OKF + ICM + legacy CONTEXT, decide domain grill)
 Phase 1 — Domain grill (when needed; grill-with-docs)
 Phase 2 — Execution grill (always; steps, depends, touch)
 Phase 3 — Write .cursor/plans/<slug>.plan.md
@@ -44,16 +45,23 @@ Handoff: **`/andx-execute`** on the plan path. Optional later: **`/andx-schedule
    - After move, confirm workspace root contains the app (e.g. `package.json`, `go.mod`, or known repo marker). If ambiguous, ask once.
    - Create `.cursor/plans/` in the project if missing. Ensure `.cursor/plans/` is in `.gitignore` unless the user wants plans committed (default: ephemeral → gitignore).
 
-1. Read `CONTEXT.md` / `CONTEXT-MAP.md`, relevant `docs/adr/`, thread text, or Plan mode draft.
-2. Decide domain grill:
+1. Read OKF + ICM anchors (when present):
+   - `IDENTITY.md` — audience, constraints, non-goals
+   - `ROUTING.md` — resolve **active pipeline stage** (link target under `pipeline/<stage>/`)
+   - `knowledge/index.md` — concept bundle entry point
+   - Active stage `pipeline/<stage>/CONTEXT.md` (Inputs / Process / Outputs)
+   - Legacy `CONTEXT.md` / `CONTEXT-MAP.md`, relevant `docs/adr/`, thread text, or Plan mode draft
+2. If `knowledge/` is **missing**, suggest **`/andx-init`** once (pick preset: app | data | content). Do not block planning if user declines — fall back to legacy `CONTEXT.md` only.
+3. Decide domain grill:
 
 | Situation | Phase 1 |
 |-----------|---------|
-| Domain fuzzy, no `CONTEXT.md`, or glossary conflicts | **Run** full domain grill |
-| Domain already grilled; `CONTEXT.md` covers scope | **Skip** — set `domain_grilled: skipped` in plan frontmatter |
+| Domain fuzzy, no glossary/CONTEXT coverage, or term conflicts | **Run** full domain grill |
+| Domain already grilled; glossary + stage CONTEXT cover scope | **Skip** — set `domain_grilled: skipped` in plan frontmatter |
 
-3. Propose plan slug (kebab-case) → output path `.cursor/plans/<slug>.plan.md`.
-4. Confirm slug with user before Phase 2 if ambiguous.
+4. Record active stage id (e.g. `03-build`) for plan frontmatter `pipeline_stage`.
+5. Propose plan slug (kebab-case) → output path `.cursor/plans/<slug>.plan.md`.
+6. Confirm slug with user before Phase 2 if ambiguous.
 
 ---
 
@@ -63,8 +71,11 @@ Follow [/grill-with-docs](../grill-with-docs/SKILL.md) `<what-to-do>`:
 
 - One question at a time; provide your recommended answer.
 - Explore the codebase instead of asking when the answer is in code.
-- Update `CONTEXT.md` inline (glossary only — no implementation details).
+- **andx-plan owns knowledge writes** — update `knowledge/domain/glossary.md` and related concept files under `knowledge/` (not grill-with-docs directly). Append material changes to `knowledge/log.md`.
+- Keep legacy `CONTEXT.md` glossary in sync only when the repo still uses it and has no `knowledge/` yet.
 - Offer ADRs only when hard to reverse, surprising, and a real trade-off.
+
+Collect **`knowledge_refs`** — paths to concepts cited by this plan (e.g. `knowledge/domain/glossary.md`, `knowledge/apis/checkout.md`). Use in Phase 3 frontmatter.
 
 Exit when the user confirms domain scope is stable.
 
@@ -100,6 +111,11 @@ Rules:
 
 Write `.cursor/plans/<slug>.plan.md` using [PLAN-FORMAT.md](./PLAN-FORMAT.md).
 
+Include frontmatter:
+
+- `pipeline_stage` — active ICM stage id from `ROUTING.md` (e.g. `03-build`)
+- `knowledge_refs` — bracket list of `knowledge/` paths the plan depends on
+
 Do not write the file until the user approves the step list from Phase 2.
 
 End the plan body with:
@@ -132,7 +148,8 @@ Report the absolute plan path in the reply.
 
 - Writing plans to `~/.cursor/plans` or planning from home when the target is a project repo
 - Skipping `move_agent_to_root` when workspace root ≠ target project
-- Implementation details in `CONTEXT.md`
+- Implementation details in glossary or pipeline CONTEXT
+- Expecting grill-with-docs to write `knowledge/` — andx-plan owns those writes
 - Steps without falsifiable `success` or `verification`
 - `touch: unknown` on every step when codebase exploration could resolve paths
 - Writing the plan file before user approves the step list
@@ -143,6 +160,7 @@ Report the absolute plan path in the reply.
 
 | Situation | Skill |
 |-----------|--------|
+| No OKF layout yet | `/andx-init` |
 | Execute the plan | `/andx-execute` |
 | Execute + review gate | `/andx-execute-and-review` |
 | Execute + deploy | `/andx-execute-and-deploy` |

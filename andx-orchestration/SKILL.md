@@ -152,6 +152,7 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 
 ## Referenced by
 
+- [/andx-init](../andx-init/SKILL.md) — scaffolds OKF + ICM layout consumed by plan/execute
 - [/andx-plan](../andx-plan/SKILL.md) — produces `.cursor/plans/*.plan.md` this stack consumes
 - [/andx-execute](../andx-execute/SKILL.md) — Orchestrator + Worker
 - [/andx-execute-and-review](../andx-execute-and-review/SKILL.md)
