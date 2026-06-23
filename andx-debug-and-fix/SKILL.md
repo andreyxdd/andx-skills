@@ -1,17 +1,17 @@
 ---
 name: andx-debug-and-fix
-description: Debugs a reported issue via subagent in an always-on worktree, then executes a plan through the andx-execute worker. Parent orchestrates; merges to checked-out target branch when verified. Use for /andx-debug-and-fix or "debug and fix".
+description: Readonly debug-like-expert analysis on primary checkout, then executes the recommended fix via andx-execute worker in a deferred worktree. Parent orchestrates; merges to checked-out target branch when verified. Use for /andx-debug-and-fix or "debug and fix".
 ---
 
 # Andx Debug and Fix
 
-Stabilize the failure first, then execute a written plan. Parent orchestrates; subagent edits source only in the worktree.
+Diagnose with evidence first, then execute a written plan. Parent orchestrates; subagents analyze (readonly) or implement (worktree only).
 
 ## When to use
 
 - User invokes `/andx-debug-and-fix` or reports a bug/failure without a ready execution plan
 - Symptom is known (error, regression, broken behavior) but root cause or fix path is unclear
-- User wants: debug → fix loop → plan → execute (with commit)
+- User wants: debug analysis → execution plan → fix (with commit)
 
 **Not for:** greenfield features with no failure (use `/andx-execute` only).
 
@@ -21,26 +21,23 @@ Stabilize the failure first, then execute a written plan. Parent orchestrates; s
 
 | Skill | Role |
 |-------|------|
-| [/andx-orchestration](../andx-orchestration/SKILL.md) | Always-on worktree, spawn, merge-back (parent) |
+| [/andx-orchestration](../andx-orchestration/SKILL.md) | Worktree (deferred), spawn, merge-back (parent) |
+| `/debug-like-expert` | Phase B readonly analysis (subagent) |
 | [/andx-execute](../andx-execute/SKILL.md) | Worker Phases 0–4 for Phase D (subagent) |
 | `fresh verification output in the current message before completion claims` | Fresh output before "fixed" or "done" |
-| `/tdd` | Test-first after debug (subagent) |
+| `/tdd` | Test-first in Phase D (subagent) |
 | `/impeccable` | UI bugs only (subagent) |
 
 Optional: `/grill-me` when expected behavior is ambiguous.
 
-## Karpathy guidelines (debug phase)
-
-Same as andx-execute: one falsifiable check per attempt, fresh output only, minimum change that passes, simple beats clever.
-
 ## Workflow overview
 
 ```
-0. Parent: orchestration Step 1 (always-on worktree)
-A. Parent: intake & read-only repro
-B. Subagent: debug loop in worktree
-C. Parent: execution plan + verification table (no source edits)
-D. Subagent: /andx-execute Worker Phases 0–4 (resume or spawn)
+A. Parent: intake & read-only repro (primary checkout)
+B. Readonly subagent: /debug-like-expert → debug analyst handoff
+C. Parent: execution plan + verification table from handoff
+0. Parent: orchestration Step 1 (worktree) — BEFORE Phase D only
+D. Subagent: /andx-execute Worker Phases 0–4 (new spawn)
    Parent: merge-back + post-merge Phase 3
 ```
 
@@ -48,13 +45,13 @@ D. Subagent: /andx-execute Worker Phases 0–4 (resume or spawn)
 
 | Phase | Parent | Subagent |
 |-------|--------|----------|
-| 0 Worktree | Always via [/andx-orchestration](../andx-orchestration/SKILL.md) Step 1 | — |
-| A Intake & repro | Read-only repro (run existing tests, read logs) | Spawn when first source edit needed (e.g. failing test) |
-| B Debug loop | — | All fix attempts in `WORKTREE_DIR` |
-| C Execution plan | Plan + verification table in chat | — |
-| D Execute | Spawn or `resume` subagent; merge on pass | andx-execute **§ Worker** |
+| A Intake & repro | Read-only repro on `REPO_ROOT` | — |
+| B Debug analysis | Spawn readonly analyst; validate handoff | `/debug-like-expert` (no edits) |
+| C Execution plan | Map handoff → plan + verification table | — |
+| 0 Worktree | Step 1 immediately before Phase D spawn | — |
+| D Execute | Spawn execute worker; merge on pass | andx-execute **§ Worker** |
 
-Use **one** `EXEC_BRANCH` / worktree for the whole run when possible. Resume the same subagent from Phase B into Phase D. New spawn only if prior subagent failed hard or worktree was torn down.
+**Do not resume** the Phase B debug analyst into Phase D — different roles (analyst vs implementer). Spawn a **new** execute worker after worktree creation.
 
 **Completion** = bug fixed, plan executed, **merged into `TARGET_BRANCH`**, post-merge verification passes (same as andx-execute Definition of done).
 
@@ -66,54 +63,92 @@ Use **one** `EXEC_BRANCH` / worktree for the whole run when possible. Resume the
 2. **Repro success criterion** — one falsifiable sentence + command or steps.
 3. Run repro **read-only** on primary checkout → must **fail** before debugging. If it passes, reconcile with the user.
 
-No source edits from parent. If a failing test must be added, create worktree (Step 0) and spawn subagent for that edit before Phase B.
+No source edits from parent. Repro uses **existing** tests/commands only. If no automated repro exists, Phase B may recommend adding a failing test; that becomes execute Step 1 (TDD red) in Phase D.
 
 ---
 
-## Phase B — Debug loop (subagent worker)
+## Phase B — Debug analysis (readonly subagent)
 
-Subagent prompt: debug worker in `WORKTREE_DIR`. Repeat until **bug success criterion** passes:
+Spawn readonly analyst **before** worktree creation:
 
+```text
+Task(
+  subagent_type="generalPurpose",
+  readonly=true,
+  description="debug analyst (readonly)",
+  prompt="..."
+)
 ```
-1. Diagnose — one root cause
-2. Plan fix — minimal change; state bug success criterion if it changed
-3. Implement — smallest diff
-4. Validate — run bug success criterion (fresh output)
-5. FAIL → back to 1 (max 3 attempts per distinct root-cause hypothesis)
-6. PASS → exit Phase B; return handoff with bug criterion evidence
-```
 
-Rules:
+Prompt must include:
 
-- **Bug success criterion** is separate from later **plan step** criteria.
-- Prefer a **failing test** as the criterion when possible.
-- **UI bugs:** `/impeccable` only if the fix touches UI.
-- After **3** failed attempts: fail handoff with blocker; parent does not merge.
+- Symptom anchor, expected vs actual
+- Repro criterion + fresh failing command output
+- `REPO_ROOT` (primary checkout — no `WORKTREE_DIR` yet)
+- Follow `/debug-like-expert` fully
+- Return **debug analyst handoff** from [/andx-orchestration](../andx-orchestration/SKILL.md) § Debug analyst handoff
+- **Orchestrated override:** skip debug-like-expert decision gate; do not wait for user — parent auto-proceeds to execute when status is `pass`
 
-Do not expand scope during Phase B. Log `OUT OF SCOPE` and ask before unrelated changes.
+### Pass gate
+
+Status **`pass`** requires all debug-like-expert success criteria:
+
+- Root cause identified with evidence
+- Recommended fix is specific and actionable (files, lines, minimal change)
+- Verification plan lists post-fix commands/tests
+
+### Fail gate
+
+Status **`fail`** or **`inconclusive`** → parent stops. No worktree. No Phase D. Report blockers + one falsifiable next experiment.
+
+### Forbidden in Phase B
+
+- Any `StrReplace` / `Write` on source
+- Worktree creation or commits
+- Implementing the recommended fix
 
 ---
 
 ## Phase C — Execution plan (parent)
 
-After Phase B subagent handoff passes:
+After debug analyst handoff status is **`pass`**:
 
-1. List remaining steps to **ship** the fix safely (regression tests, docs, edge cases).
-2. If nothing remains except commit → single step: final regression + commit.
-3. Build **verification table** (same columns as andx-execute Phase 0).
-4. Show plan and table briefly before Phase D.
+1. Parse **Recommended Fix** → numbered steps with `touch` paths
+2. Parse **Verification Plan** → verification table rows (andx-execute Phase 0 columns)
+3. Typical steps when handoff is minimal:
+   - Step 1: Add/adjust failing test (if debug recommended)
+   - Step 2: Implement recommended fix (cite files/lines from handoff)
+   - Step 3: Full regression + commit
+4. Build **verification table** (same columns as andx-execute Phase 0)
+5. Show plan and table briefly before Phase D
 
 No source edits from parent.
+
+Then run [/andx-orchestration](../andx-orchestration/SKILL.md) **Step 1** (worktree) immediately before Phase D spawn.
 
 ---
 
 ## Phase D — Execute (subagent + parent merge)
 
-**Subagent:** Follow [/andx-execute](../andx-execute/SKILL.md) **§ Worker** Phases 0–4. Reuse verification table from Phase C. Resume Phase B subagent when possible.
+**Subagent:** Spawn **new** worker (not resume Phase B analyst). Follow [/andx-execute](../andx-execute/SKILL.md) **§ Worker** Phases 0–4. Prompt must include:
+
+```text
+DEBUG HANDOFF (anchored plan source):
+- Root cause: …
+- Recommended fix: [file:line] …
+- Verification plan: …
+- Risk: …
+
+EXECUTION PLAN (from Phase C):
+[numbered steps + verification table]
+
+Follow /andx-execute § Worker in WORKTREE_DIR.
+Implement Recommended Fix minimally; do not re-investigate unless verification fails (Phase 2 loop).
+```
+
+Karpathy guidelines and `/tdd` apply in Phase D only.
 
 **Parent:** On worker pass → [/andx-orchestration](../andx-orchestration/SKILL.md) Step 4 (merge, post-merge Phase 3, **mandatory worktree cleanup** with evidence).
-
-If Phase C is only "regression + commit", worker still runs Phase 3 on `EXEC_BRANCH` before commit.
 
 ---
 
@@ -121,9 +156,11 @@ If Phase C is only "regression + commit", worker still runs Phase 3 on `EXEC_BRA
 
 ```
 Debug (report: …; target: main; exec: andx/exec-…):
-- [x] Worktree created
 - [x] Repro confirmed — `…`
-- [x] Bug criterion met (subagent)
+- [x] Debug analysis complete (readonly subagent)
+- [x] Execution plan from debug handoff
+- [x] Worktree created
+- [x] Execute handoff — pass
 - [x] Merged to target — post-merge Phase 3 passed
 - [x] Worktree cleaned — `git worktree list` shows no andx/exec-…
 ```
@@ -137,12 +174,15 @@ Same as andx-execute: **command**, **outcome**, **snippet** per gate.
 ## Anti-patterns
 
 - Parent editing source during intake, plan, or merge
-- Executing a large plan before the bug criterion passes
+- Implementing fixes during Phase B (pollutes debug-like-expert evidence)
+- Creating worktree before debug handoff completes
+- Executing without structured debug handoff (vague root cause)
+- Resuming debug analyst as execute worker
+- Auto-proceeding when handoff status is `inconclusive`
 - Skipping repro or accepting "can't reproduce" without a written next step
 - Finishing on `EXEC_BRANCH` without merge + post-merge verification
 - Leaving worktree orphaned after successful debug+execute merge
-- Skipping worktree because tree is clean
-- Reusing stale subagent output across fix attempts
+- Reusing stale subagent output across phases
 
 ## Optional pairing
 

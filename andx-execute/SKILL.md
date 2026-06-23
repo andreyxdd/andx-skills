@@ -117,6 +117,8 @@ Execution (plan: docs/feature-x.md; target: main; exec: andx/exec-…):
 
 Before any production code:
 
+When the plan originates from [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md), pre-fill the table from the debug analyst handoff **Verification Plan** and **Recommended Fix** steps; validate rows before coding.
+
 1. List steps in **dependency order** (from anchored plan).
 2. For **each step**, fill:
 

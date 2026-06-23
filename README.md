@@ -11,7 +11,7 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 | `andx-execute` | Worktree execution + TDD + merge |
 | `andx-execute-and-review` | Execute + adversarial review gate |
 | `andx-execute-and-deploy` | Execute + push + deploy |
-| `andx-debug-and-fix` | Debug worktree + fix loop |
+| `andx-debug-and-fix` | Readonly debug-like-expert analysis → execute worker |
 | `andx-deploy` | Deploy + health check |
 | `andx-orchestration` | Shared parent/worktree protocol |
 

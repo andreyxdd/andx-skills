@@ -25,9 +25,13 @@ WORKTREE_DIR="$REPO_ROOT/.worktrees/$EXEC_BRANCH"
 
 State `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR` in the reply before spawning.
 
+**Path rule:** Always use `$REPO_ROOT/.worktrees/$EXEC_BRANCH` for `WORKTREE_DIR`. Do not reuse ad-hoc sibling directory names (`*-exec/`, `*-andx-*` at repo parent) — they are easy to orphan and confuse later sessions as a second codebase.
+
 ## Step 1 — Always create worktree
 
-Run **before any subagent spawn**, regardless of clean/dirty status. Do not edit the primary checkout.
+Run **before any implementation subagent spawn**, regardless of clean/dirty status. Do not edit the primary checkout.
+
+**Exception:** [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md) defers Step 1 until after readonly debug handoff (Phase C). All **implementation** subagents still require worktree before spawn.
 
 ```bash
 cd "$REPO_ROOT"
@@ -50,7 +54,7 @@ Note explicitly that uncommitted changes may move with checkout. Set `WORKTREE_D
 Use `Task` with `subagent_type="generalPurpose"`. Include in the prompt:
 
 - `WORKTREE_DIR`, `EXEC_BRANCH`, `TARGET_BRANCH`, `REPO_ROOT`
-- Worker skill section to follow (e.g. andx-execute Worker, debug worker, deploy-hotfix worker)
+- Worker skill section to follow (e.g. andx-execute Worker, debug analyst readonly, deploy-hotfix worker)
 - Anchored plan, verification table (or template), bug/deploy evidence
 - Required companion skills: `/tdd`, `/impeccable` (UI only). Show fresh verification output before completion claims.
 - **Return schema** (below)
@@ -63,7 +67,7 @@ Task(
 )
 ```
 
-Resume the same subagent (`resume=<id>`) when continuing work in the same worktree (e.g. debug → execute). Spawn a new subagent only if the prior one failed hard or the worktree was torn down.
+Resume the same subagent (`resume=<id>`) when continuing work in the same worktree (e.g. multi-wave execute). Spawn a new subagent when roles differ (e.g. [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md): debug analyst → execute worker) or if the prior one failed hard or the worktree was torn down.
 
 ### Subagent workspace rules
 
@@ -94,6 +98,27 @@ Subagent must return:
 
 Parent treats handoff as stale unless output is from the current spawn.
 
+## Debug analyst handoff (readonly — andx-debug-and-fix Phase B)
+
+Readonly subagent returns **before** worktree creation. No commits. Parent maps this into an execution plan for Phase D.
+
+```markdown
+## Debug analyst handoff
+
+- **Status:** pass | fail | inconclusive
+- **Repro criterion:** command + outcome (must fail before fix)
+- **Issue:** …
+- **Evidence:** …
+- **Investigation:** …
+- **Root Cause:** … (with evidence)
+- **Recommended Fix:** files, lines, minimal change description
+- **Verification Plan:** commands/tests post-fix
+- **Risk Assessment:** side effects, confidence
+- **Blockers:** (if fail/inconclusive) next falsifiable experiment
+```
+
+Execute worker spawn prompt must include the full debug handoff as anchored plan context.
+
 ## Step 4 — Merge back (always on pass)
 
 After subagent reports pass and Phase 3 passed on `EXEC_BRANCH`:
@@ -119,6 +144,8 @@ git worktree list   # prove andx/exec-… entry gone
 
 Skip `worktree remove` only when `WORKTREE_DIR="$REPO_ROOT"` (fallback). Still run `git branch -d "$EXEC_BRANCH"` when safe.
 
+**Before push or deploy:** Cleanup is part of Step 4, not optional post-ship housekeeping. [/andx-execute-and-deploy](../andx-execute-and-deploy/SKILL.md) must not start Phase A′ until cleanup evidence is logged — even if prod is still failing and the session continues debugging.
+
 **Future parallel waves** (`/andx-schedule`): parent cleans **each** `WORKTREE_DIR` from wave handoffs after integration merge. Subagents still never pre-merge cleanup.
 
 ### On fail
@@ -139,16 +166,20 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 - Claiming "done" before merge + post-merge Phase 3 on `TARGET_BRANCH`
 - Reusing stale subagent output without fresh post-merge gates
 - Skipping worktree because the tree is clean
+- Push, deploy, or `git push heroku` before Step 4 cleanup completes
+- Ad-hoc `WORKTREE_DIR` outside `.worktrees/` (orphan risk; later agents may treat it as a permanent second tree)
 
 ## Anti-patterns
 
-- Parent patches source during orchestration
+- Parent patches source during orchestration (including editing the worktree inline when a subagent should run)
 - Subagent merges to `TARGET_BRANCH` itself
 - Subagent removes worktree before parent merge
 - "Done" on exec branch before parent merge
 - Parent claims done without cleanup evidence (`git worktree list` before/after)
-- Orphan `.worktrees/andx/exec-*` left after successful run
+- Orphan `.worktrees/andx/exec-*` or ad-hoc `*-exec/` worktrees left after successful merge
+- Push or deploy before Step 4 cleanup when merge + post-merge Phase 3 passed
 - Deploy before merge + post-merge verify when code changed
+- Deferring cleanup because follow-up prod debugging started in the same session
 
 ## Referenced by
 
