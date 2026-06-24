@@ -23,28 +23,40 @@ Implement via subagent in a worktree, merge and verify on `TARGET_BRANCH`, auto-
 ## Workflow overview
 
 ```
-A.  Parent: /andx-execute Orchestrator (subagent worker + merge-back)
-A′. Parent: auto-push to remote
-B–D Parent: /andx-deploy (no subagent unless hotfix)
+A.   Parent: /andx-execute Orchestrator (subagent worker + merge-back + worktree cleanup)
+A′.  Parent: auto-push to remote
+B–D  Parent: /andx-deploy (no subagent unless hotfix)
 ```
+
+**Gate:** Phase A′ and B–D start only after Phase A **Definition of done** — including worktree removal and `EXEC_BRANCH` delete with logged `git worktree list` evidence. Push/deploy after merge alone is **not** execute-complete.
 
 ---
 
 ## Phase A — Execute
 
-Follow [/andx-execute](../andx-execute/SKILL.md) **§ Orchestrator** through **Definition of done**:
+Follow [/andx-execute](../andx-execute/SKILL.md) **§ Orchestrator** through **Definition of done** (all must pass):
 
-- Always-on worktree via [/andx-orchestration](../andx-orchestration/SKILL.md)
-- Subagent runs **§ Worker** Phases 0–4
+- Always-on worktree via [/andx-orchestration](../andx-orchestration/SKILL.md) — use `$REPO_ROOT/.worktrees/$EXEC_BRANCH`, not ad-hoc sibling dirs (e.g. `*-exec/`)
+- Subagent runs **§ Worker** Phases 0–4 (spawn `Task`; parent must not edit application source in the worktree)
 - Parent merge + post-merge Phase 3 on `TARGET_BRANCH`
+- **Cleanup** per orchestration Step 4 — mandatory before Phase A′:
 
-Do not start deploy until execute is fully complete on **`TARGET_BRANCH`**. Quote execute evidence (subagent handoff + post-merge gates) before deploying.
+```bash
+git worktree list
+git worktree remove "$WORKTREE_DIR"   # skip only for same-checkout fallback
+git branch -d "$EXEC_BRANCH"
+git worktree list   # prove exec worktree entry gone
+```
+
+Do not start **push or deploy** until execute is fully complete on **`TARGET_BRANCH`** **and** cleanup evidence is quoted. Quote subagent handoff + post-merge gates + cleanup output before deploying.
+
+If prod debugging starts after merge, **still run cleanup first** — do not defer because a follow-up bug appeared.
 
 ---
 
 ## Phase A′ — Auto-push
 
-From **`REPO_ROOT` on `TARGET_BRANCH`** (after merge), push **only if** `origin` exists (unless the user forbade push in this thread):
+From **`REPO_ROOT` on `TARGET_BRANCH`** (after merge **and** Phase A cleanup), push **only if** `origin` exists (unless the user forbade push in this thread):
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
@@ -75,14 +87,25 @@ Deploy hotfixes that change source → subagent + worktree per andx-deploy failu
 ## Progress tracking
 
 ```
-Execute (target: main):
-- [x] Worktree created
-- [x] Subagent exec passed
-- [x] Merged to target — post-merge regression passed
+Execute (target: main; exec: andx/exec-…):
+- [x] Worktree created ($WORKTREE_DIR under .worktrees/)
+- [x] Subagent handoff — pass
+- [x] Merged to target — post-merge Phase 3 passed
+- [x] Worktree cleaned — `git worktree list` before/after; `git branch -d $EXEC_BRANCH`
 - [x] Pushed origin (or skipped — no origin)
 
 Deploy: (see andx-deploy checklist)
 ```
+
+Do not check **Pushed origin** or start deploy until **Worktree cleaned** is checked with fresh command output.
+
+## Anti-patterns
+
+- Push or deploy after merge but before worktree cleanup
+- Parent edits worktree inline instead of spawning subagent worker
+- Ad-hoc worktree path (`marketeye-api-exec/`, `*-exec/`) instead of `.worktrees/$EXEC_BRANCH`
+- Treating "merged + pushed + deployed" as done when `git worktree list` still shows the exec entry
+- Deferring cleanup because prod debugging continued in the same session
 
 ## Optional pairing
 
