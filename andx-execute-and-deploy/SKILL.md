@@ -7,6 +7,8 @@ description: Runs /andx-execute orchestrator (subagent in always-on worktree, me
 
 Implement via subagent in a worktree, merge and verify on `TARGET_BRANCH`, auto-push when `origin` exists, then deploy and confirm production health.
 
+Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
+
 ## When to use
 
 - User invokes `/andx-execute-and-deploy` or asks to execute a plan **and** deploy to production

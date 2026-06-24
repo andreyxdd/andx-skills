@@ -7,6 +7,8 @@ description: Orchestrates subagent execution of an approved plan in an always-on
 
 Turn an approved plan into shipped, verified code on `TARGET_BRANCH`. Parent orchestrates; subagent implements in a worktree.
 
+Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
+
 ## When to use
 
 - User invokes `/andx-execute` or asks to execute/run a plan with verification and commit
@@ -62,8 +64,9 @@ Run once; do not skip:
 1. **Worktree** — run orchestration Step 1 (always; never skip for clean tree).
 2. **Anchor the plan** — source (file path, issue URL, or message) and step IDs/titles. Prefer **project-local** `.cursor/plans/*.plan.md` with `andx_ready: true` (workspace root = target repo; never `~/.cursor/plans`). If the plan omits steps or lacks `depends`/`touch`/`verification`, suggest **`/andx-plan`** once; do not invent scope.
 3. **Parse andx plan steps** — when the plan has `### step-N` blocks, extract `kind`, `depends`, `touch`, `success`, `verification` per [/andx-plan/PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md). Missing `depends` on step-N (N>1) → sequential chain. Topological sort → log computed waves in progress (single worker today).
-4. **Load OKF context** — when plan frontmatter includes `pipeline_stage` and/or `knowledge_refs`:
+4. **Load OKF context** — when plan frontmatter includes `pipeline_stage`, `knowledge_refs`, and/or `design_refs`:
    - Read each path in `knowledge_refs` (relative to project root)
+   - When `design_refs` present, read those paths and include as **immutable design contract** in worker prompt (endpoints, module interface — drift during execute = out of scope unless user amends plan)
    - Read `pipeline/<pipeline_stage>/CONTEXT.md` when `pipeline_stage` is set
    - Include loaded content in the worker spawn prompt (cited concepts + active stage Inputs/Process/Outputs)
 5. **Discover toolchain** — from `package.json`, `pyproject.toml`, `Makefile`, `.github/workflows`, or repo docs: test runner, lint, build, e2e.
@@ -88,7 +91,7 @@ After preflight, spawn subagent per orchestration Step 2. Prompt must include:
 
 - Full anchored plan and step classification
 - **`REACT_STACK`** boolean and react-best-practices skill path when true
-- OKF context block (when plan has `knowledge_refs` / `pipeline_stage`): cited concept files + active `pipeline/<stage>/CONTEXT.md`
+- OKF context block (when plan has `knowledge_refs` / `design_refs` / `pipeline_stage`): cited concept files + design contract + active `pipeline/<stage>/CONTEXT.md`
 - Draft verification table (or instruct worker to build in Phase 0)
 - Pointer: **§ Worker** section below
 - Handoff schema from orchestration
@@ -143,7 +146,8 @@ When the plan originates from [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.
 | 1 | backend | One falsifiable sentence | Exact command or test name |
 
 3. **UI steps** — add **UX criterion** (keyboard path, responsive breakpoint, a11y rule, or browser check).
-4. Show the table briefly, then start Phase 1. Do not code before the table exists.
+4. When plan has `design_refs`, each backend step's success criterion must trace to an operation in the design contract.
+5. Show the table briefly, then start Phase 1. Do not code before the table exists.
 
 ## Phase 1 — Execute with TDD
 
@@ -248,6 +252,9 @@ Per passed gate: **command**, **outcome** (exit code / pass count), **snippet** 
 | Test discipline | `/tdd` |
 | UI/UX step | `/impeccable` |
 | React/Next step | `/react-best-practices` |
+| New service/job observability | `/observability` |
+| UI browser verification | `/agent-browser` |
+| Dependency upgrade plan | `/dependency-upgrade` |
 | Completion claims | `fresh verification output in the current message before completion claims` |
 | Commit wording | `/caveman-commit` |
 | Security-sensitive change | `/security-review` |

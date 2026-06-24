@@ -7,6 +7,8 @@ description: Readonly debug-like-expert analysis on primary checkout, then execu
 
 Diagnose with evidence first, then execute a written plan. Parent orchestrates; subagents analyze (readonly) or implement (worktree only).
 
+Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
+
 ## When to use
 
 - User invokes `/andx-debug-and-fix` or reports a bug/failure without a ready execution plan

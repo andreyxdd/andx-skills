@@ -7,6 +7,8 @@ description: Scaffold OKF + ICM hybrid layout into a target repo — IDENTITY, R
 
 Bootstrap **OKF** (knowledge bundle) + **ICM** (pipeline stages) into a project repo. All writes are **additive** — existing files are never overwritten.
 
+Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
+
 ## When to use
 
 - User invokes `/andx-init` or asks to scaffold OKF/ICM layout

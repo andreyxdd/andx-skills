@@ -7,6 +7,8 @@ description: Deploys the current revision to production and verifies health. Sou
 
 Ship the current revision to production and confirm the running system is healthy. No implementation phase unless deploy failure requires a code hotfix (subagent + worktree).
 
+Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
+
 ## When to use
 
 - User invokes `/andx-deploy` or asks to deploy to production and verify health
@@ -44,6 +46,8 @@ D. Verify app running + deploy healthy
 ## Phase B — Discover how production deploy works
 
 **Always read project context fresh** — do not cache deploy commands from a prior session.
+
+When deploy method is unclear after doc scan, read `~/.cursor/skills/github-workflows/SKILL.md` to interpret `.github/workflows/*.yml` (triggers, deploy jobs, `workflow_dispatch`).
 
 | Look for | Typical signals |
 |----------|-----------------|
@@ -164,4 +168,5 @@ Per gate: **command**, **outcome**, **snippet**.
 | Situation | Skill |
 |-----------|--------|
 | Implement then deploy | `/andx-execute-and-deploy` |
+| CI/workflow discovery unclear | `/github-workflows` |
 | Completion claims | `fresh verification output in the current message before completion claims` |

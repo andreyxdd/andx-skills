@@ -7,6 +7,8 @@ description: Plans features for andx execution — grill-with-docs domain interv
 
 Bridge from **idea** to **`/andx-execute`**: grill domain terms, then write an execution-ready plan at **`<project>/.cursor/plans/<slug>.plan.md`** (workspace root must be the target repo).
 
+Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
+
 ## When to use
 
 - User invokes `/andx-plan` or asks to plan for andx execution
@@ -23,12 +25,20 @@ Bridge from **idea** to **`/andx-execute`**: grill domain terms, then write an e
 | [/grill-with-docs](../grill-with-docs/SKILL.md) | Domain interview rules (Phase 1) |
 | [/andx-init](../andx-init/SKILL.md) | Scaffold OKF + ICM when `knowledge/` missing |
 | [PLAN-FORMAT.md](./PLAN-FORMAT.md) | Output template and parsing rules |
+| `~/.cursor/skills/design-an-interface/SKILL.md` | Phase 1.5 — module boundary (conditional) |
+| `~/.cursor/skills/api-design/SKILL.md` | Phase 1.5 — HTTP/GraphQL contract (conditional) |
+| `~/.cursor/skills/create-mcp-server/SKILL.md` | Phase 1.5 — MCP tool surface (conditional) |
+| `~/.cursor/skills/accessibility/SKILL.md` | Phase 2 — a11y criteria on UI steps (conditional) |
+| `~/.cursor/skills/impeccable/SKILL.md` | Phase 2 — UX notes on UI steps (conditional) |
+
+Upstream (see SKILL-MAP): `write-a-prd` before greenfield planning; `grill-me` blocks when scope still hand-wavy after Phase 0.
 
 ## Workflow overview
 
 ```
 Phase 0 — Anchor (read OKF + ICM + legacy CONTEXT, decide domain grill)
 Phase 1 — Domain grill (when needed; grill-with-docs)
+Phase 1.5 — Design pass (conditional; design-an-interface, api-design, create-mcp-server)
 Phase 2 — Execution grill (always; steps, depends, touch)
 Phase 3 — Write .cursor/plans/<slug>.plan.md
 ```
@@ -82,6 +92,46 @@ Exit when the user confirms domain scope is stable.
 
 ---
 
+## Phase 1.5 — Design pass (conditional)
+
+Run when **any** of:
+
+- Plan adds a **new module** or non-obvious seam (`kind: backend` step with new package/dir)
+- Plan adds or changes **HTTP/GraphQL surface** (routes, handlers, OpenAPI, schema files)
+- User asks to "design API" / "shape interface"
+- No existing `knowledge/apis/` or `knowledge/modules/` doc covers the scope
+
+**Skip** when extending a documented API/module with the same contract → set `design_pass: skipped` in plan frontmatter.
+
+Do **not** duplicate skill prose — read and delegate.
+
+### Module shape unclear
+
+Read `~/.cursor/skills/design-an-interface/SKILL.md`:
+
+- **Default:** produce 3 designs sequentially in-thread (skill Steps 1–5)
+- **User gate:** after requirements, offer parallel subagents for high-stakes work; spawn 3–4 `Task` agents only when user confirms
+- **Capture:** `knowledge/modules/<slug>.md` (`type: module`); append `knowledge/log.md`
+- First doc? Copy from `andx-init/templates/app/knowledge/modules/_TEMPLATE.md`
+
+### HTTP/GraphQL contract
+
+Read `~/.cursor/skills/api-design/SKILL.md`:
+
+- After interface pick when both apply; alone when endpoint extends a known module
+- **Capture:** `knowledge/apis/<slug>.md` (`type: api`); link in plan — do not duplicate in plan body
+- First doc? Copy from `andx-init/templates/app/knowledge/apis/_TEMPLATE.md`
+
+### MCP tool surface
+
+Read `~/.cursor/skills/create-mcp-server/SKILL.md` → `knowledge/apis/mcp-<slug>.md`.
+
+Record invoked skills in plan frontmatter `companion_skills`. Add paths to `design_refs` and `knowledge_refs`.
+
+Exit when user confirms design is stable → Phase 2 with concrete `touch` and verification from the contract.
+
+---
+
 ## Phase 2 — Execution grill (always)
 
 One question at a time. Build the step list before writing the file.
@@ -105,6 +155,9 @@ Rules:
 - Multi-step plans must have explicit `depends`.
 - 1–2 step plans still include `depends` and `touch` (may be trivial).
 - Present the full step list for user approval before Phase 3.
+- **UI steps:** when a11y matters, read `~/.cursor/skills/accessibility/SKILL.md` and bake criteria into `success`/`verification`; add `accessibility` to `companion_skills`.
+- **UI/UX-heavy steps:** note impeccable intent in step title or success; add `impeccable` to `companion_skills` when applicable.
+- When Phase 1.5 ran, step `success` must reference contract concretely (e.g. `POST /v1/refunds returns 201 with Location`).
 
 ---
 
@@ -115,8 +168,13 @@ Write `.cursor/plans/<slug>.plan.md` using [PLAN-FORMAT.md](./PLAN-FORMAT.md).
 Include frontmatter:
 
 - `pipeline_stage` — active ICM stage id from `ROUTING.md` (e.g. `03-build`)
-- `knowledge_refs` — bracket list of `knowledge/` paths the plan depends on
+- `knowledge_refs` — bracket list of `knowledge/` paths the plan depends on (must include all `design_refs`)
+- `design_pass` — `true` \| `skipped`
+- `design_refs` — bracket list of `knowledge/apis/*.md` and `knowledge/modules/*.md` when Phase 1.5 ran
+- `companion_skills` — skills actually invoked (e.g. `[api-design, design-an-interface]`)
 - `stack` — when detected or confirmed in Phase 0 (`react-next`, `react`, `next`, or `none`)
+
+When Phase 1.5 produced artifacts, add optional body section `## Design contract` (links only — no duplicate of knowledge files). See [PLAN-FORMAT.md](./PLAN-FORMAT.md).
 
 Do not write the file until the user approves the step list from Phase 2.
 
@@ -157,6 +215,9 @@ Report the absolute plan path in the reply.
 - Writing the plan file before user approves the step list
 - Skipping `depends` on multi-step plans
 - Duplicating grill-with-docs prose — link and delegate instead
+- Duplicating api-design or design-an-interface prose in the plan — link `knowledge/` files
+- Spawning parallel design subagents without user confirmation
+- Auto-invoking every companion skill on every plan
 
 ## Optional pairing
 

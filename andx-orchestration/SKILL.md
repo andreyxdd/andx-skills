@@ -7,6 +7,8 @@ description: Parent-orchestrator protocol for andx skills — always-on worktree
 
 Shared protocol for **parent orchestrators**. The parent never edits application source; subagents implement in an isolated worktree and merge back to `TARGET_BRANCH`.
 
+Skill routing: [SKILL-MAP.md](./SKILL-MAP.md)
+
 ## Roles
 
 | Role | Edits source? | Runs deploy/SSH? |
@@ -185,6 +187,7 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 
 ## Referenced by
 
+- [SKILL-MAP.md](./SKILL-MAP.md) — companion skill routing for the andx stack
 - [/andx-init](../andx-init/SKILL.md) — scaffolds OKF + ICM layout consumed by plan/execute
 - [/andx-plan](../andx-plan/SKILL.md) — produces `.cursor/plans/*.plan.md` this stack consumes
 - [/andx-execute](../andx-execute/SKILL.md) — Orchestrator + Worker

@@ -10,8 +10,11 @@ name: Human-readable title
 overview: One sentence describing outcome
 andx_ready: true
 domain_grilled: true
+design_pass: true
 pipeline_stage: 03-build
-knowledge_refs: [knowledge/domain/glossary.md]
+knowledge_refs: [knowledge/domain/glossary.md, knowledge/apis/refund-request.md]
+design_refs: [knowledge/apis/refund-request.md]
+companion_skills: [api-design]
 stack: react-next
 source: thread
 todos: []
@@ -38,6 +41,11 @@ touch: [web/src/pages/foo/, web/src/components/foo/]
 success: Page renders empty state when list is empty
 verification: pnpm --filter web test src/pages/foo.test.tsx
 
+## Design contract
+
+- API: knowledge/apis/refund-request.md
+- Chosen shape: one paragraph + link; no duplicate of knowledge files
+
 ## Next
 
 - `/andx-execute` on this plan
@@ -52,8 +60,11 @@ verification: pnpm --filter web test src/pages/foo.test.tsx
 | `overview` | yes | One sentence |
 | `andx_ready` | yes | `true` when structured steps present |
 | `domain_grilled` | yes | `true` \| `skipped` |
+| `design_pass` | when Phase 1.5 applies | `true` \| `skipped` |
 | `pipeline_stage` | when OKF layout present | ICM stage id from `ROUTING.md` (e.g. `03-build`, `02-draft`) |
-| `knowledge_refs` | when OKF layout present | Bracket list of `knowledge/` paths cited by this plan |
+| `knowledge_refs` | when OKF layout present | Bracket list of `knowledge/` paths cited by this plan (must include all `design_refs`) |
+| `design_refs` | when Phase 1.5 ran | Bracket list of `knowledge/apis/*.md` and `knowledge/modules/*.md` |
+| `companion_skills` | when companion skills invoked | Bracket list, e.g. `[api-design, design-an-interface, accessibility]` |
 | `stack` | no | `react-next` \| `react` \| `next` \| `none` — drives `REACT_STACK` in `/andx-execute` (`none` disables) |
 | `source` | yes | `thread` \| `plan-mode` \| issue URL |
 | `todos` | no | Cursor todos; execution steps live in body |
@@ -77,7 +88,7 @@ Step ids must match `step-\d+` (e.g. `step-1`, `step-2`).
 ## Parsing rules (`/andx-execute` Orchestrator)
 
 1. Prefer plans with `andx_ready: true`.
-2. Parse `pipeline_stage`, `knowledge_refs`, and `stack` from frontmatter when present.
+2. Parse `pipeline_stage`, `knowledge_refs`, `design_refs`, `companion_skills`, and `stack` from frontmatter when present.
 3. Parse each `### step-N` block into the verification table.
 4. Missing `depends` on step-N (N>1) → treat as `depends: [step-{N-1}]` (sequential chain).
 5. Missing `kind` → ask once; default `backend` only if user confirms.

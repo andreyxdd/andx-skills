@@ -7,6 +7,8 @@ description: Executes an approved plan in an isolated worktree, then gates the m
 
 Implement via a subagent in an isolated worktree, then **gate the merge behind independent review**. Nothing unreviewed reaches `TARGET_BRANCH`. The same worker fixes blocking findings; review and fix loop until clean or escalation.
 
+Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
+
 **Primary tool:** Cursor. Plans live at `<repo>/.cursor/plans/*.plan.md`. Use `move_agent_to_root` when workspace ≠ target repo.
 
 ## When to use
@@ -65,7 +67,8 @@ Spawn reviewers as **fresh `Task` subagents** (new spawns, not the worker; no sh
 
 - **Read-only** — reviewers judge; they do not edit application source.
 - **Adversarial framing** — "Find what's wrong. Default to requesting changes. Justify any pass."
-- Give them: `git diff TARGET_BRANCH..EXEC_BRANCH`, the plan (with `touch` scope + step `success`/`verification`), and the worker's verification evidence.
+- Give them: `git diff TARGET_BRANCH..EXEC_BRANCH`, the plan (with `touch` scope + step `success`/`verification`), plan `design_refs` when present, and the worker's verification evidence.
+- When `design_refs` present: endpoint/module shape drift from contract = **HIGH → BLOCKS** (all reviewers).
 
 Run reviewers **in parallel**:
 
@@ -116,6 +119,18 @@ Read `~/.cursor/skills/react-best-practices/SKILL.md`. Check the diff against pr
 | Waterfall fetch, barrel import, RSC over-serialization | **HIGH → BLOCKS** |
 | Re-render/rendering issues with measurable perf risk | **MEDIUM → fix-or-justify** |
 | LOW `js-` optimizations | **LOW → advisory** |
+
+### Reviewer 6 — Accessibility (CONDITIONAL)
+
+Run **only** when the diff touches UI (`.tsx`/`.jsx`, `app/`, `pages/`, `components/`) **and** the plan lists `accessibility` in `companion_skills` or step `success` mentions a11y/WCAG/keyboard/screen reader.
+
+Read `~/.cursor/skills/accessibility/SKILL.md`. Map findings to VERDICT:
+
+| Finding | Severity |
+|---------|----------|
+| WCAG A/AA violation on changed UI | **HIGH → BLOCKS** |
+| Missing keyboard path or focus management | **HIGH → BLOCKS** |
+| Minor contrast or label gaps | **MEDIUM → fix-or-justify** |
 
 ### Verdict contract (all reviewers)
 
