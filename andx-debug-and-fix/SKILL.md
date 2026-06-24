@@ -27,6 +27,7 @@ Diagnose with evidence first, then execute a written plan. Parent orchestrates; 
 | `fresh verification output in the current message before completion claims` | Fresh output before "fixed" or "done" |
 | `/tdd` | Test-first in Phase D (subagent) |
 | `/impeccable` | UI bugs only (subagent) |
+| `~/.cursor/skills/react-best-practices/SKILL.md` | React/Next fixes when `REACT_STACK` (subagent) |
 
 Optional: `/grill-me` when expected behavior is ambiguous.
 
@@ -120,7 +121,8 @@ After debug analyst handoff status is **`pass`**:
    - Step 2: Implement recommended fix (cite files/lines from handoff)
    - Step 3: Full regression + commit
 4. Build **verification table** (same columns as andx-execute Phase 0)
-5. Show plan and table briefly before Phase D
+5. **Detect React stack** — same rules as [/andx-execute](../andx-execute/SKILL.md) preflight step 6 (`REACT_STACK` from `package.json`, recommended-fix `touch` paths). Log `REACT_STACK: true|false`.
+6. Show plan and table briefly before Phase D
 
 No source edits from parent.
 
@@ -141,6 +143,9 @@ DEBUG HANDOFF (anchored plan source):
 
 EXECUTION PLAN (from Phase C):
 [numbered steps + verification table]
+
+REACT_STACK: true|false (from Phase C preflight)
+When REACT_STACK: follow /react-best-practices (~/.cursor/skills/react-best-practices/SKILL.md) per /andx-execute § Worker.
 
 Follow /andx-execute § Worker in WORKTREE_DIR.
 Implement Recommended Fix minimally; do not re-investigate unless verification fails (Phase 2 loop).
@@ -193,4 +198,5 @@ Same as andx-execute: **command**, **outcome**, **snippet** per gate.
 | Expected behavior unclear | `/grill-me` |
 | Execution / TDD | `/andx-execute` Worker + `/tdd` |
 | UI defect | `/impeccable` |
+| React/Next defect | `/react-best-practices` |
 | Security regression | `/security-review` |

@@ -56,7 +56,9 @@ Use `Task` with `subagent_type="generalPurpose"`. Include in the prompt:
 - `WORKTREE_DIR`, `EXEC_BRANCH`, `TARGET_BRANCH`, `REPO_ROOT`
 - Worker skill section to follow (e.g. andx-execute Worker, debug analyst readonly, deploy-hotfix worker)
 - Anchored plan, verification table (or template), bug/deploy evidence
-- Required companion skills: `/tdd`, `/impeccable` (UI only). Show fresh verification output before completion claims.
+- Required companion skills: `/tdd`, fresh verification output before completion claims.
+- When **`REACT_STACK`** (parent preflight): `/react-best-practices` (`~/.cursor/skills/react-best-practices/SKILL.md`). Pass `REACT_STACK: true|false` and skill path in the prompt.
+- When **`ui` or `mixed` steps**: `/impeccable`.
 - **Return schema** (below)
 
 ```text

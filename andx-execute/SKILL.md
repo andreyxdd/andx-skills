@@ -23,8 +23,11 @@ If acceptance criteria are vague, ask clarifying questions, run **`/andx-plan`**
 | `/tdd` | Red → green → refactor (subagent) |
 | `fresh verification output in the current message before completion claims` | Evidence before claims (both) |
 | `/impeccable` | UI/UX steps only (subagent) |
+| `~/.cursor/skills/react-best-practices/SKILL.md` | React/Next steps when `REACT_STACK` (subagent) |
 
 Apply `/impeccable` **only** for steps that change user-visible UI. Skip for backend, CLI, migrations, and config-only work.
+
+Apply `/react-best-practices` when **`REACT_STACK`** and the step touches React/Next paths (`.tsx`, `.jsx`, `app/`, `pages/`, `components/`) or `kind` is `ui`/`mixed`. Skip when `stack: none` in plan frontmatter.
 
 ## Karpathy guidelines
 
@@ -64,14 +67,27 @@ Run once; do not skip:
    - Read `pipeline/<pipeline_stage>/CONTEXT.md` when `pipeline_stage` is set
    - Include loaded content in the worker spawn prompt (cited concepts + active stage Inputs/Process/Outputs)
 5. **Discover toolchain** — from `package.json`, `pyproject.toml`, `Makefile`, `.github/workflows`, or repo docs: test runner, lint, build, e2e.
-6. **Reuse existing gates** — align verification table with plan step `verification` fields, `VERIFICATION.md`, plan appendix, or CI.
-7. **Classify steps** — use plan `kind` when present; else each `backend` | `ui` | `mixed`. `ui` and `mixed` trigger `/impeccable` in the worker prompt.
+6. **Detect React stack** — set **`REACT_STACK`** for worker spawn and progress log:
+
+   ```text
+   REACT_STACK = false when plan frontmatter stack: none
+   REACT_STACK = true when ANY (otherwise):
+     1. plan frontmatter stack ∈ {react, react-next, next}
+     2. package.json (root or workspace package matching step touch) lists react or next
+     3. ≥1 plan step touch prefix matches .tsx|.jsx or ^(app|pages|components|src)/
+   ```
+
+   Log `REACT_STACK: true|false` in orchestrator progress.
+
+7. **Reuse existing gates** — align verification table with plan step `verification` fields, `VERIFICATION.md`, plan appendix, or CI.
+8. **Classify steps** — use plan `kind` when present; else each `backend` | `ui` | `mixed`. `ui` and `mixed` trigger `/impeccable` in the worker prompt. When `REACT_STACK`, flag steps whose `touch` includes `.tsx`/`.jsx` or Next app dirs for `/react-best-practices`.
 
 ## Spawn worker
 
 After preflight, spawn subagent per orchestration Step 2. Prompt must include:
 
 - Full anchored plan and step classification
+- **`REACT_STACK`** boolean and react-best-practices skill path when true
 - OKF context block (when plan has `knowledge_refs` / `pipeline_stage`): cited concept files + active `pipeline/<stage>/CONTEXT.md`
 - Draft verification table (or instruct worker to build in Phase 0)
 - Pointer: **§ Worker** section below
@@ -148,6 +164,13 @@ For each step, in order:
 3. Implement with `/tdd` using the project's existing test levels.
 4. After GREEN: `/impeccable` polish or `audit` if the plan requires visual/a11y quality.
 
+**React/Next steps** (when `REACT_STACK` and step touches React paths or kind is `ui`/`mixed`):
+
+1. Read `~/.cursor/skills/react-best-practices/SKILL.md`; for touched patterns pull matching `rules/` files (priority: `async-`, `bundle-`, `server-`).
+2. Before refactor-at-green: check CRITICAL/HIGH rules apply to the change.
+3. After GREEN: scan `rerender-`/`rendering-` rules if state or components changed.
+4. Handoff evidence: cite rule id when applying a non-obvious fix (e.g. `bundle-barrel-imports`).
+
 Do not skip steps with open dependencies. Do not batch "all tests then all code."
 
 **Scope guard:** Work not in the plan → ask, or log `OUT OF SCOPE: …` and continue only after user confirms.
@@ -205,6 +228,7 @@ Per passed gate: **command**, **outcome** (exit code / pass count), **snippet** 
 - Stale "tests passed" claims
 - Refactoring while red
 - `/impeccable` on backend-only steps
+- Skipping react-best-practices on `.tsx`/React-path steps when `REACT_STACK`
 - Merging to `TARGET_BRANCH` from worker
 - Removing worktree before parent merge
 - One commit mixing unrelated plan chunks
@@ -223,6 +247,7 @@ Per passed gate: **command**, **outcome** (exit code / pass count), **snippet** 
 | Plan unclear | `/grill-me` |
 | Test discipline | `/tdd` |
 | UI/UX step | `/impeccable` |
+| React/Next step | `/react-best-practices` |
 | Completion claims | `fresh verification output in the current message before completion claims` |
 | Commit wording | `/caveman-commit` |
 | Security-sensitive change | `/security-review` |

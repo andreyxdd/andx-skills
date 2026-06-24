@@ -34,3 +34,4 @@ install_target "$HOME/.cursor/skills"
 install_target "$HOME/.claude/skills"
 
 echo "Done. Canonical source: $ROOT"
+echo "Run ./install-companions.sh for optional companions (e.g. react-best-practices)."

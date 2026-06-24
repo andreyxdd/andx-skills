@@ -52,7 +52,8 @@ Handoff: **`/andx-execute`** on the plan path. Optional later: **`/andx-schedule
    - Active stage `pipeline/<stage>/CONTEXT.md` (Inputs / Process / Outputs)
    - Legacy `CONTEXT.md` / `CONTEXT-MAP.md`, relevant `docs/adr/`, thread text, or Plan mode draft
 2. If `knowledge/` is **missing**, suggest **`/andx-init`** once (pick preset: app | data | content). Do not block planning if user declines — fall back to legacy `CONTEXT.md` only.
-3. Decide domain grill:
+3. **Detect stack** — when `package.json` lists `react` or `next`, propose `stack: react-next` (or `react` / `next`) for plan frontmatter; use `stack: none` when user confirms non-React scope.
+4. Decide domain grill:
 
 | Situation | Phase 1 |
 |-----------|---------|
@@ -115,6 +116,7 @@ Include frontmatter:
 
 - `pipeline_stage` — active ICM stage id from `ROUTING.md` (e.g. `03-build`)
 - `knowledge_refs` — bracket list of `knowledge/` paths the plan depends on
+- `stack` — when detected or confirmed in Phase 0 (`react-next`, `react`, `next`, or `none`)
 
 Do not write the file until the user approves the step list from Phase 2.
 

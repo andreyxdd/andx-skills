@@ -25,6 +25,7 @@ Implement via a subagent in an isolated worktree, then **gate the merge behind i
 | [/andx-execute](../andx-execute/SKILL.md) | Worker Phases 0–4 (subagent) |
 | [/review](../review/SKILL.md) | Code-quality reviewer (Cursor) |
 | [/security-review](../security-review/SKILL.md) | Security reviewer when conditional gate applies |
+| `~/.cursor/skills/react-best-practices/SKILL.md` | React perf reviewer when diff touches React paths (conditional) |
 | `fresh verification output in the current message before completion claims` | Evidence before claims (parent) |
 | `/tdd` | Test-first (subagent) |
 
@@ -82,7 +83,19 @@ Run **only** when the diff touches: auth/authorization/session, user input → D
 
 Invoke [/security-review](../security-review/SKILL.md) on the diff.
 
-### Verdict contract (both reviewers)
+### Reviewer 3 — React performance (CONDITIONAL)
+
+Run **only** when the diff touches `.tsx`/`.jsx` files or paths under `app/`, `pages/`, or `components/`.
+
+Read `~/.cursor/skills/react-best-practices/SKILL.md`. Check the diff against priority 1–3 rule categories (`async-`, `bundle-`, `server-`). Map findings to VERDICT:
+
+| Finding | Severity |
+|---------|----------|
+| Waterfall fetch, barrel import, RSC over-serialization | **HIGH → BLOCKS** |
+| Re-render/rendering issues with measurable perf risk | **MEDIUM → fix-or-justify** |
+| LOW `js-` optimizations | **LOW → advisory** |
+
+### Verdict contract (all reviewers)
 
 ```
 ## VERDICT
@@ -99,11 +112,11 @@ advisory:
 
 ## Phase D — Merge verdicts
 
-- **BLOCK if either reviewer blocks.** Union of all blocker lines.
+- **BLOCK if any reviewer blocks.** Union of all blocker lines.
 - Medium findings → worker must **fix or justify-and-defer** with a logged reason.
 - Low/advisory → logged, never block.
 
-If both `PASS` and no unresolved Medium → go to Phase F.
+If all reviewers `PASS` and no unresolved Medium → go to Phase F.
 
 ### Fail-safe parse rule
 
@@ -118,7 +131,7 @@ For each round (max **3**):
 1. **Resume the same worker** (`Task` with `resume=<agent_id>`) with the union blocker list + unresolved Mediums. If resume unavailable, spawn a new worker pointed at `WORKTREE_DIR` with the fix list — branch + commits persist on disk.
 2. Worker fixes — surgical, scoped to findings.
 3. Worker **re-runs Phase 3** on `EXEC_BRANCH` and re-commits.
-4. Re-review: changed lines + previously-flagged items only.
+4. Re-review: **always re-run Reviewer 1**; re-run Reviewers 2 and 3 when their conditional gates still apply. Scope to changed lines + previously-flagged items only.
 5. Clean → Phase F.
 
 After **3 rounds** still blocked → **escalate to user**. **Do not merge.**
@@ -137,7 +150,7 @@ Per [/andx-orchestration](../andx-orchestration/SKILL.md) Step 4:
 ## Definition of done
 
 - Worker handoff `pass`; verification table green on EXEC_BRANCH
-- All reviewer verdicts `PASS` (or Mediums justified); zero unresolved blockers
+- All reviewer verdicts `PASS` (Reviewer 1 always; 2 and 3 when conditional gates applied); zero unresolved blockers
 - `EXEC_BRANCH` merged into `TARGET_BRANCH`; post-merge Phase 3 green
 - Worktree removed and branch deleted with logged evidence
 
@@ -169,3 +182,4 @@ Execute + Review (plan: .cursor/plans/x.plan.md; target: main):
 | Execute + deploy | `/andx-execute-and-deploy` |
 | Plan missing depends/touch/verification | `/andx-plan` |
 | Deep security pass standalone | `/security-review` |
+| React/Next perf review standalone | `/react-best-practices` |

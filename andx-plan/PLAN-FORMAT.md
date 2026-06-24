@@ -12,6 +12,7 @@ andx_ready: true
 domain_grilled: true
 pipeline_stage: 03-build
 knowledge_refs: [knowledge/domain/glossary.md]
+stack: react-next
 source: thread
 todos: []
 isProject: false
@@ -53,6 +54,7 @@ verification: pnpm --filter web test src/pages/foo.test.tsx
 | `domain_grilled` | yes | `true` \| `skipped` |
 | `pipeline_stage` | when OKF layout present | ICM stage id from `ROUTING.md` (e.g. `03-build`, `02-draft`) |
 | `knowledge_refs` | when OKF layout present | Bracket list of `knowledge/` paths cited by this plan |
+| `stack` | no | `react-next` \| `react` \| `next` \| `none` — drives `REACT_STACK` in `/andx-execute` (`none` disables) |
 | `source` | yes | `thread` \| `plan-mode` \| issue URL |
 | `todos` | no | Cursor todos; execution steps live in body |
 | `isProject` | yes | `false` for feature plans |
@@ -75,7 +77,7 @@ Step ids must match `step-\d+` (e.g. `step-1`, `step-2`).
 ## Parsing rules (`/andx-execute` Orchestrator)
 
 1. Prefer plans with `andx_ready: true`.
-2. Parse `pipeline_stage` and `knowledge_refs` from frontmatter when present.
+2. Parse `pipeline_stage`, `knowledge_refs`, and `stack` from frontmatter when present.
 3. Parse each `### step-N` block into the verification table.
 4. Missing `depends` on step-N (N>1) → treat as `depends: [step-{N-1}]` (sequential chain).
 5. Missing `kind` → ask once; default `backend` only if user confirms.

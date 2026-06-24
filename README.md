@@ -42,6 +42,7 @@ andx-init/scripts/scaffold.sh app /path/to/repo
 
 ```bash
 ./install.sh
+./install-companions.sh   # optional; React/Next companion skills
 ```
 
 Symlinks each skill into:
@@ -63,9 +64,15 @@ Symlinks each skill into:
 
 ## Companion skills (install separately)
 
+Run `./install-companions.sh` after `./install.sh` for bundled companion installers, or install manually.
+
 Required for full andx flows in `~/.cursor/skills/`:
 
 - `grill-with-docs`, `grill-me`
 - `tdd`, `review`, `security-review`
 - `impeccable` (UI steps in execute)
 - `caveman-commit` (optional)
+
+**React/Next projects** — installed by `./install-companions.sh`:
+
+- [`react-best-practices`](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices) — Vercel perf rules; auto-wired into `/andx-execute` worker when `REACT_STACK` is detected (see `andx-execute` preflight) and as a conditional reviewer in `/andx-execute-and-review`. Plan frontmatter `stack: react-next` (or `react` / `next`) forces it on; `stack: none` disables.
