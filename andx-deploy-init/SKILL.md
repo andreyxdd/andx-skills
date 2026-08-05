@@ -19,6 +19,10 @@ Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · [CHECKLIST.
 | [/andx-deploy](../andx-deploy/SKILL.md) | Pair only after merged CI/CD |
 | `github-workflows` | Discover existing CI/workflow patterns when needed |
 
+## Workspace gate
+
+Before Phase A reads or writes, confirm Cursor workspace is target app repo. If not, call `move_agent_to_root` from `cursor-app-control` with target repo path. Never read or write target `.cursor/plans/` from a different workspace root.
+
 ## Workflow
 
 ```
@@ -54,7 +58,7 @@ Show plan path and wait for explicit approval. Do not begin implementation befor
 
 ### F. Execute with review
 
-Invoke `/andx-execute-and-review` on approved CI/CD plan. Do not use plain `/andx-execute`.
+Invoke `/andx-execute-and-review` on approved CI/CD plan. Do not use plain `/andx-execute` or `/andx-execute-and-deploy`: first-time CI/CD must not auto-push or deploy production.
 
 ### G. Stop
 
@@ -65,13 +69,11 @@ After reviewed merge and verification, stop. Suggest `/andx-deploy` for a separa
 - Skipping checklist or plan confirmation
 - Implementing CI/CD before checklist confirmation
 - Using plain `/andx-execute` for first-time CI/CD
+- Using `/andx-execute-and-deploy`; only `/andx-execute-and-review` implements this plan
 - Auto-deploying after merge
 - Putting production secret values in chat, plans, commits, or ADRs
 
-## Optional pairing
+## Next
 
-| Situation | Skill |
-|---|---|
-| Workflow conventions unclear | `/github-workflows` |
-| CI/CD plan implementation | `/andx-execute-and-review` |
-| Merged revision ready to ship | `/andx-deploy` |
+- Before merge: `/andx-execute-and-review` only.
+- After reviewed merge: suggest `/andx-deploy`; never auto-run it.

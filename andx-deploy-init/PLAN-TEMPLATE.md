@@ -1,6 +1,6 @@
 # CI/CD plan template
 
-Write this file in target app repo as `.cursor/plans/<slug>-cicd.plan.md`. Adapt paths and commands from actual repo discovery.
+Write this file in target app repo as `.cursor/plans/<slug>-cicd.plan.md`. Replace every placeholder with grill answers and discovered repository paths. Select only relevant steps: CI/CD need not use Docker Compose, Caddy, GHCR, SSH, or a VPS.
 
 ```markdown
 ---
@@ -31,33 +31,33 @@ touch: [docs/adr/, docs/deploy.md, knowledge/doc-sync-map.md]
 success: ADR/runbook documents deploy trigger, rollback, health check, and secret ownership.
 verification: npm run verify:docs
 
-### step-2 — Add runtime deployment configuration
+### step-2 — Add deployment configuration
 kind: mixed
 depends: [step-1]
-touch: [compose.prod.yml, Caddyfile, Dockerfile]
-success: Production compose and reverse proxy expose only documented routes and health endpoint.
-verification: docker compose -f compose.prod.yml config
+touch: [<deployment-config-paths>]
+success: Deployment configuration matches chosen runtime, network boundary, and health endpoint.
+verification: <detected configuration validation command>
 
-### step-3 — Add remote deploy preflight
+### step-3 — Add deployment preflight
 kind: backend
 depends: [step-2]
-touch: [scripts/deploy-remote.sh, scripts/deploy-preflight.sh]
-success: Preflight fails before SSH deployment when required environment or health configuration is absent.
-verification: make deploy-dry-run
+touch: [<deploy-script-or-platform-config>]
+success: Preflight fails before deployment when required configuration or health settings are absent.
+verification: <detected dry-run or validation command>
 
 ### step-4 — Add CI and deployment workflows
 kind: mixed
 depends: [step-3]
-touch: [.github/workflows/ci.yml, .github/workflows/deploy.yml]
-success: CI validates revision and deploy workflow publishes GHCR image then deploys through SSH without exposing secrets.
-verification: grep -q 'ghcr.io' .github/workflows/deploy.yml && grep -q 'ssh' .github/workflows/deploy.yml
+touch: [.github/workflows/<ci>.yml, .github/workflows/<deploy>.yml]
+success: CI validates revision and selected deployment workflow uses secret references without exposing secret values.
+verification: <workflow-specific static validation command>
 
 ### step-5 — Verify operator path
 kind: docs
 depends: [step-4]
-touch: [docs/deploy.md, Makefile]
+touch: [docs/deploy.md, <operator-command-path>]
 success: Runbook and dry-run command provide reproducible deploy and rollback steps.
-verification: make deploy-dry-run
+verification: <detected dry-run command>
 
 ## Next
 
@@ -66,3 +66,11 @@ verification: make deploy-dry-run
 ```
 
 Use detected stack (`react`, `next`, `react-next`, or `none`) and actual doc verifier. If target repo has no OKF bundle, use `knowledge_refs: []` and omit `pipeline_stage`.
+
+## VPS + GHCR archetype (optional)
+
+When grill answers select a Docker VPS and GHCR, substitute these concrete examples:
+
+- runtime config: `compose.prod.yml`, `Caddyfile`, `Dockerfile`; verify `docker compose -f compose.prod.yml config`;
+- deploy preflight: `scripts/deploy-remote.sh`, `scripts/deploy-preflight.sh`; verify `make deploy-dry-run`;
+- workflows: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`; verify required `ghcr.io` and SSH references without printing secrets.
