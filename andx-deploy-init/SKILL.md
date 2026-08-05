@@ -72,6 +72,7 @@ After reviewed merge and verification, stop. Suggest `/andx-deploy` for a separa
 - Using `/andx-execute-and-deploy`; only `/andx-execute-and-review` implements this plan
 - Auto-deploying after merge
 - Putting production secret values in chat, plans, commits, or ADRs
+- Echoing private keys or weakening SSH host verification
 
 ## Next
 

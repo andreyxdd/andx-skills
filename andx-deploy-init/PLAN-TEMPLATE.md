@@ -71,6 +71,8 @@ Use detected stack (`react`, `next`, `react-next`, or `none`) and actual doc ver
 
 When grill answers select a Docker VPS and GHCR, substitute these concrete examples:
 
-- runtime config: `compose.prod.yml`, `Caddyfile`, `Dockerfile`; verify `docker compose -f compose.prod.yml config`;
+- runtime config: `compose.prod.yml`, `Caddyfile`, `Dockerfile`; verify `docker compose -f compose.prod.yml config --quiet`;
 - deploy preflight: `scripts/deploy-remote.sh`, `scripts/deploy-preflight.sh`; verify `make deploy-dry-run`;
 - workflows: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`; verify required `ghcr.io` and SSH references without printing secrets.
+
+Never run rendered `docker compose ... config` with production `.env` in CI logs: interpolation can expose secrets. Use `config --quiet` or a dry-run that does not render environment values.

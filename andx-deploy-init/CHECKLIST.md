@@ -18,7 +18,9 @@ Complete outside chat. Confirm completion without sending secret values.
 - [ ] Environment protection rules and deployment approvals configured if required.
 - [ ] Secret names match workflow plan exactly.
 
-Regenerate `PRODUCTION_KNOWN_HOSTS` when server IP changes.
+For `PRODUCTION_SSH_KEY`, CI must set `umask 077`, write with `printf` to a temporary file, `chmod 600` it, use `IdentitiesOnly=yes`, then delete it after the job. Never echo, shell-trace, or log PEM content.
+
+Regenerate `PRODUCTION_KNOWN_HOSTS` out-of-band when server IP changes, using `ssh-keyscan` only while updating the secret after verifying the fingerprint. Do not run runtime `ssh-keyscan` as deployment trust establishment.
 
 ## VPS
 
@@ -31,6 +33,7 @@ Regenerate `PRODUCTION_KNOWN_HOSTS` when server IP changes.
 ## App environment
 
 - [ ] Production `.env` stored on VPS, outside Git and image layers.
+- [ ] Production `.env` is owned by deployment user and `chmod 600`.
 - [ ] Required runtime variables set; secrets not echoed by deploy commands.
 - [ ] Backup, migration, and rollback paths documented when stateful data exists.
 
@@ -44,6 +47,8 @@ Regenerate `PRODUCTION_KNOWN_HOSTS` when server IP changes.
 - [ ] SSH host entry or command works with production user/key.
 - [ ] Host fingerprint verified before adding to local known hosts.
 - [ ] Operator can access logs and run documented rollback command.
+
+CI SSH must pin `StrictHostKeyChecking=yes` and `UserKnownHostsFile` to a temporary known-hosts file populated from `PRODUCTION_KNOWN_HOSTS`. Never use `StrictHostKeyChecking=no` or runtime keyscan-as-trust.
 
 ## Health
 
