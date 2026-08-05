@@ -18,6 +18,8 @@ Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
 
 **Not for:** running tests, editing application source, or deploying.
 
+**First-time CI/CD:** use [/andx-deploy-init](../andx-deploy-init/SKILL.md), which grills production decisions, requires manual infrastructure confirmation, then routes the plan to `/andx-execute-and-review`.
+
 ## Required companion skills
 
 | Skill | Role |
@@ -274,6 +276,7 @@ Report the absolute plan path in the reply.
 
 | Situation | Skill |
 |-----------|--------|
+| First-time CI/CD bootstrap | `/andx-deploy-init` |
 | No OKF layout yet | `/andx-init` |
 | Execute the plan | `/andx-execute` |
 | Execute + review gate | `/andx-execute-and-review` |

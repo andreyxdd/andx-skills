@@ -10,6 +10,7 @@ SKILLS=(
   andx-orchestration
   andx-debug-and-fix
   andx-deploy
+  andx-deploy-init
   andx-execute-and-deploy
   andx-execute-and-review
 )

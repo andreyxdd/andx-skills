@@ -13,6 +13,7 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 | `andx-execute-and-deploy` | Execute + push + deploy |
 | `andx-debug-and-fix` | Readonly debug-like-expert analysis → execute worker |
 | `andx-deploy` | Deploy + health check |
+| `andx-deploy-init` | First-time CI/CD grill, checklist, and review-gated plan |
 | `andx-orchestration` | Shared parent/worktree protocol |
 
 ## Hybrid layout (OKF + ICM)

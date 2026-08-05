@@ -73,7 +73,12 @@ All reviewers: endpoint/module shape drift vs `design_refs` = **HIGH → BLOCKS*
 |-------|---------|------|
 | `debug-like-expert` | Unknown root cause | Phase B readonly analyst |
 
-## Deploy phase (`/andx-deploy`)
+## Deploy phase
+
+| Skill | Trigger | When |
+|-------|---------|------|
+| [/andx-deploy-init](../andx-deploy-init/SKILL.md) | First production CI/CD setup | Grill, manual checklist, then review-gated CI/CD plan |
+| [/andx-deploy](../andx-deploy/SKILL.md) | Ship committed revision | Production deploy + health check |
 
 | Skill | Trigger | When |
 |-------|---------|------|

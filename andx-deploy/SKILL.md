@@ -17,6 +17,8 @@ Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
 
 **Not for:** writing or testing new features — use `/andx-execute` or `/andx-execute-and-deploy`.
 
+**First-time CI/CD:** use [/andx-deploy-init](../andx-deploy-init/SKILL.md). It grills deployment decisions, pauses for manual infrastructure setup, and routes implementation through `/andx-execute-and-review`.
+
 **Full implement + deploy** — use [/andx-execute-and-deploy](../andx-execute-and-deploy/SKILL.md).
 
 ## Required companion skills
@@ -167,6 +169,7 @@ Per gate: **command**, **outcome**, **snippet**.
 
 | Situation | Skill |
 |-----------|--------|
+| First-time CI/CD bootstrap | `/andx-deploy-init` |
 | Implement then deploy | `/andx-execute-and-deploy` |
 | CI/workflow discovery unclear | `/github-workflows` |
 | Completion claims | `fresh verification output in the current message before completion claims` |
