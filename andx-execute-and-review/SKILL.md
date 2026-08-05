@@ -25,13 +25,13 @@ Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
 |-------|------|
 | [/andx-orchestration](../andx-orchestration/SKILL.md) | Worktree isolation, spawn, merge-back (parent) |
 | [/andx-execute](../andx-execute/SKILL.md) | Worker Phases 0–4 (subagent) |
-| [/review](../review/SKILL.md) | Code-quality reviewer (Cursor) |
-| [/security-review](../security-review/SKILL.md) | Security reviewer when conditional gate applies |
+| [/review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) | Bugbot reviewer (Reviewer 1) |
+| [/review-security](~/.cursor/skills-cursor/review-security/SKILL.md) | Security reviewer (Reviewer 2) |
 | `~/.cursor/skills-cursor/ponytail-review/SKILL.md` | Over-engineering diff review (always) |
 | `~/.cursor/skills-cursor/ponytail-audit/SKILL.md` | Scoped bloat audit when diff adds deps/files (conditional) |
 | `~/.cursor/skills/react-best-practices/SKILL.md` | React perf reviewer when diff touches React paths (conditional) |
 | `fresh verification output in the current message before completion claims` | Evidence before claims (parent) |
-| `/tdd` | Test-first (subagent) |
+| [/andx-pr-review](../andx-pr-review/SKILL.md) | Post human MR comments from REVIEW-ARTIFACT (no double discovery) |
 
 ## Core principle
 
@@ -72,23 +72,24 @@ Spawn reviewers as **fresh `Task` subagents** (new spawns, not the worker; no sh
 
 Run reviewers **in parallel**:
 
-### Reviewer 1 — Code quality + Karpathy compliance (ALWAYS)
+### Reviewer 1 — Bugbot (ALWAYS)
 
-Invoke [/review](../review/SKILL.md) on the diff, then **re-express as a VERDICT block** and layer Karpathy checks:
+Launch `bugbot` subagent per [review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) on `git diff TARGET_BRANCH..EXEC_BRANCH`.
+
+Layer **Karpathy surgical scope** on results:
 
 | Karpathy rule | Check | Severity |
 |---------------|-------|----------|
 | **3. Surgical changes** | Every changed file/line within the plan's `touch` scope. Out-of-scope edits = violation. | **HIGH → BLOCKS** |
 | **2. Simplicity** | Speculative abstraction, unused config/flexibility, needless indirection. | **MEDIUM → fix-or-justify** |
-| **4. Verification** | Enforced upstream via worker Phase 3 — not re-judged here. | (upstream) |
 
-Rule 1 (state assumptions) belongs in `/andx-plan` / `/grill-me`, not in diff review.
+Re-express blockers as VERDICT lines. Fold findings into REVIEW-ARTIFACT (step below).
 
-### Reviewer 2 — Security (CONDITIONAL)
+### Reviewer 2 — Security (ALWAYS)
 
-Run **only** when the diff touches: auth/authorization/session, user input → DB/filesystem/shell, new external surfaces, secrets/crypto, or LLM features (prompt, tools, RAG, model output → sink).
+Launch `security-review` subagent per [review-security](~/.cursor/skills-cursor/review-security/SKILL.md) on the same diff.
 
-Invoke [/security-review](../security-review/SKILL.md) on the diff.
+Merge VERDICT blockers into union. Fold findings into REVIEW-ARTIFACT.
 
 ### Reviewer 3 — Over-engineering (ALWAYS)
 
@@ -132,6 +133,28 @@ Read `~/.cursor/skills/accessibility/SKILL.md`. Map findings to VERDICT:
 | Missing keyboard path or focus management | **HIGH → BLOCKS** |
 | Minor contrast or label gaps | **MEDIUM → fix-or-justify** |
 
+### Reviewer 7 — UX/API contract (CONDITIONAL)
+
+Run when diff touches **UI forms** (settings, modals, wizards) **and** **API client** paths (`apiSlice`, RTK mutations/queries, fetch wrappers, generated clients).
+
+Read-only pass for **client/server state mismatches**:
+
+- Button disabled vs draft local state
+- Validate/test actions that only hit server-stored values (no request body)
+- Save-before-test flows; empty tooltips when `hasDetail` true
+
+Output: `ux_flow` + `api_note` per finding into REVIEW-ARTIFACT. **Does not BLOCK** unless paired with Reviewer 1/2 HIGH on same issue.
+
+### REVIEW-ARTIFACT (on PASS, before merge)
+
+After all reviewers PASS, parent writes `.cursor/reviews/<plan-slug>.json` on `EXEC_BRANCH` per [FINDINGS-SCHEMA.md](../andx-pr-review/FINDINGS-SCHEMA.md):
+
+- Union findings from Reviewers 1–3, 5–7 (dedup by `location` / root cause)
+- Include `head_sha` of EXEC_BRANCH tip, `plan` path, `verdict: PASS`
+- Commit on EXEC_BRANCH before merge (worker or parent): `chore(review): add REVIEW-ARTIFACT for <plan-slug>`
+
+Enables [/andx-pr-review](../andx-pr-review/SKILL.md) to skip subagents when MR head matches.
+
 ### Verdict contract (all reviewers)
 
 ```
@@ -168,7 +191,7 @@ For each round (max **3**):
 1. **Resume the same worker** (`Task` with `resume=<agent_id>`) with the union blocker list + unresolved Mediums. If resume unavailable, spawn a new worker pointed at `WORKTREE_DIR` with the fix list — branch + commits persist on disk.
 2. Worker fixes — surgical, scoped to findings.
 3. Worker **re-runs Phase 3** on `EXEC_BRANCH` and re-commits.
-4. Re-review: **always re-run Reviewers 1 and 3**; re-run Reviewers 2, 4, and 5 when their conditional gates still apply. Scope to changed lines + previously-flagged items only.
+4. Re-review: **always re-run Reviewers 1, 2, and 3**; re-run Reviewers 4, 5, 6, and 7 when their conditional gates still apply. Scope to changed lines + previously-flagged items only.
 5. Clean → Phase F.
 
 After **3 rounds** still blocked → **escalate to user**. **Do not merge.**
@@ -221,7 +244,8 @@ Execute + Review (plan: .cursor/plans/x.plan.md; target: main):
 | Execute without review gate | `/andx-execute` |
 | Execute + deploy | `/andx-execute-and-deploy` |
 | Plan missing depends/touch/verification | `/andx-plan` |
-| Deep security pass standalone | `/security-review` |
+| Deep security pass standalone | `/review-security` |
+| Remote MR human comments | `/andx-pr-review` |
 | Over-engineering diff review standalone | `/ponytail-review` |
 | React/Next perf review standalone | `/react-best-practices` |
 | Scoped or repo-wide bloat audit standalone | `/ponytail-audit` |

@@ -64,16 +64,18 @@ Run once; do not skip:
 1. **Worktree** — run orchestration Step 1 (always; never skip for clean tree).
 2. **Anchor the plan** — source (file path, issue URL, or message) and step IDs/titles. Prefer **project-local** `.cursor/plans/*.plan.md` with `andx_ready: true` (workspace root = target repo; never `~/.cursor/plans`). If the plan omits steps or lacks `depends`/`touch`/`verification`, suggest **`/andx-plan`** once; do not invent scope.
 3. **Parse andx plan steps** — when the plan has `### step-N` blocks, extract `kind`, `depends`, `touch`, `success`, `verification` per [/andx-plan/PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md). Missing `depends` on step-N (N>1) → sequential chain. Topological sort → log computed waves in progress (single worker today).
+   - Set **`DOCS_ONLY`** when plan frontmatter `workstream: docs` OR every step has `kind: docs`. Pass to worker prompt.
 4. **Load OKF context** — when plan frontmatter includes `pipeline_stage`, `knowledge_refs`, and/or `design_refs`:
    - Read each path in `knowledge_refs` (relative to project root)
    - When `design_refs` present, read those paths and include as **immutable design contract** in worker prompt (endpoints, module interface — drift during execute = out of scope unless user amends plan)
    - Read `pipeline/<pipeline_stage>/CONTEXT.md` when `pipeline_stage` is set
    - Include loaded content in the worker spawn prompt (cited concepts + active stage Inputs/Process/Outputs)
 5. **Discover toolchain** — from `package.json`, `pyproject.toml`, `Makefile`, `.github/workflows`, or repo docs: test runner, lint, build, e2e.
+   - **Doc verifier** — when `package.json` scripts include `verify:docs` or `scripts/verify-docs.mjs` exists, add to verification table for doc steps and Phase 3 when `DOCS_ONLY` or `workstream: mixed`.
 6. **Detect React stack** — set **`REACT_STACK`** for worker spawn and progress log:
 
    ```text
-   REACT_STACK = false when plan frontmatter stack: none
+   REACT_STACK = false when plan frontmatter stack: none OR workstream: docs
    REACT_STACK = true when ANY (otherwise):
      1. plan frontmatter stack ∈ {react, react-next, next}
      2. package.json (root or workspace package matching step touch) lists react or next
@@ -91,6 +93,7 @@ After preflight, spawn subagent per orchestration Step 2. Prompt must include:
 
 - Full anchored plan and step classification
 - **`REACT_STACK`** boolean and react-best-practices skill path when true
+- **`DOCS_ONLY`** boolean when set in preflight
 - OKF context block (when plan has `knowledge_refs` / `design_refs` / `pipeline_stage`): cited concept files + design contract + active `pipeline/<stage>/CONTEXT.md`
 - Draft verification table (or instruct worker to build in Phase 0)
 - Pointer: **§ Worker** section below
@@ -103,8 +106,10 @@ Wait for handoff. On **pass** → orchestration Steps 4 (merge, post-merge Phase
 After merge to `TARGET_BRANCH`:
 
 1. Full regression gate (CI-equivalent: test, lint, build, e2e if applicable).
-2. Re-run every verification-table row.
-3. Apply `fresh verification output in the current message before completion claims` before completion language.
+2. **Post-merge/rebase lint** — always run discovered lint (`pnpm run lint`, `npm run lint`, etc.) even for `DOCS_ONLY` plans; merges from `main` can introduce formatting debt in untouched `src/`.
+3. When doc verifier exists and plan touched docs, run it (`pnpm verify:docs` or equivalent).
+4. Re-run every verification-table row.
+5. Apply `fresh verification output in the current message before completion claims` before completion language.
 
 Use commands discovered in preflight; run from `REPO_ROOT` on `TARGET_BRANCH`.
 
@@ -153,7 +158,16 @@ When the plan originates from [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.
 
 For each step, in order:
 
-**All steps**
+**`kind: docs` steps (or `DOCS_ONLY` plan)**
+
+1. Read `knowledge/doc-sync-map.md` tiers before writing — do not duplicate across ADR/feature/diagram/runbook.
+2. Implement the doc change (write/edit markdown, cross-links, `knowledge/log.md`).
+3. **Gate** — run the step's `verification` (usually doc verifier). Quote 1–3 relevant lines of output.
+4. Mark step done only after the gate passes.
+
+No Red/Green TDD loop for `kind: docs`.
+
+**All other steps (`backend` / `ui` / `mixed`)**
 
 1. **Red** — one failing test for observable behavior. Run verification → must fail for the right reason.
 2. **Green** — minimal implementation. Run verification → must pass.
@@ -197,9 +211,10 @@ FAIL → diagnose (one root cause)
 
 ## Phase 3 — Final verification (on EXEC_BRANCH)
 
-1. Full regression gate (CI-equivalent: test, lint, build, e2e if applicable).
-2. Re-run every row in the verification table.
-3. Apply `fresh verification output in the current message before completion claims` before handoff.
+1. Full regression gate (CI-equivalent: test, lint, build, e2e if applicable) — **lint even when `DOCS_ONLY`**.
+2. When doc verifier exists and plan touched docs, run it.
+3. Re-run every row in the verification table.
+4. Apply `fresh verification output in the current message before completion claims` before handoff.
 
 Use focused tests per step in Phase 1; full suite here.
 
@@ -229,6 +244,7 @@ Per passed gate: **command**, **outcome** (exit code / pass count), **snippet** 
 ## Worker anti-patterns
 
 - Verification table after coding
+- TDD Red/Green on `kind: docs` steps
 - Stale "tests passed" claims
 - Refactoring while red
 - `/impeccable` on backend-only steps

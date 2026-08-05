@@ -54,7 +54,8 @@ mkdir -p "$REPO/.cursor/plans"
 
 GITIGNORE="$REPO/.gitignore"
 LINES=(
-  "pipeline/*/output/"
+  "pipeline/*/output/*"
+  "!pipeline/*/output/.gitkeep"
   ".cursor/plans/"
 )
 if [[ -f "$GITIGNORE" ]]; then

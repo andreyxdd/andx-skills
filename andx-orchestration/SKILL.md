@@ -135,6 +135,10 @@ git merge "$EXEC_BRANCH"    # resolve conflicts on TARGET_BRANCH if needed
 
 **Re-run Phase 3** on `TARGET_BRANCH` (full regression + every verification-table row). Parent runs these gates — do not trust subagent-only evidence after merge.
 
+**Post-merge/rebase lint (mandatory):** Run discovered lint on `TARGET_BRANCH` even for docs-only plans. A merge from `main` can fail CI on formatting in files the plan never touched.
+
+**Lint failures on merged code:** Parent must **not** patch `src/` inline. Spawn a one-step worker in a fresh worktree (or resume worker) with `verification: pnpm run lint --fix` (or repo equivalent), merge, re-run Phase 3.
+
 ### Cleanup (mandatory after post-merge Phase 3 passes)
 
 Run from `REPO_ROOT` on `TARGET_BRANCH`. Quote fresh command output in the reply — not optional.
@@ -166,7 +170,7 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 
 ## Parent forbidden actions
 
-- `StrReplace` / `Write` on application source, tests, migrations, or config in primary checkout
+- `StrReplace` / `Write` on application source, tests, migrations, or config in primary checkout (including trivial prettier/eslint fixes — spawn worker instead)
 - Claiming "done" before merge + post-merge Phase 3 on `TARGET_BRANCH`
 - Reusing stale subagent output without fresh post-merge gates
 - Skipping worktree because the tree is clean

@@ -31,9 +31,14 @@ All presets create:
 - `ROUTING.md` — active pipeline stage pointer
 - `knowledge/index.md`, `knowledge/log.md`, `knowledge/domain/glossary.md`
 - `pipeline/<stage>/CONTEXT.md` (Inputs / Process / Outputs)
-- `pipeline/<stage>/output/` (gitignored)
+- `pipeline/<stage>/output/.gitkeep` (tracked; other output contents gitignored)
 - `.cursor/plans/` directory
-- `.gitignore` lines: `pipeline/*/output/`, `.cursor/plans/`
+- `.gitignore` lines: `pipeline/*/output/*`, `!pipeline/*/output/.gitkeep`, `.cursor/plans/`
+
+`app` preset also creates:
+
+- `AGENTS.md` — agent entry point (links OKF + doc verifier)
+- `knowledge/doc-sync-map.md` — code path → doc tier triggers (stub)
 
 ## Workflow
 
@@ -51,19 +56,25 @@ Or when `andx-init` is installed via `./install.sh`:
 "$(dirname "$(readlink -f ~/.cursor/skills/andx-init 2>/dev/null || echo .)")/scripts/scaffold.sh" <preset> <repo_root>
 ```
 
-4. **Report** — list created vs skipped paths; remind user to fill `IDENTITY.md` and glossary.
-5. **Next** — `/andx-plan` on the target repo.
+4. **Report** — list created vs skipped paths.
+5. **Post-init checklist** (remind user; do not block):
+   - Fill `IDENTITY.md` (Audience, Constraints, Non-goals — no empty sections)
+   - Seed `knowledge/domain/glossary.md` with ≥10 domain terms as features are documented
+   - Set `ROUTING.md` active stage to match current work (usually `01-discover` → `03-build` when implementing)
+   - If `package.json` has `verify:docs` or repo has `scripts/verify-docs.mjs`, note it in the report
+6. **Next** — `/andx-plan` on the target repo.
 
 ## Brownfield policy
 
 - Existing files → **skip** (logged as `skip (exists): …`)
 - Missing dirs/files → create
 - `.gitignore` → append lines only if absent
+- If `.gitignore` still has legacy `pipeline/*/output/` (ignores `.gitkeep`), suggest migrating to `pipeline/*/output/*` + `!pipeline/*/output/.gitkeep`
 
 ## Git policy
 
-- Scaffold output is **committed by default** (IDENTITY, ROUTING, knowledge skeleton, pipeline CONTEXT).
-- `pipeline/*/output/` and `.cursor/plans/` stay **gitignored** (ephemeral artifacts).
+- Scaffold output is **committed by default** (IDENTITY, ROUTING, knowledge skeleton, pipeline CONTEXT, `AGENTS.md` + `doc-sync-map` for `app`).
+- `pipeline/*/output/*` stays **gitignored** except tracked `.gitkeep` per stage; `.cursor/plans/` gitignored (ephemeral).
 - Re-run scaffold safely on repos that already have partial layout.
 
 ## Required companion skills

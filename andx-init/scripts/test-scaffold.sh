@@ -38,7 +38,8 @@ for preset in app data content; do
   assert "[$preset] knowledge/index.md" is_file "$dir/knowledge/index.md"
   assert "[$preset] glossary" is_file "$dir/knowledge/domain/glossary.md"
   assert "[$preset] glossary frontmatter" file_contains "$dir/knowledge/domain/glossary.md" "type: Glossary"
-  assert "[$preset] gitignore pipeline output" file_contains "$dir/.gitignore" 'pipeline/\*/output/'
+  assert "[$preset] gitignore pipeline output" file_contains "$dir/.gitignore" 'pipeline/\*/output/\*'
+  assert "[$preset] gitignore gitkeep exception" file_contains "$dir/.gitignore" '!pipeline/\*/output/.gitkeep'
   assert "[$preset] gitignore plans" file_contains "$dir/.gitignore" '.cursor/plans/'
   assert "[$preset] .cursor/plans dir" is_dir "$dir/.cursor/plans"
 
@@ -48,6 +49,9 @@ for preset in app data content; do
       assert "[$preset] 04-verify" is_file "$dir/pipeline/04-verify/CONTEXT.md"
       assert "[$preset] apis subtree" is_dir "$dir/knowledge/apis"
       assert "[$preset] output dir" is_dir "$dir/pipeline/01-discover/output"
+      assert "[$preset] output gitkeep" is_file "$dir/pipeline/01-discover/output/.gitkeep"
+      assert "[$preset] AGENTS.md" is_file "$dir/AGENTS.md"
+      assert "[$preset] doc-sync-map" is_file "$dir/knowledge/doc-sync-map.md"
       ;;
     data)
       assert "[$preset] 01-catalog" is_file "$dir/pipeline/01-catalog/CONTEXT.md"

@@ -5,6 +5,7 @@ OKF-style concept bundle. Each file under `knowledge/` is one concept with YAML 
 ## Start here
 
 - [Glossary](domain/glossary.md)
+- [Doc sync map](doc-sync-map.md) — code path → doc targets
 
 ## By area
 

@@ -63,16 +63,63 @@ Handoff: **`/andx-execute`** on the plan path. Optional later: **`/andx-schedule
    - Legacy `CONTEXT.md` / `CONTEXT-MAP.md`, relevant `docs/adr/`, thread text, or Plan mode draft
 2. If `knowledge/` is **missing**, suggest **`/andx-init`** once (pick preset: app | data | content). Do not block planning if user declines — fall back to legacy `CONTEXT.md` only.
 3. **Detect stack** — when `package.json` lists `react` or `next`, propose `stack: react-next` (or `react` / `next`) for plan frontmatter; use `stack: none` when user confirms non-React scope.
-4. Decide domain grill:
+4. **Detect workstream** — propose `workstream` for plan frontmatter:
+
+| Signal | `workstream` |
+|--------|--------------|
+| Code feature (default) | `code` |
+| Docs/diagrams/OKF only, no `src/` changes | `docs` |
+| Feature + matching docs/runbooks | `mixed` |
+
+When `workstream: docs`, set `stack: none` unless code steps are also planned.
+
+5. **Detect doc verifier** — when `package.json` scripts include `verify:docs` or `scripts/verify-docs.mjs` exists, default doc-step `verification` to that command (e.g. `pnpm verify:docs`).
+
+6. Decide domain grill:
 
 | Situation | Phase 1 |
 |-----------|---------|
 | Domain fuzzy, no glossary/CONTEXT coverage, or term conflicts | **Run** full domain grill |
 | Domain already grilled; glossary + stage CONTEXT cover scope | **Skip** — set `domain_grilled: skipped` in plan frontmatter |
 
-4. Record active stage id (e.g. `03-build`) for plan frontmatter `pipeline_stage`.
-5. Propose plan slug (kebab-case) → output path `.cursor/plans/<slug>.plan.md`.
-6. Confirm slug with user before Phase 2 if ambiguous.
+7. Record active stage id (e.g. `03-build`) for plan frontmatter `pipeline_stage`.
+8. Propose plan slug (kebab-case) → output path `.cursor/plans/<slug>.plan.md`.
+9. Confirm slug with user before Phase 2 if ambiguous.
+
+When scope matches a **plan archetype** below, propose its step skeleton in Phase 2 instead of inventing from scratch.
+
+---
+
+## Plan archetypes
+
+Use when the user's ask clearly fits. Adapt `touch` paths from repo exploration.
+
+### Mirror-doc (document X like existing Y)
+
+When a canonical diagram/feature doc exists and a sibling flow needs the same shape.
+
+Typical steps:
+
+1. Read mirror doc + source code for the new flow (`kind: docs`)
+2. Write new diagram/feature doc matching sections/phases (`kind: docs`)
+3. Update `knowledge/doc-sync-map.md` trigger row (`kind: docs`)
+4. Cross-link glossary, module stub, runbook Notes (`kind: docs`)
+5. `pnpm verify:docs` (or repo equivalent) (`kind: docs`)
+
+### OKF hardening (brownfield bundle cleanup)
+
+When `knowledge/` exists but is thin: empty glossary, missing module stubs, stale ROUTING.
+
+Typical steps:
+
+1. Align `ROUTING.md` + `IDENTITY.md` with reality (`kind: docs`)
+2. Expand `knowledge/index.md` navigation (`kind: docs`)
+3. Glossary ≥10–15 terms + `knowledge/log.md` entry (`kind: docs`)
+4. Module stubs in `knowledge/modules/` (`kind: docs`)
+5. Runbook Notes → diagram links; extend `doc-sync-map` (`kind: docs`)
+6. Doc verifier green (`kind: docs`)
+
+Skip Phase 1.5 (api-design) for both archetypes unless the plan also adds HTTP surface.
 
 ---
 
@@ -142,7 +189,7 @@ Per step, resolve:
 |-------|----------|
 | `step-N` id | yes |
 | Title | yes |
-| `kind` | `backend` \| `ui` \| `mixed` |
+| `kind` | `backend` \| `ui` \| `mixed` \| `docs` |
 | `depends` | `[]` or `[step-N, …]` |
 | `touch` | path prefixes from repo exploration, or `unknown` |
 | `success` | one falsifiable sentence |
@@ -152,6 +199,7 @@ Per step, resolve:
 Rules:
 
 - Explore the repo to propose realistic `touch` paths — do not default every step to `unknown`.
+- **`kind: docs`** — `touch` is doc paths (`docs/`, `knowledge/`); `verification` is doc verifier or link check; no TDD; read [doc-sync-map](knowledge/doc-sync-map.md) tiers before writing.
 - Multi-step plans must have explicit `depends`.
 - 1–2 step plans still include `depends` and `touch` (may be trivial).
 - Present the full step list for user approval before Phase 3.
@@ -168,6 +216,7 @@ Write `.cursor/plans/<slug>.plan.md` using [PLAN-FORMAT.md](./PLAN-FORMAT.md).
 Include frontmatter:
 
 - `pipeline_stage` — active ICM stage id from `ROUTING.md` (e.g. `03-build`)
+- `workstream` — `code` \| `docs` \| `mixed` (from Phase 0)
 - `knowledge_refs` — bracket list of `knowledge/` paths the plan depends on (must include all `design_refs`)
 - `design_pass` — `true` \| `skipped`
 - `design_refs` — bracket list of `knowledge/apis/*.md` and `knowledge/modules/*.md` when Phase 1.5 ran
@@ -218,6 +267,8 @@ Report the absolute plan path in the reply.
 - Duplicating api-design or design-an-interface prose in the plan — link `knowledge/` files
 - Spawning parallel design subagents without user confirmation
 - Auto-invoking every companion skill on every plan
+- `kind: backend` on pure documentation steps
+- Skipping `doc-sync-map` + `knowledge/log.md` on plans that add or reshape docs
 
 ## Optional pairing
 
