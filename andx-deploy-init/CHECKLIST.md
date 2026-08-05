@@ -18,7 +18,7 @@ Complete outside chat. Confirm completion without sending secret values.
 - [ ] Environment protection rules and deployment approvals configured if required.
 - [ ] Secret names match workflow plan exactly.
 
-For `PRODUCTION_SSH_KEY`, CI must set `umask 077`, write with `printf` to a temporary file, `chmod 600` it, use `IdentitiesOnly=yes`, then delete it after the job. Never echo, shell-trace, or log PEM content.
+For `PRODUCTION_SSH_KEY`, CI must set `umask 077`, create `KEYFILE` with `mktemp`, register `trap 'rm -f "$KEYFILE"' EXIT` before writing it, use `printf` to write it, `chmod 600` it, and use `IdentitiesOnly=yes`. Never echo, shell-trace, or log PEM content.
 
 Regenerate `PRODUCTION_KNOWN_HOSTS` out-of-band when server IP changes, using `ssh-keyscan` only while updating the secret after verifying the fingerprint. Do not run runtime `ssh-keyscan` as deployment trust establishment.
 
