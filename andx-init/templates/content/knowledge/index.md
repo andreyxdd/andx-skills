@@ -1,6 +1,6 @@
 # Knowledge index
 
-OKF-style concept bundle. Each file under `knowledge/` is one concept with YAML frontmatter (`type` required).
+OKF concept bundle. Files under `knowledge/` use YAML frontmatter (`type` required).
 
 ## Start here
 
@@ -8,6 +8,6 @@ OKF-style concept bundle. Each file under `knowledge/` is one concept with YAML 
 
 ## By area
 
-- [Topics](topics/)
-- [Audience](audience/)
-- [Voice](voice/)
+- [Topics](topics/) · [Audience](audience/) · [Voice](voice/)
+
+Plans may set `workstream` / `stack` (see [IDENTITY.md](../IDENTITY.md) stubs; default `stack: none`).
