@@ -84,7 +84,16 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-pr-review/FINDINGS-SCHEMA.md) to `.
 
 | Skill | Trigger | When |
 |-------|---------|------|
-| `andx-pr-review` | MR/PR URL | After push; uses artifact when `head_sha` matches |
+| `andx-pr-review` | MR/PR URL | After push; **review** + draft/post comments; uses artifact when `head_sha` matches |
+| `andx-mr-babysit` | MR/PR URL + babysit / merge-ready | After push (or after pr-review) when conflicts/comments/CI must be **fixed** toward merge |
+
+**Order:** review (`andx-pr-review`) → fix (`andx-mr-babysit`). GitHub + `~/.cursor/skills-cursor/babysit` present → mr-babysit delegates to Cursor babysit after auth/checkout; else andx-owned `gh`/`glab` loop via [HOSTS.md](../andx-pr-review/HOSTS.md).
+
+| | `andx-pr-review` | `andx-mr-babysit` | Cursor `babysit` |
+|--|------------------|------------------|------------------|
+| Job | Findings + comments | Merge-ready fixes | Same jobs as mr-babysit (GitHub-native) |
+| Hosts | glab / gh / Bitbucket draft | Same HOSTS; Bitbucket may escalate | GitHub only |
+| Implements code? | No | Yes (PR scope) | Yes |
 
 ## Debug / deploy
 

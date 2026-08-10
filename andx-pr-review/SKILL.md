@@ -24,7 +24,7 @@ Companion docs: [COMMENT-STYLE.md](./COMMENT-STYLE.md) · [REPORT-FORMAT.md](./R
 - Review teammate's MR and leave styled comments
 - After `/andx-execute-and-review` — format/post from `REVIEW-ARTIFACT` (no double discovery)
 
-**Not for:** implementing fixes, merging, or local branch gates (use `/andx-execute-and-review`).
+**Not for:** implementing fixes, merging, or local branch gates (use `/andx-execute-and-review`). For **merge-ready** (resolve conflicts, triage comments, fix CI) use `/andx-mr-babysit`.
 
 ## Relationship to `/andx-execute-and-review`
 
@@ -176,3 +176,4 @@ Use `--unique` on re-runs to avoid duplicate bodies.
 | Author built via plan | `/andx-execute-and-review` first → artifact → `/andx-pr-review` |
 | Local merge gate only | `/andx-execute-and-review` |
 | Security-only pass | `--fast` + manual security or `/review-security` |
+| Drive MR to merge-ready | `/andx-mr-babysit` after review (or alone when only fixes needed) |

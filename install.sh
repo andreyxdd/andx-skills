@@ -15,6 +15,7 @@ SKILLS=(
   andx-execute-and-deploy
   andx-execute-and-review
   andx-pr-review
+  andx-mr-babysit
 )
 
 install_target() {
