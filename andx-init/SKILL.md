@@ -27,7 +27,8 @@ Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
 
 All presets create:
 
-- `IDENTITY.md` — audience, constraints, non-goals
+- `IDENTITY.md` — audience, constraints, non-goals, plus **andx stubs** (`workstream`, `stack`)
+- `AGENTS.md` — slim entry: read order, `/andx-plan` → Next → `go`, HARNESS/SKILL-MAP pointer, deploy rediscovery note
 - `ROUTING.md` — active pipeline stage pointer
 - `knowledge/index.md`, `knowledge/log.md`, `knowledge/domain/glossary.md`
 - `pipeline/<stage>/CONTEXT.md` (Inputs / Process / Outputs)
@@ -37,8 +38,10 @@ All presets create:
 
 `app` preset also creates:
 
-- `AGENTS.md` — agent entry point (links OKF + doc verifier)
 - `knowledge/doc-sync-map.md` — code path → doc tier triggers (stub)
+- IDENTITY `stack` may hint `react-next`; data/content default `stack: none`
+
+Template gap notes: [templates/CHANGELOG-notes.md](./templates/CHANGELOG-notes.md).
 
 ## Workflow
 
@@ -58,11 +61,12 @@ Or when `andx-init` is installed via `./install.sh`:
 
 4. **Report** — list created vs skipped paths.
 5. **Post-init checklist** (remind user; do not block):
-   - Fill `IDENTITY.md` (Audience, Constraints, Non-goals — no empty sections)
+   - Fill `IDENTITY.md` (Audience, Constraints, Non-goals — no empty sections; edit workstream/stack stubs)
    - Seed `knowledge/domain/glossary.md` with ≥10 domain terms as features are documented
    - Set `ROUTING.md` active stage to match current work (usually `01-discover` → `03-build` when implementing)
+   - Point agents at `AGENTS.md` for Next/`go` and deploy rediscovery (repo docs + `.cursor/rules/*deploy*`)
    - If `package.json` has `verify:docs` or repo has `scripts/verify-docs.mjs`, note it in the report
-6. **Next** — `/andx-plan` on the target repo.
+6. **Next** — `/andx-plan` on the target repo (then Next menu; bare `go` → default execute skill).
 
 ## Brownfield policy
 
@@ -73,9 +77,9 @@ Or when `andx-init` is installed via `./install.sh`:
 
 ## Git policy
 
-- Scaffold output is **committed by default** (IDENTITY, ROUTING, knowledge skeleton, pipeline CONTEXT, `AGENTS.md` + `doc-sync-map` for `app`).
+- Scaffold output is **committed by default** (IDENTITY, AGENTS, ROUTING, knowledge skeleton, pipeline CONTEXT; `doc-sync-map` for `app`).
 - `pipeline/*/output/*` stays **gitignored** except tracked `.gitkeep` per stage; `.cursor/plans/` gitignored (ephemeral).
-- Re-run scaffold safely on repos that already have partial layout.
+- Re-run scaffold safely on repos that already have partial layout — **additive only** (existing files never overwritten).
 
 ## Required companion skills
 

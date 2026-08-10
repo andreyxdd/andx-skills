@@ -34,10 +34,16 @@ Entry skills stay thin — link here; do not re-paste cleanup bash or reviewer t
 
 | Layer | Paths | Role |
 |-------|-------|------|
-| **OKF** | `IDENTITY.md`, `knowledge/` | Who/what/why |
+| **OKF** | `IDENTITY.md`, `knowledge/` | Who/what/why; IDENTITY holds `workstream` / `stack` stubs |
 | **ICM** | `ROUTING.md`, `pipeline/<stage>/` | Where work happens |
+| **Agents** | `AGENTS.md` | Slim entry: read order, `/andx-plan` → Next → `go`, HARNESS/SKILL-MAP pointer, deploy rediscovery |
 
-Presets: `app` | `data` | `content`. Scaffold additive; gitignore `pipeline/*/output/`, `.cursor/plans/`.
+Presets: `app` | `data` | `content`. Scaffold **additive** (never overwrite); gitignore `pipeline/*/output/`, `.cursor/plans/`.
+
+- `app`: may hint `stack: react-next`; includes `knowledge/doc-sync-map.md`
+- `data` / `content`: default `stack: none` (no React forced)
+
+Gap inventory: [andx-init/templates/CHANGELOG-notes.md](./andx-init/templates/CHANGELOG-notes.md).
 
 ```bash
 andx-init/scripts/scaffold.sh app /path/to/repo
