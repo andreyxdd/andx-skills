@@ -68,6 +68,7 @@ Reply go → run default on this plan.
 **Default picker (exactly one `(default)`):**
 - User said deploy/ship prod → `/andx-execute-and-deploy`
 - User said review, or security/CI/prod-touching plan → `/andx-execute-and-review`
+- Multi-wave (disjoint `touch`, deps allow ≥2 parallel) → offer `/andx-schedule` before execute (optional; not default unless user asked schedule)
 - Else (incl. `workstream: docs`) → `/andx-execute`
 
 **`go` contract:** same thread, bare `go` / `Go` / `/go` → immediately invoke the **default** skill with this plan path; do not re-ask Phase 2. `review` / `deploy` / skill name → matching option when unambiguous.

@@ -29,6 +29,14 @@ Frontmatter fields: [PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md).
 
 **Docs workstream:** skip TDD; use `knowledge/doc-sync-map.md`; verify with repo doc script (`pnpm verify:docs` or equivalent).
 
+## Schedule phase (`/andx-schedule`)
+
+| Skill | Trigger | Artifact |
+|-------|---------|----------|
+| `andx-schedule` | ≥2 steps can share a wave (disjoint `touch`, deps satisfied); skip if 1 step / overlap / `touch: unknown` | `.cursor/plans/<slug>.EXEC-MATRIX.md` |
+
+Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-and-deploy). Parent spawn: up to `max_parallel` (default 2) workers per wave; sequential merge + orch cleanup each `WORKTREE_DIR`.
+
 ## Execute phase (`/andx-execute`)
 
 | Skill | Trigger | When |

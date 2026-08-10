@@ -8,6 +8,7 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 |-------|---------|
 | `andx-init` | Scaffold OKF + ICM layout (presets: app, data, content) |
 | `andx-plan` | Grill + write `<repo>/.cursor/plans/*.plan.md`; Next menu + `go` |
+| `andx-schedule` | Build EXEC-MATRIX waves from depends+touch; enable parallel execute |
 | `andx-execute` | Worktree execution + TDD + merge |
 | `andx-execute-and-review` | Execute + adversarial review gate |
 | `andx-execute-and-deploy` | Execute + push + deploy |
@@ -67,6 +68,7 @@ Symlinks into `~/.cursor/skills/` and `~/.claude/skills/`.
 
 - Plans: project-local `.cursor/plans/` only.
 - `move_agent_to_root` when workspace ≠ target repo.
+- Flow: `/andx-plan` → optional `/andx-schedule` (multi-wave) → `/andx-execute` (or execute-and-review / execute-and-deploy).
 - After `/andx-plan`: Next menu; bare `go` runs default skill on that plan.
 - Companions (`grill-with-docs`, `tdd`, `impeccable`, …) install separately.
 - Ponytail: resolve via HARNESS (not `skills-cursor/`).

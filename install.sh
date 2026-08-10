@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 SKILLS=(
   andx-init
   andx-plan
+  andx-schedule
   andx-execute
   andx-orchestration
   andx-debug-and-fix

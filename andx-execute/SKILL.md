@@ -46,6 +46,8 @@ All true: handoff **pass**; verification green on `EXEC_BRANCH`; merged to `TARG
 
 Orch Step 2 with plan, `REACT_STACK`, `DOCS_ONLY`, OKF block, § Worker pointer, handoff schema. Pass → orch Step 4. Fail → report; no merge unless user asks.
 
+**EXEC-MATRIX** (from [/andx-schedule](../andx-schedule/SKILL.md)): if `.cursor/plans/<slug>.EXEC-MATRIX.md` exists beside the plan, spawn **per wave** — up to `max_parallel` workers with disjoint `touch`, sequential merge of wave branches into `TARGET_BRANCH`, orch cleanup each `WORKTREE_DIR`. No matrix → single worker (classic path).
+
 **Post-merge Phase 3:** full regression + lint always (even `DOCS_ONLY`) + doc verifier if docs touched + every verification-table row. Evidence rule before “done.”
 
 ---

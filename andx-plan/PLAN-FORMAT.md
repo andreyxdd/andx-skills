@@ -151,10 +151,10 @@ Step ids must match `step-\d+` (e.g. `step-1`, `step-2`).
 4. Parse each `### step-N` block into the verification table.
 5. Missing `depends` on step-N (N>1) → treat as `depends: [step-{N-1}]` (sequential chain).
 6. Missing `kind` → ask once; default `backend` only if user confirms.
-7. `touch: unknown` in a wave → force sequential execution (future `/andx-schedule` uses same rule).
-8. Topological sort on `depends` → log computed waves in orchestrator progress (single worker today).
+7. `touch: unknown` in a wave → force sequential execution (`/andx-schedule` uses same rule).
+8. Topological sort on `depends` → log computed waves; with EXEC-MATRIX, `/andx-execute` may spawn parallel workers per wave.
 
-## Wave computation (informational)
+## Wave computation
 
 ```
 Wave 1: all steps with depends: []
@@ -162,7 +162,7 @@ Wave 2: steps whose depends are satisfied by Wave 1
 …
 ```
 
-Within a wave, steps with disjoint `touch` sets may run in parallel when `/andx-schedule` sets `max_parallel > 1` (future).
+Within a wave, steps with disjoint `touch` sets may run in parallel when `/andx-schedule` writes EXEC-MATRIX (`max_parallel` default 2). See [/andx-schedule](../andx-schedule/SKILL.md).
 
 ## Slug naming
 

@@ -144,7 +144,7 @@ Skip `worktree remove` only when `WORKTREE_DIR="$REPO_ROOT"` (fallback). Still r
 
 **Before push or deploy:** Cleanup is part of Step 4, not optional post-ship housekeeping. [/andx-execute-and-deploy](../andx-execute-and-deploy/SKILL.md) must not start Phase A′ until cleanup evidence is logged — even if prod is still failing and the session continues debugging.
 
-**Future parallel waves** (`/andx-schedule`): parent cleans **each** `WORKTREE_DIR` from wave handoffs after integration merge. Subagents still never pre-merge cleanup.
+**Parallel waves** ([/andx-schedule](../andx-schedule/SKILL.md)): when EXEC-MATRIX present, parent cleans **each** `WORKTREE_DIR` from wave handoffs after integration merge. Subagents still never pre-merge cleanup.
 
 ### On fail
 
@@ -185,6 +185,7 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 - [SKILL-MAP.md](./SKILL-MAP.md) — companion skill routing
 - [/andx-init](../andx-init/SKILL.md)
 - [/andx-plan](../andx-plan/SKILL.md)
+- [/andx-schedule](../andx-schedule/SKILL.md)
 - [/andx-execute](../andx-execute/SKILL.md)
 - [/andx-execute-and-review](../andx-execute-and-review/SKILL.md)
 - [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md)
