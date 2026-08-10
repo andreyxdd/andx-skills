@@ -7,7 +7,7 @@ description: Parent-orchestrator protocol for andx skills — always-on worktree
 
 Shared protocol for **parent orchestrators**. The parent never edits application source; subagents implement in an isolated worktree and merge back to `TARGET_BRANCH`.
 
-Skill routing: [SKILL-MAP.md](./SKILL-MAP.md)
+Skill routing: [SKILL-MAP.md](./SKILL-MAP.md) · Harness: [HARNESS.md](./HARNESS.md)
 
 ## Roles
 
@@ -53,25 +53,15 @@ Note explicitly that uncommitted changes may move with checkout. Set `WORKTREE_D
 
 ## Step 2 — Spawn subagent
 
-Use `Task` with `subagent_type="generalPurpose"`. Include in the prompt:
+Spawn per [HARNESS.md](./HARNESS.md) (worker / analyst / reviewer). Prompt must include:
 
-- `WORKTREE_DIR`, `EXEC_BRANCH`, `TARGET_BRANCH`, `REPO_ROOT`
-- Worker skill section to follow (e.g. andx-execute Worker, debug analyst readonly, deploy-hotfix worker)
+- `WORKTREE_DIR`, `EXEC_BRANCH`, `TARGET_BRANCH`, `REPO_ROOT` (omit `WORKTREE_DIR` for debug analyst)
+- Worker skill section (andx-execute Worker, debug analyst, deploy-hotfix worker)
 - Anchored plan, verification table (or template), bug/deploy evidence
-- Required companion skills: `/tdd`, fresh verification output before completion claims.
-- When **`REACT_STACK`** (parent preflight): `/react-best-practices` (`~/.cursor/skills/react-best-practices/SKILL.md`). Pass `REACT_STACK: true|false` and skill path in the prompt.
-- When **`ui` or `mixed` steps**: `/impeccable`.
+- Companions from [SKILL-MAP.md](./SKILL-MAP.md): `/tdd`; evidence rule in HARNESS; `/react-best-practices` when `REACT_STACK`; `/impeccable` when `ui`/`mixed`
 - **Return schema** (below)
 
-```text
-Task(
-  subagent_type="generalPurpose",
-  description="andx worker in worktree",
-  prompt="..."
-)
-```
-
-Resume the same subagent (`resume=<id>`) when continuing work in the same worktree (e.g. multi-wave execute). Spawn a new subagent when roles differ (e.g. [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md): debug analyst → execute worker) or if the prior one failed hard or the worktree was torn down.
+Resume (`resume=<id>`) for same worktree continuation. New spawn when roles differ (debug analyst → execute worker) or prior failed / worktree torn down.
 
 ### Subagent workspace rules
 
@@ -191,11 +181,13 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 
 ## Referenced by
 
-- [SKILL-MAP.md](./SKILL-MAP.md) — companion skill routing for the andx stack
-- [/andx-init](../andx-init/SKILL.md) — scaffolds OKF + ICM layout consumed by plan/execute
-- [/andx-plan](../andx-plan/SKILL.md) — produces `.cursor/plans/*.plan.md` this stack consumes
-- [/andx-execute](../andx-execute/SKILL.md) — Orchestrator + Worker
+- [HARNESS.md](./HARNESS.md) — Cursor/Claude spawn matrix
+- [SKILL-MAP.md](./SKILL-MAP.md) — companion skill routing
+- [/andx-init](../andx-init/SKILL.md)
+- [/andx-plan](../andx-plan/SKILL.md)
+- [/andx-execute](../andx-execute/SKILL.md)
 - [/andx-execute-and-review](../andx-execute-and-review/SKILL.md)
 - [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md)
 - [/andx-execute-and-deploy](../andx-execute-and-deploy/SKILL.md)
 - [/andx-deploy](../andx-deploy/SKILL.md) — hotfix loop only
+- [/andx-pr-review](../andx-pr-review/SKILL.md)

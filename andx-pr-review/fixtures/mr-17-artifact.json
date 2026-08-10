@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/compliance-mr-17-regression.fixture.md",
+  "target_branch": "main",
+  "head_sha": "009bd59e42bd5a5b41a77b969a0d4e5b3a060b2f",
+  "reviewed_at": "2026-07-07T06:30:00Z",
+  "verdict": "PASS",
+  "findings": [
+    {
+      "id": "provider-init-race",
+      "severity": "high",
+      "location": "src/components/Settings/ComplianceSettings.tsx:71",
+      "finding": "Catalog may pin selectedProvider to providers[0] before settings load; no reconcile",
+      "ux_flow": "1. Open Compliance settings\n2. Catalog loads first\n3. Form sticks on provider A\n4. Saved provider B ignored until manual change",
+      "fix_snippet": "if (!useMocks && (isCatalogLoading || isSettingsLoading)) return;",
+      "reviewers": ["bugbot"]
+    },
+    {
+      "id": "save-without-api-key",
+      "severity": "medium",
+      "location": "src/components/Settings/ComplianceSettings.tsx:319",
+      "finding": "Save can send enabled: true without api_key when field empty",
+      "fix_snippet": "disabled={isSaving || (providerEnabled && !hasApiKey && !apiKey.trim())}",
+      "reviewers": ["bugbot"]
+    },
+    {
+      "id": "validate-stored-key-only",
+      "severity": "medium",
+      "location": "src/components/Settings/ComplianceSettings.tsx:300",
+      "finding": "Validate tests stored key only; button disabled when !hasApiKey",
+      "ux_flow": "1. User types draft key\n2. Validate disabled\n3. Must Save before validate",
+      "api_note": "POST .../validate has no body; uses server-stored key",
+      "fix_snippet": "disabled={(!hasApiKey && !apiKey.trim()) || isValidating}",
+      "reviewers": ["bugbot", "ux-api"]
+    },
+    {
+      "id": "empty-tooltip-sub-status",
+      "severity": "nitpick",
+      "location": "src/components/Operations/OperationsTable/StatusControl.tsx:137",
+      "finding": "hasDetail true but tooltipText can be empty when only sub_status set",
+      "fix_snippet": "const hasDetail = Boolean(tooltipText);",
+      "reviewers": ["bugbot"]
+    },
+    {
+      "id": "show-key-adornment",
+      "severity": "nitpick",
+      "location": "src/components/Settings/ComplianceSettings.tsx:288",
+      "finding": "Show/hide key IconButton not disabled when !canManage",
+      "fix_snippet": "disabled={!canManage}",
+      "reviewers": ["bugbot"]
+    }
+  ]
+}

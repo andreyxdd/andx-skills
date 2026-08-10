@@ -13,6 +13,7 @@ SKILLS=(
   andx-deploy-init
   andx-execute-and-deploy
   andx-execute-and-review
+  andx-pr-review
 )
 
 install_target() {

@@ -49,9 +49,15 @@ verification: pnpm --filter web test src/pages/foo.test.tsx
 
 ## Next
 
-- `/andx-execute` on this plan
-- (optional, later) `/andx-schedule` then `/andx-execute` for parallel waves
+    Plan: <project>/.cursor/plans/<slug>.plan.md
+    Next:
+    - (default) /andx-execute
+    - /andx-execute-and-review
+    - /andx-execute-and-deploy
+    Reply go → run default on this plan.
 ```
+
+Outside the plan file: mark exactly one `(default)` per andx-plan session-end rules; chat reply must end with the same Next block.
 
 ## Docs workstream template
 
@@ -87,6 +93,14 @@ depends: [step-1]
 touch: [knowledge/doc-sync-map.md, knowledge/log.md]
 success: Trigger row exists for RecoveryFlow paths; log has dated entry
 verification: pnpm verify:docs
+
+## Next
+
+    Plan: <project>/.cursor/plans/<slug>.plan.md
+    Next:
+    - (default) /andx-execute
+    - /andx-execute-and-review
+    Reply go → run default on this plan.
 ```
 
 ## Frontmatter fields

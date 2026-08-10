@@ -1,39 +1,43 @@
 # andx-skills
 
-Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked).
+Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked). Claude = best-effort when Task APIs differ — see [andx-orchestration/HARNESS.md](./andx-orchestration/HARNESS.md).
 
 ## Skills
 
 | Skill | Purpose |
 |-------|---------|
 | `andx-init` | Scaffold OKF + ICM layout (presets: app, data, content) |
-| `andx-plan` | Grill + write `<repo>/.cursor/plans/*.plan.md` |
+| `andx-plan` | Grill + write `<repo>/.cursor/plans/*.plan.md`; Next menu + `go` |
 | `andx-execute` | Worktree execution + TDD + merge |
 | `andx-execute-and-review` | Execute + adversarial review gate |
 | `andx-execute-and-deploy` | Execute + push + deploy |
-| `andx-debug-and-fix` | Readonly debug-like-expert analysis → execute worker |
-| `andx-deploy` | Deploy + health check |
-| `andx-deploy-init` | First-time CI/CD grill, checklist, and review-gated plan |
-| `andx-orchestration` | Shared parent/worktree protocol |
+| `andx-debug-and-fix` | Readonly debug analysis → execute worker |
+| `andx-deploy` | Deploy + health check (discover from **this** repo) |
+| `andx-deploy-init` | First-time CI/CD grill, checklist, review-gated plan |
+| `andx-pr-review` | Remote MR/PR review + comment posting |
+| `andx-orchestration` | Shared parent/worktree protocol + SKILL-MAP + HARNESS |
+
+## Single sources of truth
+
+| File | Owns |
+|------|------|
+| `andx-orchestration/SKILL.md` | Worktree, spawn checklist, handoff, merge, cleanup |
+| `andx-orchestration/HARNESS.md` | Cursor vs Claude Task mapping |
+| `andx-orchestration/SKILL-MAP.md` | Companion + reviewer routing |
+| `andx-plan/PLAN-FORMAT.md` | Plan frontmatter + parse rules |
+
+Entry skills stay thin — link here; do not re-paste cleanup bash or reviewer tables.
+
+**No project names in shared skills** — deploy policy lives in each repo’s docs / `.cursor/rules/*deploy*`.
 
 ## Hybrid layout (OKF + ICM)
 
-Target repos can use a **hybrid** structure scaffolded by `/andx-init`:
-
 | Layer | Paths | Role |
 |-------|-------|------|
-| **OKF** | `IDENTITY.md`, `knowledge/` | Who/what/why — glossary, APIs, datasets, voice, etc. |
-| **ICM** | `ROUTING.md`, `pipeline/<stage>/` | Where work happens — stage CONTEXT + ephemeral `output/` |
+| **OKF** | `IDENTITY.md`, `knowledge/` | Who/what/why |
+| **ICM** | `ROUTING.md`, `pipeline/<stage>/` | Where work happens |
 
-**Presets:** `app` (software), `data` (analytics/ETL), `content` (editorial). Each preset ships pipeline stages and knowledge subtrees suited to that domain.
-
-**Git policy:**
-
-- Commit scaffold skeleton (`IDENTITY`, `ROUTING`, `knowledge/`, `pipeline/*/CONTEXT.md`).
-- Gitignore ephemeral dirs: `pipeline/*/output/`, `.cursor/plans/`.
-- Re-run scaffold is **additive** — never overwrites existing files.
-
-Run once on a new or brownfield repo before `/andx-plan`:
+Presets: `app` | `data` | `content`. Scaffold additive; gitignore `pipeline/*/output/`, `.cursor/plans/`.
 
 ```bash
 andx-init/scripts/scaffold.sh app /path/to/repo
@@ -43,37 +47,26 @@ andx-init/scripts/scaffold.sh app /path/to/repo
 
 ```bash
 ./install.sh
-./install-companions.sh   # optional; React/Next companion skills
+./install-companions.sh   # optional; React/Next companions
 ```
 
-Symlinks each skill into:
-
-- `~/.cursor/skills/` (Cursor — primary)
-- `~/.claude/skills/` (Claude Code — same files)
+Symlinks into `~/.cursor/skills/` and `~/.claude/skills/`.
 
 ## Edit workflow
 
-1. Change files **only** in this repo (`~/Dev/tools/andx-skills/`).
-2. Do not edit the symlink targets under `~/.cursor/skills/andx-*` directly.
-3. Re-run `./install.sh` after pulling updates (safe to re-run).
+1. Edit only this repo (`~/Dev/tools/andx-skills/`).
+2. Re-run `./install.sh` after pull/change.
 
 ## Conventions (Cursor-primary)
 
-- Plans: **project-local** `.cursor/plans/<slug>.plan.md` only — never `~/.cursor/plans`.
-- Before planning/executing: `move_agent_to_root` when workspace ≠ target repo.
-- Companion skills live in each tool's skills dir (`grill-with-docs`, `tdd`, `impeccable`, `review`, etc.) — not bundled here.
+- Plans: project-local `.cursor/plans/` only.
+- `move_agent_to_root` when workspace ≠ target repo.
+- After `/andx-plan`: Next menu; bare `go` runs default skill on that plan.
+- Companions (`grill-with-docs`, `tdd`, `impeccable`, …) install separately.
+- Ponytail: resolve via HARNESS (not `skills-cursor/`).
 
-## Companion skills (install separately)
+## Companion skills
 
-Run `./install-companions.sh` after `./install.sh` for bundled companion installers, or install manually.
+Required for full flows: `grill-with-docs`, `grill-me`, `tdd`, `impeccable`, Cursor `review-bugbot` / `review-security`.
 
-Required for full andx flows in `~/.cursor/skills/`:
-
-- `grill-with-docs`, `grill-me`
-- `tdd`, `review`, `security-review`
-- `impeccable` (UI steps in execute)
-- `caveman-commit` (optional)
-
-**React/Next projects** — installed by `./install-companions.sh`:
-
-- [`react-best-practices`](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices) — Vercel perf rules; auto-wired into `/andx-execute` worker when `REACT_STACK` is detected (see `andx-execute` preflight) and as a conditional reviewer in `/andx-execute-and-review`. Plan frontmatter `stack: react-next` (or `react` / `next`) forces it on; `stack: none` disables.
+**React/Next:** `react-best-practices` via `./install-companions.sh` — wired when `REACT_STACK` / plan `stack: react-next`.
