@@ -18,6 +18,9 @@ SKILLS=(
   andx-mr-review
   andx-mr-babysit
 )
+RETIRED=(
+  andx-pr-review
+)
 
 install_target() {
   local target="$1"
@@ -32,6 +35,9 @@ install_target() {
     rm -rf "$target/$skill"
     ln -sfn "$ROOT/$skill" "$target/$skill"
     echo "linked $target/$skill -> $ROOT/$skill"
+  done
+  for skill in "${RETIRED[@]}"; do
+    rm -rf "$target/$skill"
   done
 }
 
