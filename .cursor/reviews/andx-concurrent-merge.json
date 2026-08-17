@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/andx-concurrent-merge.plan.md",
+  "target_branch": "main",
+  "head_sha": "5d931b861d2cd25acda3d7fc96e5dcbc40026e02",
+  "reviewed_at": "2026-08-17T05:35:00Z",
+  "verdict": "PASS",
+  "findings": [
+    {
+      "id": "combo-skill-clone",
+      "severity": "low",
+      "location": "andx-execute-review-and-deploy/SKILL.md:24",
+      "finding": "A′/B–D copies execute-and-deploy; plan asked that clone shape — deferred shrink",
+      "reviewers": ["ponytail-review", "ponytail-audit"]
+    },
+    {
+      "id": "clean-integrate-skip-rereview",
+      "severity": "low",
+      "location": "andx-orchestration/SKILL.md:Step4.4",
+      "finding": "Clean TARGET integrate skips extra review; plan decision — deferred",
+      "reviewers": ["security-review"]
+    }
+  ]
+}
