@@ -8,8 +8,8 @@ Spawn details live here. Entry skills describe **roles + contracts** only.
 
 | Harness | Spawn |
 |---------|--------|
-| Cursor | `Task(subagent_type="generalPurpose")` in the **same** workspace as parent. Prompt: Shell `working_directory` / absolute paths = `WORKTREE_DIR`. Never `move_agent_to_root` to the worktree. |
-| Claude | Same `generalPurpose` worker; instruct cwd in the prompt only |
+| Cursor | `Task(subagent_type="generalPurpose")` in the **same** workspace as parent. Prompt: every edit/shell uses **absolute** `$WORKTREE_DIR/...` or Shell `working_directory=$WORKTREE_DIR`. Relative paths from `REPO_ROOT` forbidden. Never `move_agent_to_root` to the worktree. |
+| Claude | Same `generalPurpose` worker; instruct absolute `$WORKTREE_DIR/...` / cwd in the prompt only |
 
 Always use andx worktree vars from [SKILL.md](./SKILL.md) Step 1. Parent stays at `REPO_ROOT`. Parent merges to `TARGET_BRANCH` and cleans up.
 

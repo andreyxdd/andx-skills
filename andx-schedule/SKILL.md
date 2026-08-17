@@ -62,7 +62,7 @@ If plan lives outside `.cursor/plans/`, write `EXEC-MATRIX.md` beside that plan 
 
 When EXEC-MATRIX present:
 
-1. **Per wave:** spawn up to `max_parallel` workers, each with **disjoint** `touch` and a dedicated `WORKTREE_DIR` / `EXEC_BRANCH` (orch Step 1; slug `exec-${SLUG}-w${N}-…`). Same workspace — no `move_agent_to_root` to worktrees.
+1. **Per wave:** spawn up to `max_parallel` workers, each with **disjoint** `touch` and a dedicated `WORKTREE_DIR` / `EXEC_BRANCH` (orch Step 1). Parallel workers in a wave MUST use `exec-${SLUG}-w${N}-${step-id}-${STAMP}` (not only `w${N}`). Single-step waves: `exec-${SLUG}-w${N}-${STAMP}`. Same workspace — no `move_agent_to_root` to worktrees.
 2. Workers implement only their assigned steps; commit on own `EXEC_BRANCH`; return handoff; **no merge**.
 3. **Sequential merge** of wave branches into `TARGET_BRANCH` (orch Step 4 concurrent-merge) after all workers in the wave pass + Phase 3 on each `EXEC_BRANCH`.
 4. **Cleanup each** `WORKTREE_DIR` / `EXEC_BRANCH` after that wave’s integration merge + post-merge Phase 3 (orch Step 4 cleanup). Subagents never pre-merge cleanup.

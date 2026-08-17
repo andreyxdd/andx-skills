@@ -54,7 +54,7 @@ Orch Step 2 with plan, `REACT_STACK`, `DOCS_ONLY`, OKF block, § Worker pointer,
 
 # § Worker (Phases 0–4)
 
-Work only in `WORKTREE_DIR` on `EXEC_BRANCH`. No merge/push/cleanup. Do **not** call `move_agent_to_root` or `move_agent_to_cloned_root` — stay in the parent workspace; use `WORKTREE_DIR` as tool cwd / absolute paths.
+Work only in `WORKTREE_DIR` on `EXEC_BRANCH`. No merge/push/cleanup. Do **not** call `move_agent_to_root` or `move_agent_to_cloned_root`. Every edit/shell: **absolute** `$WORKTREE_DIR/...` or Shell `working_directory=$WORKTREE_DIR`. Relative paths from `REPO_ROOT` forbidden.
 
 ## Phase 0 — Verification table
 
@@ -80,4 +80,4 @@ Stage plan scope; conventional commits; clean `git status`. Return orch handoff 
 
 ## Worker anti-patterns
 
-Table after coding; TDD on docs; stale pass claims; impeccable on backend-only; skip react-best-practices when `REACT_STACK`; merge/remove worktree from worker; `move_agent_to_root` / `move_agent_to_cloned_root` (stay in parent workspace; use `WORKTREE_DIR` as tool cwd).
+Table after coding; TDD on docs; stale pass claims; impeccable on backend-only; skip react-best-practices when `REACT_STACK`; merge/remove worktree from worker; `move_agent_to_root` / `move_agent_to_cloned_root`; relative paths from `REPO_ROOT` (hit TARGET checkout — use absolute `$WORKTREE_DIR/...` or Shell `working_directory=$WORKTREE_DIR`).

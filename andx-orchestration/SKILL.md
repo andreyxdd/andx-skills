@@ -73,7 +73,7 @@ Resume (`resume=<id>`) for same worktree continuation. New spawn when roles diff
 ### Subagent workspace rules
 
 - **Parent stays at `REPO_ROOT`.** Never `move_agent_to_root` or `move_agent_to_cloned_root` to a worktree.
-- **Worker** uses `WORKTREE_DIR` as tool cwd / absolute paths (Read/Write/StrReplace/Shell). Prompt **forbids** `move_agent_to_root(WORKTREE_DIR)` and `move_agent_to_cloned_root`. Spawn `generalPurpose` in the **same** Cursor workspace; instruct cwd in the prompt only (HARNESS).
+- **Worker:** every Read/Write/StrReplace/Shell uses **absolute** `$WORKTREE_DIR/...` paths, or Shell `working_directory=$WORKTREE_DIR`. Relative paths from `REPO_ROOT` are **forbidden** (they hit the primary TARGET checkout). Prompt **forbids** `move_agent_to_root(WORKTREE_DIR)` and `move_agent_to_cloned_root`. Spawn `generalPurpose` in the **same** Cursor workspace; instruct cwd in the prompt only (HARNESS).
 - After handoff: if workspace drifted, parent `move_agent_to_root(REPO_ROOT)` to restore.
 - Still allowed: `move_agent_to_root` when the **project** is wrong (`/andx-plan`, `/andx-init`) — not for exec worktrees.
 - Commits land on `EXEC_BRANCH` only; do not push unless the prompt explicitly allows it
@@ -205,7 +205,7 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 - `move_agent_to_root` to `WORKTREE_DIR` (opens an extra Cursor workspace)
 - "Done" on exec branch before parent merge
 - Parent claims done without cleanup evidence (`git worktree list` before/after)
-- Orphan `.worktrees/andx/exec-*` or ad-hoc `*-exec/` worktrees left after successful merge
+- Orphan `.worktrees/exec-*` or ad-hoc `*-exec/` worktrees left after successful merge
 - Push or deploy before Step 4 cleanup when merge + post-merge Phase 3 passed
 - Deploy before merge + post-merge verify when code changed
 - Deferring cleanup because follow-up prod debugging started in the same session
