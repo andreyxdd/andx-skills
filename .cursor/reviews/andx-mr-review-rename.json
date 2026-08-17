@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "andx-execute-and-review",
+  "plan": "/Users/andreyxdd/.cursor/plans/mr_review_rename_8c2837a8.plan.md",
+  "target_branch": "main",
+  "head_sha": "be4b7b299446e5b282c4b134976fa8f3b6b879fe",
+  "reviewed_at": "2026-08-17T05:50:00Z",
+  "verdict": "PASS",
+  "findings": [
+    {
+      "id": "pr-review-alias-no-folder",
+      "severity": "low",
+      "location": "install.sh:39",
+      "finding": "/andx-pr-review is description alias only; no second install folder (avoids dual skill tree)",
+      "reviewers": ["bugbot"]
+    }
+  ]
+}
