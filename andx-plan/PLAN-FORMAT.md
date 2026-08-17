@@ -54,6 +54,7 @@ verification: pnpm --filter web test src/pages/foo.test.tsx
     - (default) /andx-execute
     - /andx-execute-and-review
     - /andx-execute-and-deploy
+    - /andx-execute-review-and-deploy
     Reply go → run default on this plan.
 ```
 
@@ -100,6 +101,8 @@ verification: pnpm verify:docs
     Next:
     - (default) /andx-execute
     - /andx-execute-and-review
+    - /andx-execute-and-deploy
+    - /andx-execute-review-and-deploy
     Reply go → run default on this plan.
 ```
 

@@ -13,7 +13,7 @@ Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Spawn: [HARNESS.m
 
 ## When
 
-Plan ready; need second pass before land. Not deploy → `/andx-execute-and-deploy`. No gate → `/andx-execute`.
+Plan ready; need second pass before land. Review + ship → `/andx-execute-review-and-deploy`. Deploy-only → `/andx-execute-and-deploy`. No gate → `/andx-execute`.
 
 ## Workflow
 
@@ -22,7 +22,7 @@ A–B Worker Phases 0–4 on EXEC_BRANCH (no merge)
 C   Parallel fresh reviewers (HARNESS + SKILL-MAP)
 D   Union verdicts — BLOCK if any Critical/High
 E   Resume worker ≤3 rounds → re-review
-F   PASS → REVIEW-ARTIFACT → orch Step 4 merge + cleanup
+F   PASS → REVIEW-ARTIFACT → orch Step 4 concurrent-merge + cleanup
 ```
 
 ## Phase A–B — Execute
@@ -62,7 +62,7 @@ Resume worker (`resume=<id>`) with union blockers; Phase 3 on EXEC_BRANCH; re-ru
 
 ## Phase F — Merge
 
-Orchestration Step 4: merge → post-merge Phase 3 → cleanup evidence.
+Orchestration Step 4 (concurrent-merge). If Step 4 conflict worker changed product source, re-run always reviewers 1-3 before TARGET merge. Clean integrate → no extra review. Then post-merge Phase 3 → cleanup evidence.
 
 ## Definition of done
 

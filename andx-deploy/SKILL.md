@@ -11,7 +11,7 @@ Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Hotfix: [/andx-or
 
 ## When
 
-Code committed; need prod deploy + health. Features → `/andx-execute` / `/andx-execute-and-deploy`. First CI/CD → [/andx-deploy-init](../andx-deploy-init/SKILL.md).
+Code committed; need prod deploy + health. Features → `/andx-execute` / `/andx-execute-and-deploy` / `/andx-execute-review-and-deploy`. First CI/CD → [/andx-deploy-init](../andx-deploy-init/SKILL.md).
 
 ## Preflight
 
@@ -47,7 +47,7 @@ Fresh checks after deploy (HTTP health, process active, revision). Evidence rule
 
 ```
 FAIL → diagnose → (source fix?) orchestration worktree worker
-     → merge + post-merge verify + cleanup → re-deploy
+     → orch Step 4 concurrent-merge + post-merge verify + cleanup → re-deploy
      (max 3; then stop with blocker)
 ```
 

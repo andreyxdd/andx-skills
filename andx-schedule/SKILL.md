@@ -5,11 +5,11 @@ description: Builds EXEC-MATRIX waves from plan depends+touch so /andx-execute c
 
 # Andx Schedule
 
-Plan → **EXEC-MATRIX** → parallel `/andx-execute` (or execute-and-review / execute-and-deploy).
+Plan → **EXEC-MATRIX** → parallel `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Orch: [/andx-orchestration](../andx-orchestration/SKILL.md) · Harness: [HARNESS.md](../andx-orchestration/HARNESS.md) · Format: [PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md)
 
-**Before:** `/andx-plan` (plan has `depends` + `touch`). **After:** `/andx-execute` | `/andx-execute-and-review` | `/andx-execute-and-deploy`.
+**Before:** `/andx-plan` (plan has `depends` + `touch`). **After:** `/andx-execute` | `/andx-execute-and-review` | `/andx-execute-and-deploy` | `/andx-execute-review-and-deploy`.
 
 ## When to run
 
@@ -62,9 +62,9 @@ If plan lives outside `.cursor/plans/`, write `EXEC-MATRIX.md` beside that plan 
 
 When EXEC-MATRIX present:
 
-1. **Per wave:** spawn up to `max_parallel` workers, each with **disjoint** `touch` and a dedicated `WORKTREE_DIR` / `EXEC_BRANCH` (orch Step 1 each).
+1. **Per wave:** spawn up to `max_parallel` workers, each with **disjoint** `touch` and a dedicated `WORKTREE_DIR` / `EXEC_BRANCH` (orch Step 1; slug `exec-${SLUG}-w${N}-…`). Same workspace — no `move_agent_to_root` to worktrees.
 2. Workers implement only their assigned steps; commit on own `EXEC_BRANCH`; return handoff; **no merge**.
-3. **Sequential merge** of wave branches into `TARGET_BRANCH` (orch Step 4) after all workers in the wave pass + Phase 3 on each `EXEC_BRANCH`.
+3. **Sequential merge** of wave branches into `TARGET_BRANCH` (orch Step 4 concurrent-merge) after all workers in the wave pass + Phase 3 on each `EXEC_BRANCH`.
 4. **Cleanup each** `WORKTREE_DIR` / `EXEC_BRANCH` after that wave’s integration merge + post-merge Phase 3 (orch Step 4 cleanup). Subagents never pre-merge cleanup.
 5. Next wave starts only after prior wave merged + verified on `TARGET_BRANCH`.
 

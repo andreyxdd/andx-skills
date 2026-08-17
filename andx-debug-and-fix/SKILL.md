@@ -22,7 +22,7 @@ A Parent: read-only repro (must fail)
 B Analyst: debug-like-expert → handoff (no worktree)
 C Parent: map handoff → steps + verification table; detect REACT_STACK
 0 Orch Step 1 worktree
-D New execute worker Phases 0–4 → orch Step 4 merge + cleanup
+D New execute worker Phases 0–4 → orch Step 4 concurrent-merge + cleanup
 ```
 
 Do **not** resume analyst as worker.
@@ -43,7 +43,7 @@ From handoff: steps + `touch` + verification table. `REACT_STACK` same rules as 
 
 ## Phase D — Execute
 
-New worker; prompt includes debug handoff + Phase C plan + `REACT_STACK`. Follow execute § Worker. Parent: orch Step 4 on pass.
+New worker; prompt includes debug handoff + Phase C plan + `REACT_STACK`. Follow execute § Worker (same workspace; `WORKTREE_DIR` as tool cwd). Parent: orch Step 4 concurrent-merge on pass.
 
 ## Anti-patterns
 

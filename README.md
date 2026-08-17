@@ -12,6 +12,7 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 | `andx-execute` | Worktree execution + TDD + merge |
 | `andx-execute-and-review` | Execute + adversarial review gate |
 | `andx-execute-and-deploy` | Execute + push + deploy |
+| `andx-execute-review-and-deploy` | Execute + review gate + push + deploy |
 | `andx-debug-and-fix` | Readonly debug analysis → execute worker |
 | `andx-deploy` | Deploy + health check (discover from **this** repo) |
 | `andx-deploy-init` | First-time CI/CD grill, checklist, review-gated plan |
@@ -68,8 +69,9 @@ Symlinks into `~/.cursor/skills/` and `~/.claude/skills/`.
 ## Conventions (Cursor-primary)
 
 - Plans: project-local `.cursor/plans/` only.
-- `move_agent_to_root` when workspace ≠ target repo.
-- Flow: `/andx-plan` → optional `/andx-schedule` (multi-wave) → `/andx-execute` (or execute-and-review / execute-and-deploy).
+- Worktrees: `$REPO_ROOT/.worktrees/exec-<slug>-<stamp>` (orch slug naming).
+- `move_agent_to_root` only when workspace ≠ target **project** (`/andx-plan`, `/andx-init`). Never for exec worktrees — worker uses `WORKTREE_DIR` as tool cwd in the same workspace.
+- Flow: `/andx-plan` → optional `/andx-schedule` (multi-wave) → `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).
 - After `/andx-plan`: Next menu; bare `go` runs default skill on that plan.
 - Companions (`grill-with-docs`, `tdd`, `impeccable`, …) install separately.
 - Ponytail: resolve via HARNESS (not `skills-cursor/`).

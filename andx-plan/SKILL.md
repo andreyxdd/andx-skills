@@ -62,12 +62,14 @@ Next:
 - (default) /andx-execute
 - /andx-execute-and-review
 - /andx-execute-and-deploy
+- /andx-execute-review-and-deploy
 Reply go → run default on this plan.
 ```
 
 **Default picker (exactly one `(default)`):**
-- User said deploy/ship prod → `/andx-execute-and-deploy`
-- User said review, or security/CI/prod-touching plan → `/andx-execute-and-review`
+- User said review+deploy, or ship → `/andx-execute-review-and-deploy`
+- User said deploy-only (no review) → `/andx-execute-and-deploy`
+- User said review-only, or security/CI/prod-touching plan (no deploy) → `/andx-execute-and-review`
 - Multi-wave (disjoint `touch`, deps allow ≥2 parallel) → offer `/andx-schedule` before execute (optional; not default unless user asked schedule)
 - Else (incl. `workstream: docs`) → `/andx-execute`
 

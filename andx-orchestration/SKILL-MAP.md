@@ -35,7 +35,7 @@ Frontmatter fields: [PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md).
 |-------|---------|----------|
 | `andx-schedule` | ≥2 steps can share a wave (disjoint `touch`, deps satisfied); skip if 1 step / overlap / `touch: unknown` | `.cursor/plans/<slug>.EXEC-MATRIX.md` |
 
-Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-and-deploy). Parent spawn: up to `max_parallel` (default 2) workers per wave; sequential merge + orch cleanup each `WORKTREE_DIR`.
+Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy). Parent spawn: up to `max_parallel` (default 2) workers per wave; sequential orch Step 4 concurrent-merge + cleanup each `WORKTREE_DIR`.
 
 ## Execute phase (`/andx-execute`)
 
@@ -51,6 +51,8 @@ Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-an
 | `dependency-upgrade` | Upgrade-only plan | Dedicated scope |
 
 Load `design_refs` as **immutable contract** in preflight + worker prompt.
+
+Composer: `/andx-execute-review-and-deploy` = execute-and-review DoD (incl. concurrent-merge) → auto-push → `/andx-deploy`.
 
 ## Review phase (`/andx-execute-and-review`)
 
@@ -102,6 +104,7 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-pr-review/FINDINGS-SCHEMA.md) to `.
 | `debug-like-expert` | `/andx-debug-and-fix` Phase B |
 | `andx-deploy-init` | First production CI/CD |
 | `andx-deploy` | Ship committed revision |
+| `andx-execute-review-and-deploy` | Execute + review gate + push + deploy |
 | `github-workflows` | Deploy method unclear |
 
 ## Out of scope

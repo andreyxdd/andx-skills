@@ -15,11 +15,11 @@ Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
 
 ## When
 
-Plan ready + ship to production this run. Else: `/andx-execute`, `/andx-deploy`, or `/andx-debug-and-fix`.
+Plan ready + ship **without** a review gate. Review + ship → `/andx-execute-review-and-deploy`. Else: `/andx-execute`, `/andx-deploy`, or `/andx-debug-and-fix`.
 
 ## Phase A — Execute
 
-Follow [/andx-execute](../andx-execute/SKILL.md) § Orchestrator through **Definition of done** (orchestration Steps 1–4). Quote handoff + post-merge Phase 3 + cleanup (`git worktree list` before/after) before A′.
+Follow [/andx-execute](../andx-execute/SKILL.md) § Orchestrator through **Definition of done** (orchestration Steps 1–4, including concurrent-merge). Quote handoff + post-merge Phase 3 + cleanup (`git worktree list` before/after) before A′.
 
 ## Phase A′ — Auto-push
 
@@ -48,3 +48,4 @@ Follow [/andx-deploy](../andx-deploy/SKILL.md) Preflight→D. Discover deploy fr
 - Push/deploy before cleanup evidence
 - Parent edits source
 - Ad-hoc worktree paths outside `.worktrees/`
+- `move_agent_to_root` to exec worktrees (parent stays `REPO_ROOT`; orch Step 2)
