@@ -16,7 +16,7 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 | `andx-debug-and-fix` | Readonly debug analysis → execute worker |
 | `andx-deploy` | Deploy + health check (discover from **this** repo) |
 | `andx-deploy-init` | First-time CI/CD grill, checklist, review-gated plan |
-| `andx-pr-review` | Remote MR/PR review + comment posting |
+| `andx-mr-review` | Remote MR review + comment posting |
 | `andx-mr-babysit` | Remote MR/PR merge-ready loop (conflicts/comments/CI) |
 | `andx-orchestration` | Shared parent/worktree protocol + SKILL-MAP + HARNESS |
 

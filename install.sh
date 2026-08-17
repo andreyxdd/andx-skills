@@ -15,7 +15,7 @@ SKILLS=(
   andx-execute-and-deploy
   andx-execute-and-review
   andx-execute-review-and-deploy
-  andx-pr-review
+  andx-mr-review
   andx-mr-babysit
 )
 

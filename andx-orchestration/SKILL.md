@@ -224,4 +224,4 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 - [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md)
 - [/andx-execute-and-deploy](../andx-execute-and-deploy/SKILL.md)
 - [/andx-deploy](../andx-deploy/SKILL.md) — hotfix loop only
-- [/andx-pr-review](../andx-pr-review/SKILL.md)
+- [/andx-mr-review](../andx-mr-review/SKILL.md)

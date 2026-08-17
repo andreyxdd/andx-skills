@@ -1,6 +1,6 @@
 # REVIEW-ARTIFACT schema
 
-Shared between `/andx-execute-and-review` (writer) and `/andx-pr-review` (reader).
+Shared between `/andx-execute-and-review` (writer) and `/andx-mr-review` (reader).
 
 **Path:** `<repo>/.cursor/reviews/<plan-slug>.json` — commit on branch so MR head carries it.
 
@@ -57,7 +57,7 @@ Shared between `/andx-execute-and-review` (writer) and `/andx-pr-review` (reader
 }
 ```
 
-## pr-review consumption
+## mr-review consumption
 
 1. Read `.cursor/reviews/*.json` on MR head (via checkout or `git show <sha>:path`)
 2. If `head_sha` === MR head SHA → **skip subagents** (`--from-artifact` behavior)

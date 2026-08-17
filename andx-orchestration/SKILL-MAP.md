@@ -66,7 +66,7 @@ Composer: `/andx-execute-review-and-deploy` = execute-and-review DoD (incl. conc
 | `accessibility` | UI diff + a11y in plan | Reviewer 6 |
 | UX/API contract pass | UI forms + API client paths | Reviewer 7 (advisory unless paired HIGH) |
 
-On **PASS**, write [REVIEW-ARTIFACT](../andx-pr-review/FINDINGS-SCHEMA.md) to `.cursor/reviews/<plan-slug>.json` on `EXEC_BRANCH` before merge.
+On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.cursor/reviews/<plan-slug>.json` on `EXEC_BRANCH` before merge.
 
 `design_refs` drift = **HIGH → BLOCKS**.
 
@@ -86,16 +86,16 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-pr-review/FINDINGS-SCHEMA.md) to `.
 
 | Skill | Trigger | When |
 |-------|---------|------|
-| `andx-pr-review` | MR/PR URL | After push; **review** + draft/post comments; uses artifact when `head_sha` matches |
-| `andx-mr-babysit` | MR/PR URL + babysit / merge-ready | After push (or after pr-review) when conflicts/comments/CI must be **fixed** toward merge |
+| `andx-mr-review` | MR URL | After push; **review** + draft/post comments; uses artifact when `head_sha` matches |
+| `andx-mr-babysit` | MR URL + babysit / merge-ready | After push (or after mr-review) when conflicts/comments/CI must be **fixed** toward merge |
 
-**Order:** review (`andx-pr-review`) → fix (`andx-mr-babysit`). GitHub + `~/.cursor/skills-cursor/babysit` present → mr-babysit delegates to Cursor babysit after auth/checkout; else andx-owned `gh`/`glab` loop via [HOSTS.md](../andx-pr-review/HOSTS.md).
+**Order:** review (`andx-mr-review`) → fix (`andx-mr-babysit`). GitHub + `~/.cursor/skills-cursor/babysit` present → mr-babysit delegates to Cursor babysit after auth/checkout; else andx-owned `gh`/`glab` loop via [HOSTS.md](../andx-mr-review/HOSTS.md).
 
-| | `andx-pr-review` | `andx-mr-babysit` | Cursor `babysit` |
+| | `andx-mr-review` | `andx-mr-babysit` | Cursor `babysit` |
 |--|------------------|------------------|------------------|
 | Job | Findings + comments | Merge-ready fixes | Same jobs as mr-babysit (GitHub-native) |
 | Hosts | glab / gh / Bitbucket draft | Same HOSTS; Bitbucket may escalate | GitHub only |
-| Implements code? | No | Yes (PR scope) | Yes |
+| Implements code? | No | Yes (MR scope) | Yes |
 
 ## Debug / deploy
 

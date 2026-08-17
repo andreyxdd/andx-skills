@@ -9,7 +9,7 @@ Worker implements in worktree; **blind reviewers** gate merge to `TARGET_BRANCH`
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Spawn: [HARNESS.md](../andx-orchestration/HARNESS.md)
 
-**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), [/andx-execute](../andx-execute/SKILL.md) § Worker. Reviewer roster + severity → SKILL-MAP. Artifact → [FINDINGS-SCHEMA.md](../andx-pr-review/FINDINGS-SCHEMA.md).
+**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), [/andx-execute](../andx-execute/SKILL.md) § Worker. Reviewer roster + severity → SKILL-MAP. Artifact → [FINDINGS-SCHEMA.md](../andx-mr-review/FINDINGS-SCHEMA.md).
 
 ## When
 

@@ -1,11 +1,11 @@
-# Chat report format (`/andx-pr-review`)
+# Chat report format (`/andx-mr-review`)
 
 Teaching-depth output for the invoker. MR comments stay short per [COMMENT-STYLE.md](./COMMENT-STYLE.md).
 
 ## Header
 
 ```markdown
-## PR review — <host> <owner/repo> !<iid|#n>
+## MR review — <host> <owner/repo> !<iid|#n>
 
 **MR:** <url>
 **Branch:** `<source>` → `<target>`

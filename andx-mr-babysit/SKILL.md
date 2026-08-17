@@ -15,13 +15,15 @@ Drive a remote MR/PR to **merge-ready**: conflicts resolved, comments triaged, C
 
 Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
 
-Host CLIs: [HOSTS.md](../andx-pr-review/HOSTS.md) (shared with pr-review — do not fork).
+Host CLIs: [HOSTS.md](../andx-mr-review/HOSTS.md) (shared with mr-review — do not fork).
 
-## vs `/andx-pr-review`
+## vs `/andx-mr-review`
+
+Alias `/andx-pr-review`. Review vs babysit stay two skills.
 
 | Skill | Job |
 |-------|-----|
-| `andx-pr-review` | **Review** + draft/post comments (teaching report). Does **not** implement fixes. |
+| `andx-mr-review` | **Review** + draft/post comments (teaching report). Does **not** implement fixes. |
 | `andx-mr-babysit` | **Fix toward merge** — conflicts, valid comments, CI in PR scope. |
 
 Review findings first → then babysit. Do not use babysit as a substitute for review.
@@ -32,13 +34,13 @@ Review findings first → then babysit. Do not use babysit as a substitute for r
 - MR/PR URL + "babysit" / "make merge-ready"
 - After push when user wants green + comment-cleared, not another review pass
 
-**Not for:** posting review comments only (`/andx-pr-review`); local execute gates (`/andx-execute-and-review`); merging/closing the MR unless user explicitly asks.
+**Not for:** posting review comments only (`/andx-mr-review`); local execute gates (`/andx-execute-and-review`); merging/closing the MR unless user explicitly asks.
 
 ## Required companions
 
 | Path | Role |
 |------|------|
-| [HOSTS.md](../andx-pr-review/HOSTS.md) | Parse URL; `gh` / `glab` / Bitbucket fallback |
+| [HOSTS.md](../andx-mr-review/HOSTS.md) | Parse URL; `gh` / `glab` / Bitbucket fallback |
 | [babysit](~/.cursor/skills-cursor/babysit/SKILL.md) | Prefer when present + GitHub |
 
 ---
@@ -47,7 +49,7 @@ Review findings first → then babysit. Do not use babysit as a substitute for r
 
 ### 1. Parse URL + progress checklist
 
-From URL extract host (`gitlab` | `github` | `bitbucket`), `owner/repo`, MR/PR iid — see [HOSTS.md](../andx-pr-review/HOSTS.md).
+From URL extract host (`gitlab` | `github` | `bitbucket`), `owner/repo`, MR/PR iid — see [HOSTS.md](../andx-mr-review/HOSTS.md).
 
 Track in chat (update each loop):
 
@@ -81,7 +83,7 @@ Fetch MR head; checkout working copy of head branch (stash only after user confi
 1. Host is **GitHub**
 2. `~/.cursor/skills-cursor/babysit/SKILL.md` exists
 
-Then: follow that skill verbatim for conflict / comments / CI loop. Keep this skill's checklist updated from babysit outcomes. Still use [HOSTS.md](../andx-pr-review/HOSTS.md) for any `gh` commands babysit implies.
+Then: follow that skill verbatim for conflict / comments / CI loop. Keep this skill's checklist updated from babysit outcomes. Still use [HOSTS.md](../andx-mr-review/HOSTS.md) for any `gh` commands babysit implies.
 
 **Else** (GitLab/`glab`, Bitbucket incomplete, or babysit missing): run **andx-owned loop** below — same three jobs as Cursor babysit.
 
@@ -109,7 +111,7 @@ Intelligently resolve, preserving intent of both head and base. If intents confl
 - Merge-blocking failure looks unrelated → check if branch behind base; merge latest base (another PR may have fixed it).
 - Push scoped fixes; re-watch pipeline/checks until green or escalate.
 
-Host commands: [HOSTS.md](../andx-pr-review/HOSTS.md) (`glab mr …`, `gh pr checks`, etc.).
+Host commands: [HOSTS.md](../andx-mr-review/HOSTS.md) (`glab mr …`, `gh pr checks`, etc.).
 
 ### 6. Done / escalate
 
@@ -123,7 +125,7 @@ Do **not** merge unless user explicitly requests.
 
 ## Anti-patterns
 
-- Using this skill to only post review comments (use `/andx-pr-review`)
+- Using this skill to only post review comments (use `/andx-mr-review`)
 - Editing CI to silence failures
 - Acting on invalid Bugbot noise without validating
 - Infinite loop with no progress report
@@ -134,6 +136,6 @@ Do **not** merge unless user explicitly requests.
 
 | Situation | Skill |
 |-----------|--------|
-| Need findings + MR comments first | `/andx-pr-review` → then `/andx-mr-babysit` |
+| Need findings + MR comments first | `/andx-mr-review` → then `/andx-mr-babysit` |
 | Local review gate before push | `/andx-execute-and-review` |
 | GitHub + Cursor babysit installed | This skill wraps → delegates to babysit |

@@ -1,6 +1,6 @@
 # Golden examples (MR 17)
 
-Finding summary → final MR comment. Tone regression anchor for `/andx-pr-review`.
+Finding summary → final MR comment. Tone regression anchor for `/andx-mr-review`.
 
 ---
 

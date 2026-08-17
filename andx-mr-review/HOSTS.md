@@ -1,6 +1,6 @@
 # Host CLI reference
 
-Commands for `/andx-pr-review`. Prefer host CLIs over raw curl.
+Commands for `/andx-mr-review` (alias `/andx-pr-review`). Prefer host CLIs over raw curl.
 
 ## GitLab (`glab`)
 
@@ -87,7 +87,7 @@ gh api repos/:owner/:repo/pulls/17/comments -f body="…" -f commit_id=… -f pa
 
 ## Bitbucket / generic fallback
 
-1. Parse PR URL if possible; else ask for repo path + PR id
+1. Parse MR URL if possible; else ask for repo path + MR id
 2. `git fetch origin pull/<id>/head:pr-<id>` or branch name
 3. `git diff base...pr-<id>`
 4. **Post:** draft-only in v1 unless `BITBUCKET_TOKEN` + API documented — chat report + comment drafts for manual paste

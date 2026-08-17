@@ -1,18 +1,18 @@
 ---
-name: andx-pr-review
+name: andx-mr-review
 description: >-
-  Review a remote GitLab/GitHub/Bitbucket MR or PR from a URL — run layered review
+  Review a remote GitLab/GitHub/Bitbucket MR from a URL — run layered review
   (Bugbot, Security, ponytail; tiered --fast/--deep), draft human MR comments in
   COMMENT-STYLE voice with fix snippets and line links, print a detailed chat report
   (UI/UX flows, API contract). Posts only after explicit approval. Skips subagents
   when REVIEW-ARTIFACT.json on MR head matches head_sha (from /andx-execute-and-review).
-  Use for /andx-pr-review, "review this MR", or PR links with code review + comments.
+  Use for /andx-mr-review, /andx-pr-review (alias), "review this MR", or MR links with code review + comments.
 disable-model-invocation: true
 ---
 
-# Andx PR Review
+# Andx MR Review
 
-Remote MR/PR review with **dual output**: teaching-depth chat report + human MR comments.
+Remote MR review with **dual output**: teaching-depth chat report + human MR comments.
 
 Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
 
@@ -20,8 +20,9 @@ Companion docs: [COMMENT-STYLE.md](./COMMENT-STYLE.md) · [REPORT-FORMAT.md](./R
 
 ## When to use
 
-- `/andx-pr-review <MR-or-PR-URL>`
-- Review teammate's MR and leave styled comments
+- **Others’ MRs first-class** — review teammate's MR and leave styled comments
+- Own MR after push
+- `/andx-mr-review <MR-URL>`
 - After `/andx-execute-and-review` — format/post from `REVIEW-ARTIFACT` (no double discovery)
 
 **Not for:** implementing fixes, merging, or local branch gates (use `/andx-execute-and-review`). For **merge-ready** (resolve conflicts, triage comments, fix CI) use `/andx-mr-babysit`.
@@ -31,7 +32,7 @@ Companion docs: [COMMENT-STYLE.md](./COMMENT-STYLE.md) · [REPORT-FORMAT.md](./R
 | Skill | Role |
 |-------|------|
 | `andx-execute-and-review` | **Discover** findings + VERDICT gate + write `.cursor/reviews/<plan-slug>.json` |
-| `andx-pr-review` | **Publish** human comments on host MR; expand UX/API in chat report |
+| `andx-mr-review` | **Publish** human comments on host MR; expand UX/API in chat report |
 
 Auto-detect artifact: if `head_sha` matches MR head → skip subagents (see [FINDINGS-SCHEMA.md](./FINDINGS-SCHEMA.md)).
 
@@ -65,7 +66,7 @@ Auto-detect artifact: if `head_sha` matches MR head → skip subagents (see [FIN
 
 ### 1. Parse URL
 
-Extract host (gitlab | github | bitbucket), `owner/repo`, MR/PR iid. See [HOSTS.md](./HOSTS.md).
+Extract host (gitlab | github | bitbucket), `owner/repo`, MR iid. See [HOSTS.md](./HOSTS.md).
 
 ### 2. Preflight
 
@@ -173,7 +174,7 @@ Use `--unique` on re-runs to avoid duplicate bodies.
 
 | Situation | Skill |
 |-----------|--------|
-| Author built via plan | `/andx-execute-and-review` first → artifact → `/andx-pr-review` |
+| Author built via plan | `/andx-execute-and-review` first → artifact → `/andx-mr-review` |
 | Local merge gate only | `/andx-execute-and-review` |
 | Security-only pass | `--fast` + manual security or `/review-security` |
 | Drive MR to merge-ready | `/andx-mr-babysit` after review (or alone when only fixes needed) |
