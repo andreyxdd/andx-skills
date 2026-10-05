@@ -41,6 +41,8 @@ Spawn per HARNESS **Debug analyst**. Prompt: symptom, repro output, `REPO_ROOT`,
 
 From handoff: steps + `touch` + verification table. `REACT_STACK` same rules as execute preflight. Show briefly. Then orch Step 1.
 
+**Workspace rules (any repo):** if workspace (or parent multi-repo map) has `agents/rules/README.md`, read scoped **plan/dev/execute** rules and **review** gates (`*-review-gates.md`) matching `touch` paths; bake them into fix steps + verification table and pass to the Phase D worker.
+
 ## Phase D — Execute
 
 New worker; prompt includes debug handoff + Phase C plan + `REACT_STACK`. Follow execute § Worker (same workspace; `WORKTREE_DIR` as tool cwd). Parent: orch Step 4 concurrent-merge on pass.

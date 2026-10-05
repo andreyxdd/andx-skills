@@ -59,7 +59,7 @@ andx-init/scripts/scaffold.sh app /path/to/repo
 ./install-companions.sh   # optional; React/Next companions
 ```
 
-Symlinks into `~/.cursor/skills/` and `~/.claude/skills/`.
+Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/`.
 
 ## Edit workflow
 

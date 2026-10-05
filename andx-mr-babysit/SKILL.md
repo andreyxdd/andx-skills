@@ -92,7 +92,7 @@ Then: follow that skill verbatim for conflict / comments / CI loop. Keep this sk
 
 Each pass:
 
-**Workspace migration gates:** if the MR diff touches `**/migrations/**`, EF `**/Migrations/`, `goose.Up` / `WithAllowMissing`, or `DB_MIGRATIONS_ALLOW_MISSING`, load the workspace rule `agents/rules/goose-migration-review-gates.md` (when present) and treat Fail items as merge-ready blockers — fix in PR scope or escalate. Do not paste gate text into replies; follow that file.
+**Workspace review gates (any repo):** if the workspace (or parent multi-repo map) has `agents/rules/README.md`, load every rule listed under **review** / files matching `*-review-gates.md` whose scope matches the MR diff (e.g. `goose-migration-review-gates.md` when diff touches migrations / `WithAllowMissing`). Treat Fail items as merge-ready blockers at the severity the gate defines — fix in PR scope or escalate. Do not paste gate text into replies; follow those files.
 
 #### A. Merge conflicts
 

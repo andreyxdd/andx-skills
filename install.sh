@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Symlink canonical andx skills into Cursor and Claude skill directories.
+# Symlink canonical andx skills into Cursor, Claude, and Codex skill directories.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -43,6 +43,7 @@ install_target() {
 
 install_target "$HOME/.cursor/skills"
 install_target "$HOME/.claude/skills"
+install_target "$HOME/.codex/skills"
 
 echo "Done. Canonical source: $ROOT"
 echo "Run ./install-companions.sh for optional companions (e.g. react-best-practices)."
