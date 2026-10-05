@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "source": "andx-execute-and-review",
+  "plan": "/path/to/repo/.cursor/plans/mr-review-lessons.plan.md",
+  "target_branch": "main",
+  "head_sha": "2c13eda1d8781361d543717154708cdb26865676",
+  "reviewed_at": "2026-10-05T10:30:00Z",
+  "verdict": "PASS",
+  "findings": [
+    {
+      "id": "babysit-gates-require-readme",
+      "severity": "medium",
+      "location": "andx-mr-babysit/SKILL.md:95",
+      "finding": "Deferred: gate discovery now requires agents/rules/README.md (same precondition as execute-and-review and mr-review); goose gate no longer loaded standalone",
+      "reviewers": ["security-review"]
+    },
+    {
+      "id": "overlapping-rule-selectors",
+      "severity": "low",
+      "location": "andx-debug-and-fix/SKILL.md:44",
+      "finding": "Selectors (plan/dev, review list, *-review-gates.md) overlap; could collapse to one scope-matched selector",
+      "reviewers": ["ponytail-review"]
+    }
+  ]
+}
