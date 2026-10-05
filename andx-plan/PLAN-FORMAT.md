@@ -175,6 +175,11 @@ Within a wave, steps with disjoint `touch` sets may run in parallel when `/andx-
 
 ## Git / repo hygiene
 
-- Default: ephemeral plans → add `.cursor/plans/` to the project's `.gitignore` if not already present.
+- Default: ephemeral plans → add `.cursor/` (or at least `.cursor/plans/`) to the project's `.gitignore` if not already present.
 - Commit a plan only when the user explicitly wants it tracked (shared handoff, team execution).
 - Do not store plans in the user-global `~/.cursor/` tree.
+- Never stage `.cursor/**` unless the user explicitly asks to track the plan.
+
+## Session-end Next (required in every plan file)
+
+Every written plan **must** include a trailing `## Next` section matching the chat Next block (plan path + andx-execute* options + `go` contract). See SKILL.md Phase 3 hard gate. Planner must also print that block in the chat reply; writing the file alone is not enough.

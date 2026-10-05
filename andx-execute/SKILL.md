@@ -66,6 +66,8 @@ Before code: dependency-ordered steps with kind / success / verification. UI →
 
 **Else:** Red → Green → Refactor (`/tdd`). UI/mixed: `/impeccable` before Red when applicable. `REACT_STACK` + React paths: follow `~/.cursor/skills/react-best-practices/SKILL.md`. Quote gate output. Out of plan → ask or `OUT OF SCOPE`.
 
+**Workspace hygiene (any repo):** if parent/workspace `agents/rules/README.md` lists scoped **plan/dev/execute** rules matching `touch` paths, obey them for the whole Phase 1–3 (subtree SoT, fail-closed contracts, version pins, etc.).
+
 ## Phase 2 — Fail loop
 
 Diagnose → fix criterion → implement → re-run (max 3 attempts) → stop with blocker.
@@ -73,6 +75,15 @@ Diagnose → fix criterion → implement → re-run (max 3 attempts) → stop wi
 ## Phase 3 — Final on EXEC_BRANCH
 
 Full regression + lint (even docs) + doc verifier if needed + every table row. Fresh evidence.
+
+**Comment hygiene gate (required):** follow [CODE-COMMENTS.md](./CODE-COMMENTS.md). From
+`TARGET_BRANCH...HEAD` (or matrix base), fail closed on added harness jargon:
+
+```bash
+git diff "$TARGET_BRANCH"...HEAD | rg -n '^\+.*(ponytail:|shrink:|andx:|caveman|/andx-|andx/exec-)' && exit 1 || true
+```
+
+Rewrite hits to plain English / public branch pins before Phase 4.
 
 ## Phase 4 — Commit
 

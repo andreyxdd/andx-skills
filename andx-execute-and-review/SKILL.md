@@ -36,6 +36,17 @@ Fresh agents only; read-only; adversarial. Give: `git diff TARGET_BRANCH..EXEC_B
 **Always:** Reviewers 1–3 (bugbot, security, ponytail-review) per SKILL-MAP + HARNESS.
 **Conditional:** 4–7 per SKILL-MAP triggers.
 **Karpathy on bugbot results:** surgical scope HIGH; speculative abstraction MEDIUM.
+**Harness jargon (always, orch or bugbot Custom Instructions):** flag `ponytail:` /
+`andx:` / skill names / `andx/exec-*` pins in source or shipped runbooks as **MEDIUM**
+per [CODE-COMMENTS.md](../andx-execute/CODE-COMMENTS.md) — must read for a first-time reviewer.
+
+**Workspace review gates (any repo):** Before spawning reviewers, if the workspace
+(or parent multi-repo map) has `agents/rules/README.md`, load rules listed under
+**review** / files matching `*-review-gates.md` whose scope matches `touch` paths.
+Pass gate titles into Bugbot/security **Custom Instructions**. Do not hardcode
+product rules in this skill — same discovery contract as
+[andx-mr-review](../andx-mr-review/SKILL.md) §5. Violated gates → VERDICT blockers
+at the severity the gate file defines.
 
 ### Verdict contract
 

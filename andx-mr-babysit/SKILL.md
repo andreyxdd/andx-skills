@@ -6,7 +6,6 @@ description: >-
   Cursor babysit present: delegate after checkout. Else andx-owned gh/glab loop
   via HOSTS. Use for /andx-mr-babysit, MR URL + "babysit", or after push when
   user wants merge-ready (not review-only).
-disable-model-invocation: true
 ---
 
 # Andx MR Babysit
@@ -92,6 +91,8 @@ Then: follow that skill verbatim for conflict / comments / CI loop. Keep this sk
 **Max iterations:** 5 full passes (conflicts → comments → CI → push/recheck). After bound without merge-ready → **escalate** (stop; report blockers + what tried).
 
 Each pass:
+
+**Workspace migration gates:** if the MR diff touches `**/migrations/**`, EF `**/Migrations/`, `goose.Up` / `WithAllowMissing`, or `DB_MIGRATIONS_ALLOW_MISSING`, load the workspace rule `agents/rules/goose-migration-review-gates.md` (when present) and treat Fail items as merge-ready blockers — fix in PR scope or escalate. Do not paste gate text into replies; follow that file.
 
 #### A. Merge conflicts
 

@@ -1,6 +1,6 @@
 ---
 name: andx-plan
-description: Plans features for andx execution — grill-with-docs domain interview plus steps with depends, touch, and verification criteria. Writes project-local .cursor/plans/*.plan.md only (never ~/.cursor/plans). Ends with a short Next menu; bare go runs the default next skill. Use for /andx-plan, "plan for andx-execute", or after Plan mode when execution metadata is missing.
+description: Plans features for andx execution — grill-with-docs domain interview plus steps with depends, touch, and verification criteria. Writes project-local .cursor/plans/*.plan.md only (never ~/.cursor/plans; do not commit .cursor). Hard-gate: must end with Next menu; bare go runs default andx-execute*. Use for /andx-plan, "plan for andx-execute", or after Plan mode when execution metadata is missing.
 ---
 
 # Andx Plan
@@ -24,9 +24,10 @@ Phase 0 Anchor → 1 Domain grill? → 1.5 Design? → 2 Execution grill → 3 W
 1. **Workspace gate:** plans only under target project `.cursor/plans/`. Never `~/.cursor/plans`. If root ≠ target repo → `move_agent_to_root` first. Ensure `.cursor/plans/` exists (gitignore by default).
 2. **Plan-mode upgrade:** if `.cursor/plans/*.plan.md` or Cursor Plan draft exists but lacks `depends`/`touch`/`verification`, upgrade in place to PLAN-FORMAT — skip domain grill unless gaps.
 3. Read OKF/ICM when present: `IDENTITY.md`, `ROUTING.md`, `knowledge/index.md`, active `pipeline/<stage>/CONTEXT.md`, legacy CONTEXT/ADRs/thread.
-4. Missing `knowledge/` → suggest `/andx-init` once (non-blocking).
-5. Detect `stack`, `workstream` (`code`|`docs`|`mixed`), doc verifier, whether Phase 1 needed, `pipeline_stage`, slug.
-6. Confirm slug if ambiguous. Propose archetype skeleton when fit (mirror-doc / OKF hardening — see below).
+4. **Workspace agent rules:** if `agents/rules/README.md` exists, read always-on + any **plan/dev/execute** scoped rules whose paths match likely `touch` (e.g. hygiene). Bake constraints into steps (`depends`/`success`/`verification`) — do not leave cross-repo sync implicit.
+5. Missing `knowledge/` → suggest `/andx-init` once (non-blocking).
+6. Detect `stack`, `workstream` (`code`|`docs`|`mixed`), doc verifier, whether Phase 1 needed, `pipeline_stage`, slug.
+7. Confirm slug if ambiguous. Propose archetype skeleton when fit (mirror-doc / OKF hardening — see below).
 
 ## Plan archetypes
 
@@ -52,9 +53,13 @@ One Q at a time. Per step: id, title, `kind`, `depends`, `touch`, `success`, `ve
 
 Write `.cursor/plans/<slug>.plan.md` per PLAN-FORMAT (frontmatter + steps). Absolute path in reply.
 
-### Session-end Next + `go` (required)
+Ensure project `.gitignore` covers `.cursor/` or `.cursor/plans/` before writing; never commit `.cursor/**` unless user explicitly demands a tracked plan.
 
-Chat reply **must end** with a short Next block (also mirror in plan `## Next`):
+### Session-end Next + `go` (hard gate)
+
+**Do not end the turn** after writing the plan without the Next block. Incomplete run = missing handoff.
+
+Chat reply **must end** with (also mirror in plan `## Next`):
 
 ```text
 Plan: <abs>/.cursor/plans/<slug>.plan.md
@@ -82,4 +87,5 @@ Reply go → run default on this plan.
 - `touch: unknown` when exploration could resolve
 - Write file before step-list approval
 - Duplicate companion skill prose into plan body
-- Skip Next menu / omit `go` contract
+- Omit Next menu / plan path / `go` contract (silent end after write)
+- Committing `.cursor/**` by default

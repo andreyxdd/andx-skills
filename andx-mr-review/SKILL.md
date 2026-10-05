@@ -7,7 +7,6 @@ description: >-
   (UI/UX flows, API contract). Posts only after explicit approval. Skips subagents
   when REVIEW-ARTIFACT.json on MR head matches head_sha (from /andx-execute-and-review).
   Use for /andx-mr-review, /andx-pr-review (alias), "review this MR", or MR links with code review + comments.
-disable-model-invocation: true
 ---
 
 # Andx MR Review
@@ -96,7 +95,24 @@ Follow [review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) checkout 
 - Checkout if needed; stash only after user confirms on conflict
 - Record `base_sha`, `head_sha` for inline comment positions
 
-### 5. Run reviewers (parallel)
+### 5. Workspace review gates (any repo — before subagents)
+
+Product-specific review checklists live in the **target workspace**, not this skill.
+
+1. Resolve workspace root (MR checkout, or parent multi-repo map that contains it).
+2. If `agents/rules/README.md` exists, read it. Load every rule listed under
+   **review** / **Review** whose scope matches the MR’s repo or changed paths
+   (also accept files named `*-review-gates.md` / `*review*gates*.md` under
+   `agents/rules/`).
+3. If no `agents/rules/` but the repo has `.cursor/rules/*review*` stubs that
+   point at a canonical markdown body — follow that body.
+4. Fold the loaded checklist into Bugbot / security-review **`Custom Instructions`**
+   (quote the gate titles; do not paste entire novels).
+5. If no workspace review gates → skip; do **not** invent product rules here.
+
+This skill stays host- and product-agnostic; gates travel with each workspace.
+
+### 6. Run reviewers (parallel)
 
 Unless artifact mode or `--fast`:
 
@@ -108,17 +124,27 @@ Unless artifact mode or `--fast`:
 
 `--deep`: add react-best-practices + accessibility passes on UI diff paths.
 
-Prompt shape per review-bugbot / review-security skills. `Custom Instructions`: MR context + focus UX/API for forms + API clients.
+Prompt shape per review-bugbot / review-security skills. `Custom Instructions`:
+MR context + focus UX/API for forms + API clients + **workspace review gates**
+from step 5 (if any).
 
-### 6. Synthesize
+### 7. Synthesize
 
 - Dedup overlapping findings (same `location` or same root cause)
 - Sort: high → medium → low → nitpick
 - Enrich each with `ux_flow` / `api_note` (read i18n, apiSlice, types)
+- **Workspace gates pass:** any unchecked / violated gate from step 5 → finding
+  at the severity that gate file defines (default medium; silent wrong-curve /
+  wrong-pubkey / SUCCESS-on-bad-sig → high when the gate says so).
+- **Harness-jargon pass (always):** scan `base...HEAD` added lines for
+  `ponytail:`, `shrink:`, `andx:`, `caveman`, skill/plugin names, `andx/exec-*`
+  pins in source **or** shipped runbooks/checklists. Each hit → **medium**
+  finding citing [CODE-COMMENTS.md](../andx-execute/CODE-COMMENTS.md) — first-time
+  reviewer must understand the line without agent chat.
 - Apply comment budget: inline = high/medium; nitpicks → separate bucket unless `--all-nitpicks`
 - Cap ~8 inline; overflow → summary table only
 
-### 7. Draft outputs
+### 8. Draft outputs
 
 **Chat report** — full [REPORT-FORMAT.md](./REPORT-FORMAT.md) with line links and fix snippets.
 
@@ -132,7 +158,7 @@ Present:
 
 Optional export: `<workspace>/.cursor/reviews/<mr-id>-report.md`
 
-### 8. Approval gate (default — draft in chat first)
+### 9. Approval gate (default — draft in chat first)
 
 Unless `--post`:
 
@@ -141,7 +167,7 @@ Unless `--post`:
 
 Never edit user's existing MR comment body — append-only via `--append-snippet`.
 
-### 9. Post
+### 10. Post
 
 Per [HOSTS.md](./HOSTS.md):
 

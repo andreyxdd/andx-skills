@@ -18,6 +18,7 @@ Code committed; need prod deploy + health. Features → `/andx-execute` / `/andx
 1. Anchor: `git rev-parse HEAD`, branch, dirty/unpushed.
 2. Auto-push when `origin` exists **and** deploy needs remote: `git push -u origin HEAD` (no force main/master without ask).
 3. Parent: deploy commands + health only — never edit app source.
+4. **Migration gate:** if this revision touches goose/EF migrations, `WithAllowMissing`, or `DB_MIGRATIONS_ALLOW_MISSING`, load workspace `agents/rules/goose-migration-review-gates.md` (when present). Unconditional AllowMissing or gap-ordered migrations → **block deploy** until fixed (GitOps still via workspace gitops rule). Do not fork gate text here.
 
 ## Phase B — Discover (every run)
 
