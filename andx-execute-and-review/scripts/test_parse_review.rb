@@ -22,6 +22,13 @@ class ParseReviewTest < Minitest::Test
     end
   end
 
+  def test_security_needs_validation_is_kept_but_not_blocking
+    text = "## VERDICT\nstatus: PASS\nsecrets_scan: NOT_RUN\nadvisory:\n  - [NEEDS_VALIDATION] b.js:2 — proxy trust (xff-trust)\n"
+    r = parse(text, "security")
+    assert_equal "PASS", r[:status]
+    assert_equal "needs_validation", r[:findings].first[:severity]
+  end
+
   def test_xml_findings_normalized
     f = parse(File.read(File.join(DIR, "xml-high.txt")), "bugbot")[:findings]
     assert_equal({ reviewer: "bugbot", severity: "high", location: "src/provider.ts:42", finding: "Race on provider init" }, f.first)

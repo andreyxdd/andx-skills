@@ -29,7 +29,7 @@ def parse(text, reviewer)
   real = text.gsub(/(?:PASS|BLOCK)\s*\|\s*(?:PASS|BLOCK)/i, "")
   verdicts = real.scan(/VERDICT\W*(?:status:\s*)?\**\s*(PASS|BLOCK)\b/i).flatten
   if verdicts.size == 1
-    findings = text.scan(/^\s*-\s*\[(CRITICAL|HIGH|MEDIUM|LOW)\]\s*(\S+)\s*[—-]\s*(.+)$/i).map do |sev, loc, msg|
+    findings = text.scan(/^\s*-\s*\[(CRITICAL|HIGH|MEDIUM|LOW|NEEDS_VALIDATION)\]\s*(\S+)\s*[—-]\s*(.+)$/i).map do |sev, loc, msg|
       { reviewer: reviewer, severity: sev.downcase, location: loc, finding: msg.strip }
     end
     return { status: verdicts.first.upcase == "BLOCK" ? "BLOCK" : status_for(findings), findings: findings }

@@ -26,6 +26,7 @@ SKILLS=(
   andx-mr-review
   andx-mr-babysit
   andx-mr-create
+  andx-security-review
   andx-listen-start
   andx-listen-end
 )
