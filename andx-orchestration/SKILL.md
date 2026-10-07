@@ -51,7 +51,7 @@ Write `$REPO_ROOT/.worktrees/.andx-run/$SLUG.json` before Step 1 and update it a
 MERGED <s> | PUSHED <s> | MR <url or -> | DEPLOYED <s>
 ```
 
-`<s>` is one of `NOT_REQUESTED`, `PASS`, `FAIL`, `BLOCKED`.
+`<s>` is one of `NOT_REQUESTED`, `PASS`, `FAIL`, `BLOCKED`. After the status line add `Next: /retro (review this run for environment fixes)` when the run escalated, needed ≥ 2 review rounds, or a worker died.
 
 **Waves** (EXEC-MATRIX): `exec-${SLUG}-w${N}-${STAMP}` (N from the matrix). Parallel workers in a wave: `exec-${SLUG}-w${N}-${step-id}-${STAMP}`. Branch keeps `andx/` prefix; folder is the `exec-…` path under `.worktrees/`.
 

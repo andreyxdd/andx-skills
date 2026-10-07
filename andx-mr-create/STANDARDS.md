@@ -31,6 +31,10 @@ Format: `{username}/VLT-{n}-{mr-slug}` when a ClickUp task exists; else `{userna
    - GitHub: `https://github.com/<owner>/<repo>/blob/<branch>/<path>`
    - Only files that appear in `base...HEAD` diff.
 4. **Test plan** — checkboxes for what a human can verify from this MR.
+5. **Evidence** (from the `pr` skill) — before/after: failing → passing test output, or screenshots for visual changes.
+6. **Merge danger** — `Door: one-way | two-way` (can it be rolled back cheaply?) and `Blast radius: <one word>` plus one line on what could break.
+
+Summary may open with the smallest visual that makes the point (call tree, diff-sketch, file tree, or Mermaid), per `~/.cursor/skills/pr/SKILL.md`.
 
 Title: conventional (`feat(scope): …` / `fix(scope): …`). No `(united)`, no “was !N”.
 

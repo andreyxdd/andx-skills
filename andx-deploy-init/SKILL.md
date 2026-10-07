@@ -46,7 +46,7 @@ Offer/write an ADR only for a hard-to-reverse, surprising decision with a real t
 
 ### C. Manual checklist
 
-Present [CHECKLIST.md](./CHECKLIST.md) as a human checklist. Pause until user confirms it is complete. Never print or request production secret values in chat.
+Present [CHECKLIST.md](./CHECKLIST.md) as a human checklist. Steps with secrets or third-party dashboards → generate a wizard per `~/.cursor/skills/wizard/SKILL.md` (copy its `template.sh`, one stage per step, `ask_secret` for secrets, `set_secret` names matching CI `secrets.*`), verify with `bash -n`, and hand the user the run command; do not run it yourself. Pause until user confirms it is complete. Never print or request production secret values in chat.
 
 ### D. Write CI/CD plan
 

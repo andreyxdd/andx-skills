@@ -1,6 +1,6 @@
 ---
 name: andx-mr-create
-description: "/andx-mr-create: open an MR/PR with a lean diff and a reviewer-facing description (summary, review order, test plan). Use for \"open an MR\" or \"create merge request\"."
+description: "/andx-mr-create: open an MR/PR with a lean diff and a reviewer-facing description (summary, review order, test plan, evidence, merge danger). Use for \"open an MR\" or \"create merge request\"."
 disable-model-invocation: true
 ---
 # Andx MR Create
