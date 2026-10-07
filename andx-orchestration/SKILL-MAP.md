@@ -61,6 +61,7 @@ Composer: `/andx-execute-review-and-deploy` = execute-and-review DoD (incl. conc
 | `review-bugbot` → bugbot | Always | Reviewer 1 |
 | `andx-security-review` (gate) → agent `andx-security-reviewer` | Always; parent refutes each proposed critical/high with `andx-refuter`; Cursor `security-review` only under `--deep` | Reviewer 2 |
 | `ponytail-review` | Always — [resolve](./HARNESS.md#ponytail-resolve) | Reviewer 3 |
+| agent `andx-spec-reviewer` | Always (only reviewer checking plan compliance). Docs-only plans: Bugbot + Spec only. Drop after 20 artifacts with zero unique catches (`reviewers[]`) | Reviewer 8 |
 | `ponytail-audit` | Diff adds deps or new files under `touch` | Reviewer 4 |
 | `react-best-practices` | Diff touches React paths | Reviewer 5 |
 | `accessibility` | UI diff + a11y in plan | Reviewer 6 |

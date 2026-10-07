@@ -32,7 +32,8 @@ F   PASS → REVIEW-ARTIFACT → orch Step 4 concurrent-merge + cleanup
 
 Fresh agents only; read-only; adversarial; foreground (`run_in_background: false`, all reviewers in one message). Give: `MERGE_BASE_SHA` + `EXEC_HEAD` (orch Variables) with "review only `git diff MERGE_BASE_SHA..EXEC_HEAD`" (Bugbot: in `Custom Instructions`), plan (`touch`/`success`/`verification`/`design_refs`), verification evidence.
 
-**Always:** Reviewers 1–3 (bugbot, `andx-security-reviewer`, ponytail-review) per SKILL-MAP + HARNESS.
+**Always:** Reviewers 1–3 (bugbot, `andx-security-reviewer`, ponytail-review) + 8 (`andx-spec-reviewer`: plan compliance) per SKILL-MAP + HARNESS. Docs-only plans (`DOCS_ONLY`): Bugbot + Spec only.
+**Unique catches:** every artifact finding lists all `reviewers` that raised it (same location ± 3 lines, same root cause), so `/retro` can count catches no other reviewer made.
 **Security refutation:** after reviewers return, spawn one `andx-refuter` per security candidate with `status: proposed` (critical/high), foreground, one message ([VERIFIER.md](../andx-security-review/VERIFIER.md)). Only `confirmed` critical/high blocks; `needs_validation` goes to advisory with its blocker; `rejected` fingerprints are recorded and not re-raised in later rounds, and the final reply lists each rejected critical/high with the refuter's reason (unmeasured refuter: [MEASUREMENT.md](../andx-security-review/MEASUREMENT.md)).
 **Conditional:** 4–7 per SKILL-MAP triggers.
 **Karpathy on bugbot results:** surgical scope HIGH; speculative abstraction MEDIUM.
@@ -105,7 +106,7 @@ Replaces Phase F when the user wants a draft MR instead of a local merge (ledger
 
 ## Definition of done
 
-Worker pass; always Reviewers 1–3 PASS; conditionals 4–7 PASS when their gates ran; no open High; merged + post-merge green + cleanup; ledger `terminal: DONE`; reply ends with the orch status line.
+Worker pass; always Reviewers 1–3 + Spec PASS; conditionals 4–7 PASS when their gates ran; no open High; merged + post-merge green + cleanup; ledger `terminal: DONE`; reply ends with the orch status line.
 
 ## Anti-patterns
 
