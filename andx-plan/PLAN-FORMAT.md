@@ -123,6 +123,9 @@ verification: pnpm verify:docs
 | `stack` | no | `react-next` \| `react` \| `next` \| `none` — drives `REACT_STACK` in `/andx-execute` (`none` disables) |
 | `source` | yes | `thread` \| `plan-mode` \| issue URL |
 | `todos` | no | Cursor todos; execution steps live in body |
+| `mr_branch` | for `--mr` | Reviewer-facing remote branch the run may push to (never `andx/exec-*`) |
+| `mr_iids` | no | Bracket list of existing MR/PR ids the run may update |
+| `base_sha` | for `--mr` stacks | Base commit; findings outside `base_sha..head` are rejected |
 | `isProject` | yes | `false` for feature plans |
 
 ## Step block fields

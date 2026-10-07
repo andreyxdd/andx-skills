@@ -1,6 +1,7 @@
 ---
 name: andx-listen-end
 description: "/andx-listen-end: end listen mode, write docs/intake/YYYY-MM-DD-listen.md, then start andx-plan grilling on it. Use for \"stop listen\"."
+disable-model-invocation: true
 ---
 # Andx Listen End
 

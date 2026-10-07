@@ -90,6 +90,18 @@ Resume worker (`resume=<id>`) with union blockers + in-scope MEDIUMs; Phase 3 on
 
 Orchestration Step 4 (concurrent-merge). If Step 4 conflict worker changed product source, re-run always reviewers 1-3 before TARGET merge. Clean integrate → no extra review. Then post-merge Phase 3 → cleanup evidence.
 
+## MR mode (`--mr`)
+
+Replaces Phase F when the user wants a draft MR instead of a local merge (ledger `mode: review-mr`). Never merges to the default branch.
+
+1. **Scope contract** from plan frontmatter: `mr_branch` (reviewer-facing name, no `andx/exec-*`), optional `mr_iids`, `base_sha`. Pushing to a branch not in `mr_branch`/`mr_iids` needs user confirmation.
+2. **Push:** `git -C "$WORKTREE_DIR" push origin "$EXEC_BRANCH:$mr_branch"` (no force unless the user asked). Verify `git ls-remote origin "$mr_branch"` equals `EXEC_HEAD`.
+3. **Draft MR:** create or update as **draft** via [HOSTS.md](../andx-mr-review/HOSTS.md); title/body pass the [MR and commit text gate](../andx-execute/CODE-COMMENTS.md#mr-and-commit-text-gate). Record the URL in the ledger.
+4. **Cleanup:** remove `WORKTREE_DIR` (branch lives on remote) + sweep dry-run (orch Step 4 push-to-MR runs).
+5. **Babysit:** Read `../andx-mr-babysit/SKILL.md` and follow it on the MR URL. Babysit owns the loop and its escalation bound; this skill owns only push + draft. Babysit findings about code outside `base_sha..head` are rejected.
+
+**Done (MR mode):** MR still draft, remote head = last pushed SHA, CI green or escalated, thread guard PASS, status line `MERGED - | PUSHED <s> | MR <url> | DEPLOYED NOT_REQUESTED`.
+
 ## Definition of done
 
 Worker pass; always Reviewers 1–3 PASS; conditionals 4–7 PASS when their gates ran; no open High; merged + post-merge green + cleanup; ledger `terminal: DONE`; reply ends with the orch status line.

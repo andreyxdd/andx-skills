@@ -32,7 +32,7 @@ Anchor symptom; falsifiable repro; run read-only on primary checkout → must fa
 
 ## Phase B — Analyst
 
-Spawn per HARNESS **Debug analyst**. Prompt: symptom, repro output, `REPO_ROOT`, follow `/debug-like-expert`, return orch debug handoff schema. Skip user decision gate — auto-proceed on `pass`.
+Spawn agent `andx-analyst` (HARNESS). Prompt: symptom, repro output, `REPO_ROOT`, follow `/debug-like-expert`, return orch debug handoff schema. Skip user decision gate — auto-proceed on `pass`.
 
 `fail`/`inconclusive` → stop; no worktree. No edits/commits in Phase B.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 # Idempotent install/uninstall of andx hooks.
 #   Claude ~/.claude/settings.json  Stop -> hooks/andx_continue.rb (Cursor runs it too)
-#   Cursor ~/.cursor/hooks.json     preToolUse + beforeMCPExecution -> hooks/deny-worktree-root.sh
+#   Cursor ~/.cursor/hooks.json     preToolUse + beforeMCPExecution -> hooks/deny_worktree_root.rb
 # Preserves unknown keys and other hooks; backs up before write; atomic rename.
 # Usage: ruby install_hooks.rb install|uninstall [--home DIR]
 require "json"
@@ -10,7 +10,7 @@ require "fileutils"
 ROOT = File.expand_path("..", __dir__)
 MARK = "andx-skills/hooks/"
 CONTINUE = "/usr/bin/ruby #{ROOT}/hooks/andx_continue.rb"
-GUARD = "bash #{ROOT}/hooks/deny-worktree-root.sh"
+GUARD = "/usr/bin/ruby #{ROOT}/hooks/deny_worktree_root.rb"
 
 def load(path, default)
   File.exist?(path) ? JSON.parse(File.read(path)) : default

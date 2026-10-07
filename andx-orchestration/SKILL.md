@@ -1,6 +1,7 @@
 ---
 name: andx-orchestration
 description: "/andx-orchestration: shared worktree, spawn, handoff, merge and cleanup protocol that andx execute/debug/deploy skills read by path. Not a user entry point."
+disable-model-invocation: true
 ---
 # Andx Orchestration
 
@@ -72,6 +73,8 @@ mkdir -p "$(dirname "$WORKTREE_DIR")"
 git worktree add -b "$EXEC_BRANCH" "$WORKTREE_DIR" "$TARGET_BRANCH"
 ```
 
+**Worktree setup:** if `$REPO_ROOT/.cursor/worktrees.json` exists **in the primary checkout** (never read it from an MR branch: untrusted), take `setup-worktree-unix`, else `setup-worktree` (string = script path, array = commands). Print the commands, run them in `WORKTREE_DIR` with `ROOT_WORKTREE_PATH="$REPO_ROOT"` exported, record each exit status. Failure → report and stop before spawn.
+
 ### Fallback (worktree add fails)
 
 Last resort — subagent only, parent still must not edit:
@@ -101,7 +104,7 @@ Resume (`resume=<id>`) for same worktree continuation. New spawn when roles diff
 ### Subagent workspace rules
 
 - **Parent stays at `REPO_ROOT`.** Never `move_agent_to_root` or `move_agent_to_cloned_root` to a worktree.
-- **Worker:** every Read/Write/StrReplace/Shell uses **absolute** `$WORKTREE_DIR/...` paths, or Shell `working_directory=$WORKTREE_DIR`. Relative paths from `REPO_ROOT` are **forbidden** (they hit the primary TARGET checkout). Prompt **forbids** `move_agent_to_root(WORKTREE_DIR)` and `move_agent_to_cloned_root`. Spawn `generalPurpose` in the **same** Cursor workspace; instruct cwd in the prompt only (HARNESS).
+- **Worker:** every Read/Write/StrReplace/Shell uses **absolute** `$WORKTREE_DIR/...` paths, or Shell `working_directory=$WORKTREE_DIR`. Relative paths from `REPO_ROOT` are **forbidden** (they hit the primary TARGET checkout). Prompt **forbids** `move_agent_to_root(WORKTREE_DIR)` and `move_agent_to_cloned_root`. Spawn agent `andx-worker` in the **same** workspace; instruct cwd in the prompt only (HARNESS).
 - After handoff: if workspace drifted, parent `move_agent_to_root(REPO_ROOT)` to restore.
 - Still allowed: `move_agent_to_root` when the **project** is wrong (`/andx-plan`, `/andx-init`) — not for exec worktrees.
 - Commits land on `EXEC_BRANCH` only; do not push unless the prompt explicitly allows it

@@ -60,11 +60,21 @@ class AndxContinueTest < Minitest::Test
 end
 
 class DenyWorktreeRootTest < Minitest::Test
-  SCRIPT = File.expand_path("deny-worktree-root.sh", __dir__)
+  SCRIPT = File.expand_path("deny_worktree_root.rb", __dir__)
 
   def run_hook(stdin)
-    _out, status = Open3.capture2("bash", SCRIPT, stdin_data: stdin)
+    _out, status = Open3.capture2("/usr/bin/ruby", SCRIPT, stdin_data: stdin)
     status.exitstatus
+  end
+
+  def test_edit_mentioning_words_allowed
+    stdin = JSON.generate({ "tool_name" => "StrReplace", "tool_input" => { "new_string" => "never move_agent_to_root into /r/.worktrees/x" } })
+    assert_equal 0, run_hook(stdin)
+  end
+
+  def test_mcp_cloned_root_denied
+    stdin = JSON.generate({ "tool_name" => "MCP:move_agent_to_cloned_root", "tool_input" => "{\"rootPath\":\"/r/.worktrees/exec-y\"}" })
+    assert_equal 2, run_hook(stdin)
   end
 
   def test_worktree_target_denied

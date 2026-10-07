@@ -55,6 +55,14 @@ install_target() {
 install_target "$HOME/.cursor/skills"
 install_target "$HOME/.claude/skills"
 install_target "$HOME/.codex/skills"
+
+# Agents: ~/.claude/agents only; Cursor reads it too (a same-name ~/.cursor/agents file would shadow).
+mkdir -p "$HOME/.claude/agents"
+for agent in "$ROOT"/agents/*.md; do
+  ln -sfn "$agent" "$HOME/.claude/agents/$(basename "$agent")"
+  echo "linked $HOME/.claude/agents/$(basename "$agent")"
+done
+
 /usr/bin/ruby "$ROOT/scripts/install_hooks.rb" install
 
 echo "Done. Canonical source: $ROOT"

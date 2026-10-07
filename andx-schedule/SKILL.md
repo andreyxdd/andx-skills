@@ -1,6 +1,7 @@
 ---
 name: andx-schedule
 description: "/andx-schedule: build EXEC-MATRIX parallel waves from plan depends+touch so andx-execute can run workers in parallel. Use after andx-plan when 2+ steps can share a wave."
+disable-model-invocation: true
 ---
 # Andx Schedule
 

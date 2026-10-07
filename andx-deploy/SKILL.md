@@ -1,6 +1,7 @@
 ---
 name: andx-deploy
 description: "/andx-deploy: deploy the committed revision to production using this repo's documented method, then verify health. Use for \"deploy to production\"."
+disable-model-invocation: true
 ---
 # Andx Deploy
 

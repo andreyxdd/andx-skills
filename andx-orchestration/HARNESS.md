@@ -1,39 +1,41 @@
 # Andx harness matrix
 
-Cursor-primary. Claude best-effort. Same skills; degrade when an API is missing — never invent Task parameters.
+Cursor-primary, Claude Code supported. Same skills and agents in both; spawn details live here, entry skills describe roles + contracts only. Never invent tool parameters.
 
-Spawn details live here. Entry skills describe **roles + contracts** only.
+## Agents (`~/.claude/agents/`, installed by `install.sh`; Cursor reads the same dir)
 
-## Worker (implement)
+| Agent | Role | Mode |
+|-------|------|------|
+| `andx-worker` | Implement in `WORKTREE_DIR`, return `## Handoff` | writes |
+| `andx-analyst` | Debug Phase B root cause, return `## Debug analyst handoff` | read-only (Cursor `readonly: true`, Claude `disallowedTools`) |
 
-| Harness | Spawn |
-|---------|--------|
-| Cursor | `Task(subagent_type="generalPurpose")` in the **same** workspace as parent. Prompt: every edit/shell uses **absolute** `$WORKTREE_DIR/...` or Shell `working_directory=$WORKTREE_DIR`. Relative paths from `REPO_ROOT` forbidden. Never `move_agent_to_root` to the worktree. |
-| Claude | Same `generalPurpose` worker; instruct absolute `$WORKTREE_DIR/...` / cwd in the prompt only |
+## Spawning
 
-Always use andx worktree vars from [SKILL.md](./SKILL.md) Step 1. Parent stays at `REPO_ROOT`. Parent merges to `TARGET_BRANCH` and cleans up.
+| | Cursor | Claude Code |
+|---|--------|-------------|
+| Tool | `Task(subagent_type="andx-worker" \| "andx-analyst", run_in_background=false)` | `Agent` tool with the agent name |
+| Fallback (agent not listed in this session) | `generalPurpose` + paste the agent file body into the prompt | same |
+| Parallel | several Task calls in one message | several Agent calls in one message |
+| Continue same agent | `resume=<id>` | `SendMessage` to the agent |
+| Background | always `run_in_background=false` (background ends the parent turn) | Claude may background subagents anyway → parent waits for the handoff before the next phase |
+| Nesting | subagents cannot spawn subagents → parent spawns every reviewer and refuter | same rule, for portability |
 
-**Out of default path:** `best-of-n-runner` and cloud `environment=cloud` — parallel experiments only. Do **not** use for default `/andx-execute` (own branch/worktree fights andx merge/`resume`/cleanup).
+Worker prompt: absolute `$WORKTREE_DIR/...` paths or Shell `working_directory=$WORKTREE_DIR`; never `move_agent_to_root` to a worktree. Parent stays at `REPO_ROOT`, merges, and cleans up ([SKILL.md](./SKILL.md) Step 4).
 
-## Debug analyst (readonly)
+**Never on the default path:** Claude `isolation: worktree`, Cursor `best-of-n-runner`, cloud agents. They create their own branch/worktree and fight andx merge, `resume`, and cleanup. Parallel experiments only.
 
-| Harness | Spawn |
-|---------|--------|
-| Claude | `Task(subagent_type="generalPurpose", readonly=true)` when supported |
-| Cursor | `generalPurpose` + prompt forbids edits (best-effort; no `readonly` flag) |
+## Reviewers (`/andx-execute-and-review`, `/andx-mr-review`)
 
-No worktree until analyst handoff `pass`. Do not resume analyst as execute worker.
+Fresh agents, no worker context, judge only `git diff $MERGE_BASE_SHA..$EXEC_HEAD`, never edit app source.
 
-## Reviewers (`/andx-execute-and-review`)
+| Role | Cursor | Claude Code |
+|------|--------|-------------|
+| 1 Bugbot (always) | `Task(subagent_type="bugbot")` per `~/.cursor/skills-cursor/review-bugbot/SKILL.md` | built-in `/code-review` run by the orchestrator (GitLab `--comment` needs ≥ 2.1.257); else `general-purpose` with the Bugbot prompt |
+| 2 Security (always) | `Task(subagent_type="security-review")` per `~/.cursor/skills-cursor/review-security/SKILL.md` | `general-purpose` + user `security-review` skill path |
+| 3 Ponytail-review (always) | `generalPurpose` + [ponytail resolve](#ponytail-resolve) | same |
+| Ponytail-audit / react / a11y (conditional) | `generalPurpose` + skill path from [SKILL-MAP.md](./SKILL-MAP.md) | same |
 
-| Role | Cursor | Claude |
-|------|--------|--------|
-| Bugbot (always) | `Task(subagent_type="bugbot")` per `~/.cursor/skills-cursor/review-bugbot/SKILL.md` | Same intent via available Task type or skill invoke |
-| Security (always) | `Task(subagent_type="security-review")` per `~/.cursor/skills-cursor/review-security/SKILL.md` | Same |
-| Ponytail-review (always) | `generalPurpose` + [ponytail resolve](#ponytail-resolve) | Same |
-| Ponytail-audit / react / a11y (conditional) | `generalPurpose` + skill path from [SKILL-MAP.md](./SKILL-MAP.md) | Same |
-
-Fresh agents only — no shared worker context. Read-only: judge, do not edit app source.
+Normalize every reviewer's output with `andx-execute-and-review/scripts/parse_review.rb` before union.
 
 ## Ponytail resolve
 
@@ -45,6 +47,11 @@ Try in order; stop at first hit:
 
 Never use `~/.cursor/skills-cursor/ponytail-*` (not shipped there).
 
+## Goals and continuation
+
+- Cursor: parent may `CreateGoal` per the run ledger ([SKILL.md](./SKILL.md) Run ledger); subagents cannot.
+- Claude: `/goal` is user-only; the andx Stop hook (`hooks/andx_continue.rb`) continues a non-terminal ledger instead.
+
 ## Evidence rule
 
-No completion / “fixed” / “healthy” claim without **fresh command output in the current message** after the last relevant edit or deploy.
+No completion / "fixed" / "healthy" claim without **fresh command output in the current message** after the last relevant edit or deploy.

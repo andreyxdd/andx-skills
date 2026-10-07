@@ -1,6 +1,7 @@
 ---
 name: andx-listen-start
 description: "/andx-listen-start: sticky listen mode; confirm each dump is in context, ask nothing, run no tools until /andx-listen-end. Use for \"just listen\" or \"confirm you have this\"."
+disable-model-invocation: true
 ---
 # Andx Listen Start
 

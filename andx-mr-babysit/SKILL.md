@@ -67,7 +67,7 @@ Load MR metadata, head/base refs, pipeline/checks, open discussion threads.
 
 ### 3. Branch materialize
 
-Fetch MR head; checkout working copy of head branch (stash only after user confirms if dirty). Record `base_sha` / `head_sha`.
+Fetch MR head into a worktree, never the primary checkout: `git fetch origin <head_branch> && git worktree add --track -B <head_branch> "$REPO_ROOT/.worktrees/mr-<iid>" origin/<head_branch>` (if the branch is checked out in primary, ask the user before switching primary away). Fixes run there (spawn `andx-worker` with that `WORKTREE_DIR`). Record `base_sha` / `head_sha`. Remove the worktree at done/escalate when clean.
 
 ### 4. Route: delegate vs andx-owned loop
 

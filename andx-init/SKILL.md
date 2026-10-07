@@ -1,6 +1,7 @@
 ---
 name: andx-init
 description: "/andx-init: scaffold the OKF + ICM layout (IDENTITY, ROUTING, knowledge/, pipeline/) into a repo, additive only. Use before andx-plan when knowledge/ is missing."
+disable-model-invocation: true
 ---
 # Andx Init
 

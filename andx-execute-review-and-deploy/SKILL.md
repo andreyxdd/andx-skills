@@ -1,6 +1,7 @@
 ---
 name: andx-execute-review-and-deploy
 description: "/andx-execute-review-and-deploy: andx-execute-and-review, push, then andx-deploy with health checks. Use for \"execute, review, and deploy\" or \"ship it\"."
+disable-model-invocation: true
 ---
 # Andx Execute, Review, and Deploy
 

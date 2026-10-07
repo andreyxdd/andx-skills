@@ -1,6 +1,7 @@
 ---
 name: andx-deploy-init
 description: "/andx-deploy-init: first-time production CI/CD setup via grill, human checklist, and a review-gated plan. Use for \"set up CI/CD\" or \"bootstrap deployment\"."
+disable-model-invocation: true
 ---
 # Andx Deploy Init
 
@@ -57,7 +58,7 @@ Show plan path and wait for explicit approval. Do not begin implementation befor
 
 ### F. Execute with review
 
-Invoke `/andx-execute-and-review` on approved CI/CD plan. Do not use plain `/andx-execute`, `/andx-execute-and-deploy`, or `/andx-execute-review-and-deploy`: first-time CI/CD must not auto-push or deploy production.
+Read `../andx-execute-and-review/SKILL.md` and follow it on the approved CI/CD plan. Do not use plain `/andx-execute`, `/andx-execute-and-deploy`, or `/andx-execute-review-and-deploy`: first-time CI/CD must not auto-push or deploy production.
 
 ### G. Stop
 
