@@ -25,7 +25,7 @@ C Parent: map handoff → steps + verification table; detect REACT_STACK
 D New execute worker Phases 0–4 → orch Step 4 concurrent-merge + cleanup
 ```
 
-Do **not** resume analyst as worker.
+Do **not** resume analyst as worker. Run ledger `mode: debug` from Phase A ([orch](../andx-orchestration/SKILL.md#run-ledger-composers-execute-debug-and-fix-deploy)); analyst `fail`/`inconclusive` → `terminal: ESCALATED`. End with the orch status line.
 
 ## Phase A — Repro
 

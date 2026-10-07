@@ -31,7 +31,7 @@ F   PASS → REVIEW-ARTIFACT → orch Step 4 concurrent-merge + cleanup
 
 ## Phase C — Review (parallel, blind)
 
-Fresh agents only; read-only; adversarial. Give: `git diff TARGET_BRANCH..EXEC_BRANCH`, plan (`touch`/`success`/`verification`/`design_refs`), verification evidence.
+Fresh agents only; read-only; adversarial; foreground (`run_in_background: false`, all reviewers in one message). Give: `MERGE_BASE_SHA` + `EXEC_HEAD` (orch Variables) with "review only `git diff MERGE_BASE_SHA..EXEC_HEAD`" (Bugbot: in `Custom Instructions`), plan (`touch`/`success`/`verification`/`design_refs`), verification evidence.
 
 **Always:** Reviewers 1–3 (bugbot, security, ponytail-review) per SKILL-MAP + HARNESS.
 **Conditional:** 4–7 per SKILL-MAP triggers.
@@ -59,7 +59,19 @@ advisory:
   - [MEDIUM|LOW] <file:line> — <one line>
 ```
 
-Missing/malformed VERDICT → **BLOCK** (re-request once).
+### Normalize, then union
+
+Save each reviewer's raw output to `/tmp/andx-review-<slug>-<reviewer>.txt` and run:
+
+```bash
+ruby ~/.cursor/skills/andx-execute-and-review/scripts/parse_review.rb <reviewer> /tmp/andx-review-<slug>-<reviewer>.txt
+```
+
+It reads, in order: Bugbot native `<answer><bug>…</bug></answer>` (empty = PASS), a single real VERDICT (echoed `BLOCK | PASS` templates ignored), a severity table, "no bugs" prose. Output `{status: BLOCK|FIX|PASS|UNPARSED, findings[]}`. Union the normalized findings across reviewers; compute BLOCK from the union.
+
+- **Bugbot:** never re-request (it cannot resume and repeats itself). `UNPARSED` → parent reads the text and classifies by hand.
+- **generalPurpose reviewers:** `UNPARSED` → re-request the VERDICT once; still unparsed → BLOCK.
+- **Each HIGH/CRITICAL:** parent runs one `git show`/`rg` check against `EXEC_HEAD` before routing it to the worker; a finding about code outside `MERGE_BASE_SHA..EXEC_HEAD` is dropped as wrong-base.
 
 ### REVIEW-ARTIFACT (on PASS, before merge)
 
@@ -67,9 +79,13 @@ Parent may write/commit **only** `.cursor/reviews/<plan-slug>.json` on `EXEC_BRA
 
 ## Phase D–E — Verdict + fix loop
 
-**BLOCK** = any Critical/High from **any** reviewer. Reviewer 7 (UX/API) is advisory unless paired with another High. Medium → fix or justify-and-defer. Low → advisory.
+**BLOCK** = any Critical/High from **any** reviewer. Reviewer 7 (UX/API) is advisory unless paired with another High. Low → advisory.
 
-Resume worker (`resume=<id>`) with union blockers; Phase 3 on EXEC_BRANCH; re-run always 1–3 + applicable conditionals. Max **3** rounds → escalate, **no merge**.
+**MEDIUM:** fix in the same round when it is in plan scope and reproducible from the diff. Defer only speculative, style-only, or out-of-scope items, each with a one-line reason. The final reply lists every deferred item and asks "fix now?".
+
+Resume worker (`resume=<id>`) with union blockers + in-scope MEDIUMs; Phase 3 on EXEC_BRANCH; re-review only the fix delta (`git diff <previous EXEC_HEAD>..<new EXEC_HEAD>`) with always 1–3 + applicable conditionals.
+
+**Round cap:** after round 3 still BLOCK → AskQuestion with exactly: "one more round" / "merge, deferring only MEDIUM/LOW" / "abort". Critical/High are never deferred. Set ledger `terminal: AWAITING_USER` while waiting.
 
 ## Phase F — Merge
 
@@ -77,7 +93,7 @@ Orchestration Step 4 (concurrent-merge). If Step 4 conflict worker changed produ
 
 ## Definition of done
 
-Worker pass; always Reviewers 1–3 PASS; conditionals 4–7 PASS when their gates ran; no open High; merged + post-merge green + cleanup.
+Worker pass; always Reviewers 1–3 PASS; conditionals 4–7 PASS when their gates ran; no open High; merged + post-merge green + cleanup; ledger `terminal: DONE`; reply ends with the orch status line.
 
 ## Anti-patterns
 

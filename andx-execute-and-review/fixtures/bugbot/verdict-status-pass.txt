@@ -1,0 +1,5 @@
+## VERDICT
+status: PASS
+blockers:
+advisory:
+  - [LOW] osbot/sessions.py:27 — turn lock bypassed with multiple workers

@@ -43,6 +43,8 @@ Follow [/andx-deploy](../andx-deploy/SKILL.md) Preflight→D. Discover deploy fr
 - [ ] Deploy + health (andx-deploy)
 ```
 
+Run ledger `mode: review-deploy`, `required_phases: [A, A′, B, C, D]`; `terminal: DONE` only after fresh health output. End with the orch status line.
+
 ## Anti-patterns
 
 - Push/deploy before cleanup evidence

@@ -125,8 +125,14 @@ Unless artifact mode or `--fast`:
 `--deep`: add react-best-practices + accessibility passes on UI diff paths.
 
 Prompt shape per review-bugbot / review-security skills. `Custom Instructions`:
-MR context + focus UX/API for forms + API clients + **workspace review gates**
-from step 5 (if any).
+MR context + "review only `git diff <base_sha>..<head_sha>`" (MR diff refs from
+step 4, never the default branch) + focus UX/API for forms + API clients +
+**workspace review gates** from step 5 (if any). Spawn all reviewers in one
+message, foreground.
+
+Normalize each output with
+[parse_review.rb](../andx-execute-and-review/scripts/parse_review.rb)
+(Bugbot native XML first; never re-request Bugbot), then synthesize.
 
 ### 7. Synthesize
 

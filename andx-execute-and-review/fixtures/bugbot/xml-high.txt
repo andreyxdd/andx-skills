@@ -1,0 +1,22 @@
+<answer>
+<bug>
+<title>Race on provider init</title>
+<file>src/provider.ts</file>
+<start_line>42</start_line>
+<end_line>48</end_line>
+<category>LOGIC_BUG</category>
+<severity>high</severity>
+<description>Init runs twice under concurrent mount.</description>
+<rationale>...</rationale>
+</bug>
+<bug>
+<title>Unused import</title>
+<file>src/a.ts</file>
+<start_line>1</start_line>
+<end_line>1</end_line>
+<category>CODE_QUALITY_STYLE</category>
+<severity>low</severity>
+<description>x</description>
+<rationale>y</rationale>
+</bug>
+</answer>

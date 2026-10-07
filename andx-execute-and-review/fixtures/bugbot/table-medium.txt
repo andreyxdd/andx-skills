@@ -1,0 +1,3 @@
+| Severity | Location | Finding |
+|---|---|---|
+| MEDIUM | `api/h.go:5` | missing timeout |

@@ -30,6 +30,29 @@ WORKTREE_DIR="$REPO_ROOT/.worktrees/exec-${SLUG}-${STAMP}"
 
 `SLUG` from `.cursor/plans/<slug>.plan.md` basename (filesystem-safe; not the human `name:`). No plan → `debug` | `hotfix` | `unnamed`.
 
+After the worker hands off: `MERGE_BASE_SHA=$(git merge-base "$TARGET_BRANCH" "$EXEC_BRANCH")`, `EXEC_HEAD=$(git rev-parse "$EXEC_BRANCH")`. Reviewers judge only `git diff $MERGE_BASE_SHA..$EXEC_HEAD`.
+
+## Run ledger (composers: execute*, debug-and-fix, deploy)
+
+Write `$REPO_ROOT/.worktrees/.andx-run/$SLUG.json` before Step 1 and update it at every phase boundary:
+
+```json
+{"slug": "<SLUG>", "mode": "execute|review|review-mr|deploy|review-deploy|debug",
+ "phase": "<current phase id>", "required_phases": ["A", "C", "F"], "continues": 0, "terminal": null}
+```
+
+`terminal` stays `null` until the run ends: `DONE` (Definition of done proven), `ABORTED`, `ESCALATED`, or `AWAITING_USER` (a question only the user can answer is pending). A Stop hook (`hooks/andx_continue.rb`) sends the agent back to work while the ledger written in this conversation is non-terminal (max 5 pushes). Set `terminal` honestly; never set `DONE` to silence the hook.
+
+**Cursor goal (optional, parent only):** call `CreateGoal` exactly once with `{"objective": "<mode-scoped Definition of done>"}` (MR mode never requires DEPLOYED). Call `UpdateGoal` with `{"status": "complete"}` only after a requirement-by-requirement audit with fresh output. Claude has no model-armed goal; the ledger hook covers it.
+
+**Final status line (every composer reply that ends a run):**
+
+```text
+MERGED <s> | PUSHED <s> | MR <url or -> | DEPLOYED <s>
+```
+
+`<s>` is one of `NOT_REQUESTED`, `PASS`, `FAIL`, `BLOCKED`.
+
 **Waves** (EXEC-MATRIX): `exec-${SLUG}-w${N}-${STAMP}` (N from the matrix). Parallel workers in a wave: `exec-${SLUG}-w${N}-${step-id}-${STAMP}`. Branch keeps `andx/` prefix; folder is the `exec-…` path under `.worktrees/`.
 
 State `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR` in the reply before spawning.
@@ -69,6 +92,10 @@ Spawn per [HARNESS.md](./HARNESS.md) (worker / analyst / reviewer). Prompt must 
 - **Return schema** (below)
 
 Resume (`resume=<id>`) for same worktree continuation. New spawn when roles differ (debug analyst → execute worker) or prior failed / worktree torn down.
+
+**Foreground:** spawn workers, reviewers, and Bugbot with `run_in_background: false`. Parallel work = several Task calls in one message (the parent blocks until all return). Background spawns end the parent's turn and caused most stalled pipelines.
+
+**Worker died** (`resource_exhausted`, rate limit, timeout): read `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, then resume the **same** agent id with "continue from current worktree state" (Claude: `SendMessage` to the named agent). Max 2 resumes, then new spawn only if the worktree is gone, else report blocker.
 
 ### Subagent workspace rules
 

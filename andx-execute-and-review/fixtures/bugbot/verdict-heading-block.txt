@@ -1,0 +1,3 @@
+## VERDICT: **BLOCK**
+blockers:
+  - [HIGH] src/x.go:10 — nil deref on empty list

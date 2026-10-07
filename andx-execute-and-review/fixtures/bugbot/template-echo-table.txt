@@ -1,0 +1,8 @@
+## VERDICT
+status: BLOCK | PASS
+blockers:
+  - [CRITICAL|HIGH] <file:line> — <one line>
+
+| Severity | Location | Finding |
+|---|---|---|
+| HIGH | `FullScreenLoader.tsx:62` | spinner never clears on error |
