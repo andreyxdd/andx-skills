@@ -139,6 +139,7 @@ Each step is a `### step-N — Title` heading followed by key-value lines:
 | `touch` | yes | Bracket list of path prefixes, or `unknown` |
 | `success` | yes | Falsifiable success criterion |
 | `verification` | yes | Exact shell command or test identifier |
+| `seams` | code steps | Bracket list of agreed public interfaces tests may target, e.g. `[POST /refunds, RefundService.request]`; worker runs `tdd` only at these |
 | `parallel_safe_with` | no | `[step-N, …]` when explicitly parallel-safe |
 
 **`kind: docs` rules:**

@@ -38,7 +38,7 @@ Read target repo context and current deploy/CI artifacts. Ask one question at a 
 - deploy trigger, rollback method, migration/backup policy, and required CI checks;
 - environment separation and where secrets live.
 
-Use `/grilling` rules. Explore source before asking questions whose answer is already documented.
+Use `/grilling` rules (rounds: whole frontier at once, recommended answer per question; secrets never asked in chat). Explore source before asking questions whose answer is already documented.
 
 ### B. ADR
 

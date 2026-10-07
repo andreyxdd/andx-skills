@@ -36,17 +36,23 @@ Phase 0 Anchor → 1 Domain grill? → 1.5 Design? → 2 Execution grill → 3 W
 
 ## Phase 1 — Domain grill (when needed)
 
-Follow grilling; **andx-plan owns** `knowledge/` writes + `knowledge/log.md`. Collect `knowledge_refs`. Exit when user confirms domain stable.
+Grill in **rounds** per `/grilling`: ask the whole frontier (every question whose prerequisites are settled) at once, numbered, each with your recommended answer worded so "yes" accepts it. Facts are your job (explore or spawn a read-only agent), decisions are the user's. **andx-plan owns** `knowledge/` writes + `knowledge/log.md`. Collect `knowledge_refs`. Exit when the frontier is empty and the user confirms.
 
 ## Phase 1.5 — Design (conditional)
 
 New module / HTTP-GraphQL / MCP / user asks design. Skip if extending documented contract → `design_pass: skipped`.
 
-Delegate to codebase-design / api-design / create-mcp-server; capture under `knowledge/modules|apis/`; first doc copy from andx-init templates. Record `companion_skills` + `design_refs`.
+New module or seam: read `~/.cursor/skills/codebase-design/DESIGN-IT-TWICE.md` (two or more radically different interfaces, compare on depth/leverage/locality, user picks). HTTP: api-design; MCP: create-mcp-server; capture under `knowledge/modules|apis/`; first doc copy from andx-init templates. Record `companion_skills` + `design_refs`.
 
 ## Phase 2 — Execution grill (always)
 
-One Q at a time. Per step: id, title, `kind`, `depends`, `touch`, `success`, `verification`. Explore repo for real `touch` paths. UI: bake a11y/impeccable into success when needed. Present full step list; **user approves before Phase 3**.
+Same **rounds** as Phase 1. Per step: id, title, `kind`, `depends`, `touch`, `seams`, `success`, `verification`. Explore repo for real `touch` paths.
+
+- **Vertical slices:** each step delivers one observable behavior end to end (schema + API + UI as needed). Never split by layer ("step-1 schema, step-2 API, step-3 UI").
+- **Seams:** for `backend`/`ui`/`mixed` steps, agree the public interfaces the worker may test at (`tdd` tests only at agreed seams). One line each: what it catches, what it misses.
+- UI: bake a11y/impeccable into success when needed.
+
+Present full step list; **user approves before Phase 3**.
 
 ## Phase 3 — Write plan file
 
@@ -83,6 +89,8 @@ Reply go → run default on this plan.
 
 - Plans in `~/.cursor/plans` or from home without `move_agent_to_root`
 - Steps without falsifiable success/verification
+- Horizontal (layer-by-layer) steps; code steps without `seams`
+- One question per turn when several are already answerable (use rounds)
 - `touch: unknown` when exploration could resolve
 - Write file before step-list approval
 - Duplicate companion skill prose into plan body

@@ -63,7 +63,7 @@ Before code: dependency-ordered steps with kind / success / verification. UI →
 
 **`kind: docs` / `DOCS_ONLY`:** edit docs per `doc-sync-map` → run verification → done. No TDD.
 
-**Else:** Red → Green → Refactor (`/tdd`). UI/mixed: `/impeccable` before Red when applicable. `REACT_STACK` + React paths: follow `~/.cursor/skills/react-best-practices/SKILL.md`. Quote gate output. Out of plan → ask or `OUT OF SCOPE`.
+**Else:** Red → Green per `/tdd`, testing only at the step's `seams` (already agreed at plan time; do not ask again; missing `seams` → test at the public interface named in `success` and note it in the handoff). Expected values come from an independent source (literal, worked example, spec), never recomputed the way the code does (tautological test = fail). UI/mixed: `/impeccable` before Red when applicable. `REACT_STACK` + React paths: follow `~/.cursor/skills/react-best-practices/SKILL.md`. Quote gate output. Out of plan → ask or `OUT OF SCOPE`.
 
 **Workspace hygiene (any repo):** if parent/workspace `agents/rules/README.md` lists scoped **plan/dev/execute** rules matching `touch` paths, obey them for the whole Phase 1–3 (subtree SoT, fail-closed contracts, version pins, etc.).
 
