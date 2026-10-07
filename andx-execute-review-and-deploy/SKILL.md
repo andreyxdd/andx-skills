@@ -21,19 +21,9 @@ Plan ready + review gate + ship to production this run. Else: `/andx-execute-and
 
 Follow [/andx-execute-and-review](../andx-execute-and-review/SKILL.md) through **Definition of done** (orchestration Steps 1–4 concurrent-merge, always reviewers 1–3 + Spec, cleanup evidence). Quote handoff + review PASS + post-merge Phase 3 + cleanup (`git worktree list` before/after) before A′.
 
-## Phase A′ — Auto-push
+## Phases A′–D — Push and deploy
 
-From `REPO_ROOT` on `TARGET_BRANCH` after cleanup:
-
-```bash
-git remote get-url origin && git push -u origin HEAD
-```
-
-No origin → skip push, note it. Never force-push `main`/`master` without ask. If push fails and deploy needs remote, fix before deploy.
-
-## Phases B–D — Deploy
-
-Follow [/andx-deploy](../andx-deploy/SKILL.md) Preflight→D. Discover deploy from **this repo’s** docs/Makefile/workflows/`.cursor/rules/*deploy*` every run — never from memory of another project. Source hotfixes → orchestration worktree worker.
+Follow [/andx-deploy](../andx-deploy/SKILL.md) Preflight → D (its composer entry covers the push). Source hotfixes → orchestration worktree worker.
 
 ## Progress
 

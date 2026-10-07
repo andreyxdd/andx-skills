@@ -3,6 +3,7 @@
 # relative links resolve (in-repo broken = error, external companion = warning).
 #   ruby check_skills.rb [ROOT]            # default: this repo; exit 1 on errors
 #   ruby check_skills.rb --budget          # catalog cost report across installed skill dirs
+#   ruby check_skills.rb --prose           # line counts, duplicated clauses, unresolved links (report only)
 require "yaml"
 require "json"
 
@@ -91,8 +92,28 @@ def budget
        cp.map { |k, v| "#{k}=#{v.size}" }.join(" ")
 end
 
+# Report only: SKILL.md line counts, clauses repeated across files, unresolved links.
+def prose(root)
+  mds = Dir.glob(File.join(root, "*/**/*.md")).reject { |p| p.include?("/references/") || p.include?("/templates/") }
+  Dir.glob(File.join(root, "*/SKILL.md")).map { |p| [File.foreach(p).count, File.basename(File.dirname(p))] }
+     .sort.reverse.each { |n, s| puts "  #{n}\t#{s}" }
+  puts "total lines (skill docs, excl. vendored/templates): #{mds.sum { |p| File.foreach(p).count }}"
+  clauses = Hash.new { |h, k| h[k] = [] }
+  mds.each do |p|
+    File.read(p).split(/(?<=[.!?])\s+|\n/).map { |c| c.downcase.gsub(/[^a-z0-9 ]/, " ").squeeze(" ").strip }
+        .select { |c| c.split.size >= 8 }.uniq.each { |c| clauses[c] << p.sub("#{root}/", "") }
+  end
+  dup = clauses.select { |_, f| f.size > 1 }
+  puts "duplicated clauses (>= 8 words, in >1 file): #{dup.size}"
+  dup.sort_by { |_, f| -f.size }.first(10).each { |c, f| puts "  #{f.size}x #{c[0, 70]} (#{f.first(3).join(', ')})" }
+  errors, warnings = check(root)
+  puts "unresolved links: #{(errors + warnings).count { |m| m.include?('unresolved link') }}"
+end
+
 if $PROGRAM_NAME == __FILE__
-  if ARGV.first == "--budget"
+  if ARGV.first == "--prose"
+    prose(File.expand_path("..", __dir__))
+  elsif ARGV.first == "--budget"
     budget
   else
     root = File.expand_path(ARGV.first || File.expand_path("..", __dir__))

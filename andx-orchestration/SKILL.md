@@ -104,7 +104,7 @@ Resume (`resume=<id>`) for same worktree continuation. New spawn when roles diff
 ### Subagent workspace rules
 
 - **Parent stays at `REPO_ROOT`.** Never `move_agent_to_root` or `move_agent_to_cloned_root` to a worktree.
-- **Worker:** every Read/Write/StrReplace/Shell uses **absolute** `$WORKTREE_DIR/...` paths, or Shell `working_directory=$WORKTREE_DIR`. Relative paths from `REPO_ROOT` are **forbidden** (they hit the primary TARGET checkout). Prompt **forbids** `move_agent_to_root(WORKTREE_DIR)` and `move_agent_to_cloned_root`. Spawn agent `andx-worker` in the **same** workspace; instruct cwd in the prompt only (HARNESS).
+- **Worker:** every Read/Write/StrReplace/Shell uses **absolute** `$WORKTREE_DIR/...` paths, or Shell `working_directory=$WORKTREE_DIR`. A relative path resolves to the primary TARGET checkout. The worker stays in the parent's workspace (no `move_agent_to_*`). Spawn agent `andx-worker` in the **same** workspace; instruct cwd in the prompt only (HARNESS).
 - After handoff: if workspace drifted, parent `move_agent_to_root(REPO_ROOT)` to restore.
 - Still allowed: `move_agent_to_root` when the **project** is wrong (`/andx-plan`, `/andx-init`) — not for exec worktrees.
 - Commits land on `EXEC_BRANCH` only; do not push unless the prompt explicitly allows it
@@ -183,8 +183,6 @@ git merge --ff-only "$EXEC_BRANCH"
 
 Parent may `git merge --abort` on TARGET. Resolution commits live on EXEC only.
 
-**Anti-pattern:** leaving TARGET with conflict markers / merge in progress.
-
 **Re-run Phase 3** on `TARGET_BRANCH` (full regression + every verification-table row). Parent runs these gates — do not trust subagent-only evidence after merge.
 
 **Post-merge/rebase lint (mandatory):** Run discovered lint on `TARGET_BRANCH` even for docs-only plans. A merge from `main` can fail CI on formatting in files the plan never touched.
@@ -224,31 +222,16 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 - Deploy commands (SSH, make deploy, health checks)
 - Write plans, verification tables, progress updates in chat
 
-## Parent forbidden actions
+## Guardrails
 
-- `StrReplace` / `Write` on application source, tests, migrations, or config in primary checkout (including trivial prettier/eslint fixes — spawn worker instead)
-- `move_agent_to_root` / `move_agent_to_cloned_root` to an exec worktree
-- Claiming "done" before merge + post-merge Phase 3 on `TARGET_BRANCH`
-- Reusing stale subagent output without fresh post-merge gates
-- Skipping worktree because the tree is clean
-- Push, deploy, or `git push heroku` before Step 4 cleanup completes
-- Ad-hoc `WORKTREE_DIR` outside `.worktrees/` (orphan risk; later agents may treat it as a permanent second tree)
-- Leaving TARGET with conflict markers or a merge in progress
-- `git stash` / `reset` / `clean` / `checkout -- <file>` on primary to make landing work
+Hard limits; the steps above are the source of truth for each.
 
-## Anti-patterns
-
-- Parent patches source during orchestration (including editing the worktree inline when a subagent should run)
-- Subagent merges to `TARGET_BRANCH` itself
-- Subagent removes worktree before parent merge
-- `move_agent_to_root` to `WORKTREE_DIR` (opens an extra Cursor workspace)
-- "Done" on exec branch before parent merge
-- Parent claims done without cleanup evidence (`git worktree list` before/after)
-- Orphan `.worktrees/exec-*` or ad-hoc `*-exec/` worktrees left after successful merge
-- Push or deploy before Step 4 cleanup when merge + post-merge Phase 3 passed
-- Deploy before merge + post-merge verify when code changed
-- Deferring cleanup because follow-up prod debugging started in the same session
-- Leaving TARGET conflicted / merge in progress instead of `git merge --abort`
+- Every source change (including a one-line lint fix) is made by a worker in a `.worktrees/` worktree, even when the tree is clean. The parent writes plans, ledgers, and chat only.
+- Parent stays at `REPO_ROOT`; workers address `$WORKTREE_DIR` by absolute path.
+- Workers commit on `EXEC_BRANCH` and hand off; the parent alone merges and cleans up.
+- Primary is touched only by `checkout` and `merge --ff-only`. A failed integrate ends in `git merge --abort`, leaving TARGET clean.
+- "Done" means merge + post-merge Phase 3 on `TARGET_BRANCH` + quoted cleanup evidence, all fresh from this run.
+- Push and deploy start after Step 4 cleanup.
 
 ## Referenced by
 
