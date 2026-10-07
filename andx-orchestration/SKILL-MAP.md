@@ -59,7 +59,7 @@ Composer: `/andx-execute-review-and-deploy` = execute-and-review DoD (incl. conc
 | Skill | Trigger | When |
 |-------|---------|------|
 | `review-bugbot` → bugbot | Always | Reviewer 1 |
-| `review-security` → security-review | Always | Reviewer 2 |
+| `andx-security-review` (gate) → agent `andx-security-reviewer` | Always; parent refutes each proposed critical/high with `andx-refuter`; Cursor `security-review` only under `--deep` | Reviewer 2 |
 | `ponytail-review` | Always — [resolve](./HARNESS.md#ponytail-resolve) | Reviewer 3 |
 | `ponytail-audit` | Diff adds deps or new files under `touch` | Reviewer 4 |
 | `react-best-practices` | Diff touches React paths | Reviewer 5 |
@@ -79,6 +79,8 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.
 | Ponytail new dependency (`native:`/`stdlib:`) | HIGH → BLOCKS |
 | Other ponytail `yagni:`/`delete:`/`native:`/`stdlib:` | MEDIUM → fix-or-justify |
 | Ponytail `shrink:` | LOW → advisory |
+| Security `confirmed` critical/high | BLOCKS |
+| Security `needs_validation` | advisory, always surfaced |
 | React waterfall / barrel / RSC over-serialize | HIGH → BLOCKS |
 | WCAG A/AA or missing keyboard path | HIGH → BLOCKS |
 
@@ -86,7 +88,7 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.
 
 | Skill | Trigger | When |
 |-------|---------|------|
-| `andx-mr-review` | MR URL | After push; **review** + draft/post comments; uses artifact when `head_sha` matches |
+| `andx-mr-review` | MR URL | After push; **review** + draft/post comments; skips reviewers only when the artifact validator says `TRUSTED` (v2, head + base match) |
 | `andx-mr-babysit` | MR URL + babysit / merge-ready | After push (or after mr-review) when conflicts/comments/CI must be **fixed** toward merge |
 
 **Order:** review (`andx-mr-review`) → fix (`andx-mr-babysit`). GitHub + `~/.cursor/skills-cursor/autopilot` present → mr-babysit delegates to Cursor autopilot (formerly babysit) after auth/checkout; else andx-owned `gh`/`glab` loop via [HOSTS.md](../andx-mr-review/HOSTS.md).

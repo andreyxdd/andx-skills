@@ -31,7 +31,7 @@ Fresh agents, no worker context, judge only `git diff $MERGE_BASE_SHA..$EXEC_HEA
 | Role | Cursor | Claude Code |
 |------|--------|-------------|
 | 1 Bugbot (always) | `Task(subagent_type="bugbot")` per `~/.cursor/skills-cursor/review-bugbot/SKILL.md` | built-in `/code-review` run by the orchestrator (GitLab `--comment` needs ≥ 2.1.257); else `general-purpose` with the Bugbot prompt |
-| 2 Security (always) | `Task(subagent_type="security-review")` per `~/.cursor/skills-cursor/review-security/SKILL.md` | `general-purpose` + user `security-review` skill path |
+| 2 Security (always) | `Task(subagent_type="andx-security-reviewer")`; then parent spawns one `andx-refuter` per proposed critical/high (all in one message). `--deep` adds Cursor `security-review` | `Agent` with the same agent names |
 | 3 Ponytail-review (always) | `generalPurpose` + [ponytail resolve](#ponytail-resolve) | same |
 | Ponytail-audit / react / a11y (conditional) | `generalPurpose` + skill path from [SKILL-MAP.md](./SKILL-MAP.md) | same |
 

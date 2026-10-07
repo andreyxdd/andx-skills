@@ -32,7 +32,8 @@ F   PASS → REVIEW-ARTIFACT → orch Step 4 concurrent-merge + cleanup
 
 Fresh agents only; read-only; adversarial; foreground (`run_in_background: false`, all reviewers in one message). Give: `MERGE_BASE_SHA` + `EXEC_HEAD` (orch Variables) with "review only `git diff MERGE_BASE_SHA..EXEC_HEAD`" (Bugbot: in `Custom Instructions`), plan (`touch`/`success`/`verification`/`design_refs`), verification evidence.
 
-**Always:** Reviewers 1–3 (bugbot, security, ponytail-review) per SKILL-MAP + HARNESS.
+**Always:** Reviewers 1–3 (bugbot, `andx-security-reviewer`, ponytail-review) per SKILL-MAP + HARNESS.
+**Security refutation:** after reviewers return, spawn one `andx-refuter` per security candidate with `status: proposed` (critical/high), foreground, one message ([VERIFIER.md](../andx-security-review/VERIFIER.md)). Only `confirmed` critical/high blocks; `needs_validation` goes to advisory with its blocker; `rejected` fingerprints are recorded and not re-raised in later rounds.
 **Conditional:** 4–7 per SKILL-MAP triggers.
 **Karpathy on bugbot results:** surgical scope HIGH; speculative abstraction MEDIUM.
 **Harness jargon (always, orch or bugbot Custom Instructions):** flag `ponytail:` /
@@ -74,7 +75,7 @@ It reads, in order: Bugbot native `<answer><bug>…</bug></answer>` (empty = PAS
 
 ### REVIEW-ARTIFACT (on PASS, before merge)
 
-Parent may write/commit **only** `.cursor/reviews/<plan-slug>.json` on `EXEC_BRANCH` (or resume worker to do it) — not app source. Schema: FINDINGS-SCHEMA. Commit `chore(review): add REVIEW-ARTIFACT for <plan-slug>`; then Phase F.
+Parent may write/commit **only** `.cursor/reviews/<plan-slug>.json` on `EXEC_BRANCH` (or resume worker to do it) — not app source. Schema: FINDINGS-SCHEMA **v2** (`base_sha` = `MERGE_BASE_SHA`, finding `status`/`resolution`); run `node ~/.cursor/skills/andx-mr-review/scripts/validate-review-artifact.mjs <file>` before commit (must not print INVALID). Commit `chore(review): add REVIEW-ARTIFACT for <plan-slug>`; then Phase F.
 
 ## Phase D–E — Verdict + fix loop
 

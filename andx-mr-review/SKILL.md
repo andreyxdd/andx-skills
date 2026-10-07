@@ -26,15 +26,15 @@ Companion docs: [COMMENT-STYLE.md](./COMMENT-STYLE.md) · [REPORT-FORMAT.md](./R
 | `andx-execute-and-review` | **Discover** findings + VERDICT gate + write `.cursor/reviews/<plan-slug>.json` |
 | `andx-mr-review` | **Publish** human comments on host MR; expand UX/API in chat report |
 
-Auto-detect artifact: if `head_sha` matches MR head → skip subagents (see [FINDINGS-SCHEMA.md](./FINDINGS-SCHEMA.md)).
+Auto-detect artifact: skip subagents only when the validator prints `TRUSTED` for MR head + base (see [FINDINGS-SCHEMA.md](./FINDINGS-SCHEMA.md)).
 
 ## Flags
 
 | Flag | Effect |
 |------|--------|
-| (default) | Bugbot + security-review + ponytail-review subagents |
+| (default) | Bugbot + `andx-security-reviewer` (+ refuters) + ponytail-review subagents |
 | `--fast` | Bugbot only |
-| `--deep` | Default + react-best-practices + accessibility when UI/React in diff |
+| `--deep` | Default + Cursor `security-review` + react-best-practices + accessibility when UI/React in diff |
 | `--from-artifact` | Force artifact mode (error if missing/stale) |
 | `--force-full` | Always run subagents |
 | `--post` | Post after draft without second confirm (use sparingly) |
@@ -46,7 +46,8 @@ Auto-detect artifact: if `head_sha` matches MR head → skip subagents (see [FIN
 | Skill | Role |
 |-------|------|
 | [review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) | Bugbot subagent |
-| [review-security](~/.cursor/skills-cursor/review-security/SKILL.md) | security-review subagent |
+| [andx-security-review](../andx-security-review/SKILL.md) | Reviewer 2 (gate mode via `andx-security-reviewer`) |
+| [review-security](~/.cursor/skills-cursor/review-security/SKILL.md) | Cursor security-review, `--deep` only |
 | [ponytail-review](../andx-orchestration/HARNESS.md#ponytail-resolve) | Over-engineering (default always; resolve path via HARNESS) |
 | [react-best-practices](~/.claude/skills/react-best-practices/SKILL.md) | `--deep` when React in diff |
 | [accessibility](~/.cursor/skills/accessibility/SKILL.md) | `--deep` when UI in diff |
@@ -74,7 +75,7 @@ git fetch origin <source-branch>
 git show origin/<source-branch>:.cursor/reviews/*.json
 ```
 
-If any artifact has `head_sha` === MR head SHA and not `--force-full`:
+For each artifact run `node ~/.cursor/skills/andx-mr-review/scripts/validate-review-artifact.mjs <file> --head <head_sha> --base <base_sha>`. If one prints `TRUSTED` and not `--force-full`:
 
 - **Skip step 5** (subagents)
 - Load findings into report + MR drafts
@@ -99,7 +100,7 @@ Product-specific review checklists live in the **target workspace**, not this sk
    `agents/rules/`).
 3. If no `agents/rules/` but the repo has `.cursor/rules/*review*` stubs that
    point at a canonical markdown body — follow that body.
-4. Fold the loaded checklist into Bugbot / security-review **`Custom Instructions`**
+4. Fold the loaded checklist into Bugbot **`Custom Instructions`** and the security reviewer prompt
    (quote the gate titles; do not paste entire novels).
 5. If no workspace review gates → skip; do **not** invent product rules here.
 
@@ -112,7 +113,7 @@ Unless artifact mode or `--fast`:
 | Agent | subagent_type | When |
 |-------|---------------|------|
 | Bugbot | `bugbot` | always (incl. `--fast`) |
-| Security | `security-review` | default full (not `--fast`) |
+| Security | `andx-security-reviewer`, then parent-spawned `andx-refuter` per proposed critical/high | default full (not `--fast`) |
 | Ponytail | readonly explore or ponytail-review skill | default full |
 
 `--deep`: add react-best-practices + accessibility passes on UI diff paths.
