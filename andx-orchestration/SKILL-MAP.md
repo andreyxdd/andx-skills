@@ -25,7 +25,7 @@ Harness spawn: [HARNESS.md](./HARNESS.md).
 | `impeccable` | UI/UX-heavy steps | design notes in plan step |
 | `andx-init` | `knowledge/` missing | OKF + ICM scaffold |
 
-Frontmatter fields: [PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md).
+Frontmatter fields: [PARSE.md](../andx-plan/PARSE.md).
 
 **Docs workstream:** skip TDD; use `knowledge/doc-sync-map.md`; verify with repo doc script (`pnpm verify:docs` or equivalent).
 
@@ -56,16 +56,16 @@ Composer: `/andx-execute-review-and-deploy` = execute-and-review DoD (incl. conc
 
 ## Review phase (`/andx-execute-and-review`)
 
-| Skill | Trigger | When |
+| Skill | Trigger | Name |
 |-------|---------|------|
-| `review-bugbot` → bugbot | Always | Reviewer 1 |
-| `andx-security-review` (gate) → agent `andx-security-reviewer` | Always; parent refutes each proposed critical/high with `andx-refuter`; Cursor `security-review` only under `--deep` | Reviewer 2 |
-| `ponytail-review` | Always — [resolve](./HARNESS.md#ponytail-resolve) | Reviewer 3 |
-| agent `andx-spec-reviewer` | Always (only reviewer checking plan compliance). Docs-only plans: Bugbot + Spec only. Drop after 20 artifacts with zero unique catches (`reviewers[]`) | Reviewer 8 |
-| `ponytail-audit` | Diff adds deps or new files under `touch` | Reviewer 4 |
-| `react-best-practices` | Diff touches React paths | Reviewer 5 |
-| `accessibility` | UI diff + a11y in plan | Reviewer 6 |
-| UX/API contract pass | UI forms + API client paths | Reviewer 7 (advisory unless paired HIGH) |
+| `review-bugbot` → bugbot | Always | Bugbot |
+| `andx-security-review` (gate) → agent `andx-security-reviewer` | Always; parent refutes each proposed critical/high with `andx-refuter`; Cursor `security-review` only under `--deep` | Security |
+| `ponytail-review` | Always — [resolve](./HARNESS.md#ponytail-resolve) | Ponytail |
+| agent `andx-spec-reviewer` | Always (only reviewer checking plan compliance). Docs-only plans: Bugbot + Spec only. Drop after 20 artifacts with zero unique catches (`reviewers[]`) | Spec |
+| `ponytail-audit` | Diff adds deps or new files under `touch` | Audit |
+| `react-best-practices` | Diff touches React paths | React |
+| `accessibility` | UI diff + a11y in plan | A11y |
+| UX/API contract pass | UI forms + API client paths | UX/API (advisory unless paired HIGH) |
 
 On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.cursor/reviews/<plan-slug>.json` on `EXEC_BRANCH` before merge.
 
@@ -75,8 +75,7 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.
 
 | Source | Severity |
 |--------|----------|
-| Karpathy surgical scope violation | HIGH → BLOCKS |
-| Karpathy speculative abstraction | MEDIUM → fix-or-justify |
+| Spec: missing core `success` or behavior-changing scope creep | HIGH → BLOCKS |
 | Ponytail new dependency (`native:`/`stdlib:`) | HIGH → BLOCKS |
 | Other ponytail `yagni:`/`delete:`/`native:`/`stdlib:` | MEDIUM → fix-or-justify |
 | Ponytail `shrink:` | LOW → advisory |

@@ -6,20 +6,7 @@ description: "/andx-mr-babysit: drive a GitLab/GitHub MR to merge-ready (conflic
 
 Drive a remote MR/PR to **merge-ready**: conflicts resolved, comments triaged, CI green in PR scope.
 
-Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
-
 Host CLIs: [HOSTS.md](../andx-mr-review/HOSTS.md) (shared with mr-review — do not fork).
-
-## vs `/andx-mr-review`
-
-Alias `/andx-pr-review`. Review vs babysit stay two skills.
-
-| Skill | Job |
-|-------|-----|
-| `andx-mr-review` | **Review** + draft/post comments (teaching report). Does **not** implement fixes. |
-| `andx-mr-babysit` | **Fix toward merge** — conflicts, valid comments, CI in PR scope. |
-
-Review findings first → then babysit. Do not use babysit as a substitute for review.
 
 ## When to use
 
@@ -27,7 +14,7 @@ Review findings first → then babysit. Do not use babysit as a substitute for r
 - MR/PR URL + "babysit" / "make merge-ready"
 - After push when user wants green + comment-cleared, not another review pass
 
-**Not for:** posting review comments only (`/andx-mr-review`); local execute gates (`/andx-execute-and-review`); merging/closing the MR unless user explicitly asks.
+**Not for:** review comments only (`/andx-mr-review`, run it first when findings are needed) or local gates (`/andx-execute-and-review`). Merge/close only on explicit ask.
 
 ## Required companions
 
@@ -93,7 +80,7 @@ Then: follow that skill for the conflict / comments / CI loop, with the **Thread
 
 Each pass:
 
-**Workspace review gates (any repo):** if the workspace (or parent multi-repo map) has `agents/rules/README.md`, load every rule listed under **review** / files matching `*-review-gates.md` whose scope matches the MR diff (e.g. `goose-migration-review-gates.md` when diff touches migrations / `WithAllowMissing`). Treat Fail items as merge-ready blockers at the severity the gate defines — fix in PR scope or escalate. Do not paste gate text into replies; follow those files.
+**Workspace rules:** per [workspace rules](../andx-orchestration/WORKSPACE-RULES.md) on the MR diff; a failed gate is a merge-ready blocker (fix in PR scope or escalate).
 
 #### A. Merge conflicts
 
@@ -127,17 +114,7 @@ Do **not** merge unless user explicitly requests.
 
 ## Anti-patterns
 
-- Using this skill to only post review comments (use `/andx-mr-review`)
 - Editing CI to silence failures
 - Acting on invalid Bugbot noise without validating
 - Infinite loop with no progress report
 - Force-push / history rewrite without user ask
-- Merging MR without explicit ask
-
-## Optional pairing
-
-| Situation | Skill |
-|-----------|--------|
-| Need findings + MR comments first | `/andx-mr-review` → then `/andx-mr-babysit` |
-| Local review gate before push | `/andx-execute-and-review` |
-| GitHub + Cursor autopilot installed | This skill wraps → delegates to autopilot |

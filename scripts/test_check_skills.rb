@@ -24,6 +24,13 @@ class CheckSkillsTest < Minitest::Test
     assert_match(/MISSING\.md/, errors("broken-link").join)
   end
 
+def test_hot_read_chains_stay_in_budget
+  root = File.expand_path("..", __dir__)
+  { "worker" => 1_200, "execute" => 6_000, "execute-and-review" => 11_000 }.each do |name, max|
+    assert_operator chain_tokens(root, CHAINS[name]), :<=, max, "#{name} read chain over budget"
+  end
+end
+
   def test_prose_reports_cross_file_duplicate
     require "tmpdir"
     out = Dir.mktmpdir do |d|

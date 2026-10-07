@@ -10,7 +10,7 @@ Teaching-depth output for the invoker. MR comments stay short per [COMMENT-STYLE
 **MR:** <url>
 **Branch:** `<source>` → `<target>`
 **Head:** `<sha short>`
-**Mode:** full | --from-artifact | --fast | --deep
+**Mode:** full | artifact | --fast | --deep
 **CI:** <pass|fail|manual> — <pipeline url if failed>
 ```
 

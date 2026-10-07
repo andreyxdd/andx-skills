@@ -6,9 +6,7 @@ description: "/andx-mr-review: review a GitLab/GitHub/Bitbucket MR from a URL, d
 
 Remote MR review with **dual output**: teaching-depth chat report + human MR comments.
 
-Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
-
-Companion docs: [COMMENT-STYLE.md](./COMMENT-STYLE.md) · [REPORT-FORMAT.md](./REPORT-FORMAT.md) · [HOSTS.md](./HOSTS.md) · [FINDINGS-SCHEMA.md](./FINDINGS-SCHEMA.md) · [EXAMPLES.md](./EXAMPLES.md)
+Each companion doc is linked from the step that needs it; read it there, not up front.
 
 ## When to use
 
@@ -19,15 +17,6 @@ Companion docs: [COMMENT-STYLE.md](./COMMENT-STYLE.md) · [REPORT-FORMAT.md](./R
 
 **Not for:** implementing fixes, merging, or local branch gates (use `/andx-execute-and-review`). For **merge-ready** (resolve conflicts, triage comments, fix CI) use `/andx-mr-babysit`.
 
-## Relationship to `/andx-execute-and-review`
-
-| Skill | Role |
-|-------|------|
-| `andx-execute-and-review` | **Discover** findings + VERDICT gate + write `.cursor/reviews/<plan-slug>.json` |
-| `andx-mr-review` | **Publish** human comments on host MR; expand UX/API in chat report |
-
-Auto-detect artifact: skip subagents only when the validator prints `TRUSTED` for MR head + base (see [FINDINGS-SCHEMA.md](./FINDINGS-SCHEMA.md)).
-
 ## Flags
 
 | Flag | Effect |
@@ -35,10 +24,6 @@ Auto-detect artifact: skip subagents only when the validator prints `TRUSTED` fo
 | (default) | Bugbot + `andx-security-reviewer` (+ refuters) + ponytail-review subagents |
 | `--fast` | Bugbot only |
 | `--deep` | Default + Cursor `security-review` + react-best-practices + accessibility when UI/React in diff |
-| `--from-artifact` | Force artifact mode (error if missing/stale) |
-| `--force-full` | Always run subagents |
-| `--post` | Post after draft without second confirm (use sparingly) |
-| `--all-nitpicks` | Include nitpicks in first post prompt (default: separate nitpick gate) |
 | `--append-snippet <note_id>` | Append fix block to existing note; preserve original text |
 
 ## Required companion skills
@@ -46,7 +31,7 @@ Auto-detect artifact: skip subagents only when the validator prints `TRUSTED` fo
 | Skill | Role |
 |-------|------|
 | [review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) | Bugbot subagent |
-| [andx-security-review](../andx-security-review/SKILL.md) | Reviewer 2 (gate mode via `andx-security-reviewer`) |
+| [andx-security-review](../andx-security-review/SKILL.md) | Security reviewer (gate mode via `andx-security-reviewer`) |
 | [review-security](~/.cursor/skills-cursor/review-security/SKILL.md) | Cursor security-review, `--deep` only |
 | [ponytail-review](../andx-orchestration/HARNESS.md#ponytail-resolve) | Over-engineering (default always; resolve path via HARNESS) |
 | [react-best-practices](~/.claude/skills/react-best-practices/SKILL.md) | `--deep` when React in diff |
@@ -75,7 +60,7 @@ git fetch origin <source-branch>
 git show origin/<source-branch>:.cursor/reviews/*.json
 ```
 
-For each artifact run `node ~/.cursor/skills/andx-mr-review/scripts/validate-review-artifact.mjs <file> --head <head_sha> --base <base_sha>`. If one prints `TRUSTED` and not `--force-full`:
+For each artifact run `node ~/.cursor/skills/andx-mr-review/scripts/validate-review-artifact.mjs <file> --head <head_sha> --base <base_sha>`. If one prints `TRUSTED`:
 
 - **Skip step 5** (subagents)
 - Load findings into report + MR drafts
@@ -91,20 +76,7 @@ Follow [review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) checkout 
 
 ### 5. Workspace review gates (any repo — before subagents)
 
-Product-specific review checklists live in the **target workspace**, not this skill.
-
-1. Resolve workspace root (MR checkout, or parent multi-repo map that contains it).
-2. If `agents/rules/README.md` exists, read it. Load every rule listed under
-   **review** / **Review** whose scope matches the MR’s repo or changed paths
-   (also accept files named `*-review-gates.md` / `*review*gates*.md` under
-   `agents/rules/`).
-3. If no `agents/rules/` but the repo has `.cursor/rules/*review*` stubs that
-   point at a canonical markdown body — follow that body.
-4. Fold the loaded checklist into Bugbot **`Custom Instructions`** and the security reviewer prompt
-   (quote the gate titles; do not paste entire novels).
-5. If no workspace review gates → skip; do **not** invent product rules here.
-
-This skill stays host- and product-agnostic; gates travel with each workspace.
+Load per [workspace rules](../andx-orchestration/WORKSPACE-RULES.md) using the MR changed paths; fold gate titles into Bugbot `Custom Instructions` and the security reviewer prompt.
 
 ### 6. Run reviewers (parallel)
 
@@ -133,15 +105,9 @@ Normalize each output with
 - Dedup overlapping findings (same `location` or same root cause)
 - Sort: high → medium → low → nitpick
 - Enrich each with `ux_flow` / `api_note` (read i18n, apiSlice, types)
-- **Workspace gates pass:** any unchecked / violated gate from step 5 → finding
-  at the severity that gate file defines (default medium; silent wrong-curve /
-  wrong-pubkey / SUCCESS-on-bad-sig → high when the gate says so).
-- **Harness-jargon pass (always):** scan `base...HEAD` added lines for
-  `ponytail:`, `shrink:`, `andx:`, `caveman`, skill/plugin names, `andx/exec-*`
-  pins in source **or** shipped runbooks/checklists. Each hit → **medium**
-  finding citing [CODE-COMMENTS.md](../andx-execute/CODE-COMMENTS.md) — first-time
-  reviewer must understand the line without agent chat.
-- Apply comment budget: inline = high/medium; nitpicks → separate bucket unless `--all-nitpicks`
+- **Workspace gates:** each violated gate from step 5 → finding at the gate file severity.
+- **Harness jargon:** `git diff <base_sha>..<head_sha> | rg -n '^\+.*(ponytail:|shrink:|andx:|caveman|/andx-|andx/exec-)'`; each hit → medium per [CODE-COMMENTS.md](../andx-execute/CODE-COMMENTS.md).
+- Apply comment budget: inline = high/medium; nitpicks → separate bucket
 - Cap ~8 inline; overflow → summary table only
 
 ### 8. Draft outputs
@@ -160,10 +126,8 @@ Optional export: `<workspace>/.cursor/reviews/<mr-id>-report.md`
 
 ### 9. Approval gate (default — draft in chat first)
 
-Unless `--post`:
-
 1. *"Post M inline comments + summary note?"* — wait for yes
-2. If nitpicks drafted and not `--all-nitpicks`: *"Post N nitpicks?"* — default no
+2. If nitpicks drafted: *"Post N nitpicks?"* — default no
 
 Never edit user's existing MR comment body — append-only via `--append-snippet`.
 
@@ -180,27 +144,10 @@ Use `--unique` on re-runs to avoid duplicate bodies.
 
 ---
 
-## Roadmap
-
-- Style profiles per author (learn from past `glab mr note list`)
-- GitLab MCP when plugin healthy
-- Bitbucket API post support
-- `knowledge/reviews/patterns.md` via `/andx-init`
-- Locale toggle for report vs MR comments
-
 ## Anti-patterns
 
-- Posting without approval (unless `--post`)
+- Posting without approval
 - Re-running subagents when fresh artifact exists
 - Long essays in MR comments (use chat report)
 - Editing author comments in place
 - Secrets in fix snippets
-
-## Optional pairing
-
-| Situation | Skill |
-|-----------|--------|
-| Author built via plan | `/andx-execute-and-review` first → artifact → `/andx-mr-review` |
-| Local merge gate only | `/andx-execute-and-review` |
-| Security-only pass | `--fast` + manual security or `/review-security` |
-| Drive MR to merge-ready | `/andx-mr-babysit` after review (or alone when only fixes needed) |

@@ -1,6 +1,6 @@
 ---
 name: andx-security-reviewer
-description: "andx Reviewer 2: read-only, diff-scoped security review in andx-security-review gate mode. Returns VERDICT plus candidate JSON; never spawns refuters."
+description: "andx Security reviewer: read-only, diff-scoped security review in andx-security-review gate mode. Returns VERDICT plus candidate JSON; never spawns refuters."
 model: inherit
 readonly: true
 is_background: false

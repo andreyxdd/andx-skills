@@ -79,7 +79,7 @@ Shared between `/andx-execute-and-review` (writer) and `/andx-mr-review` (reader
 ## mr-review consumption
 
 1. Read `.cursor/reviews/*.json` on the MR head (`git show <sha>:path`).
-2. Run the validator with MR head and base. **`TRUSTED` only** → skip reviewer subagents (`--from-artifact`).
+2. Run the validator with MR head and base. **`TRUSTED` only** → skip reviewer subagents.
 3. `READABLE` (v1, or head/base mismatch) → run the full reviewer stack; prior findings may seed the report but never replace review.
 4. `INVALID` or missing → full reviewer stack.
 5. Map findings → REPORT-FORMAT blocks + COMMENT-STYLE drafts; `needs_validation` → question to the author, never a blocker; `rejected` → not posted.

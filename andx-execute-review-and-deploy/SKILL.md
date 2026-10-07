@@ -19,7 +19,7 @@ Plan ready + review gate + ship to production this run. Else: `/andx-execute-and
 
 ## Phase A — Execute and review
 
-Follow [/andx-execute-and-review](../andx-execute-and-review/SKILL.md) through **Definition of done** (orchestration Steps 1–4 concurrent-merge, always reviewers 1–3 + Spec, cleanup evidence). Quote handoff + review PASS + post-merge Phase 3 + cleanup (`git worktree list` before/after) before A′.
+Follow [/andx-execute-and-review](../andx-execute-and-review/SKILL.md) through **Definition of done** (orchestration Steps 1–4 concurrent-merge, always-on reviewers, cleanup evidence). Quote handoff + review PASS + post-merge Phase 3 + cleanup (`git worktree list` before/after) before A′.
 
 ## Phases A′–D — Push and deploy
 

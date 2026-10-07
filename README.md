@@ -27,7 +27,7 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 | `andx-orchestration/SKILL.md` | Worktree, spawn checklist, handoff, merge, cleanup |
 | `andx-orchestration/HARNESS.md` | Cursor vs Claude Task mapping |
 | `andx-orchestration/SKILL-MAP.md` | Companion + reviewer routing |
-| `andx-plan/PLAN-FORMAT.md` | Plan frontmatter + parse rules |
+| `andx-plan/PLAN-FORMAT.md`, `PARSE.md` | Plan templates; frontmatter + parse rules |
 
 Entry skills stay thin — link here; do not re-paste cleanup bash or reviewer tables.
 

@@ -41,9 +41,7 @@ Write `$REPO_ROOT/.worktrees/.andx-run/$SLUG.json` before Step 1 and update it a
  "phase": "<current phase id>", "required_phases": ["A", "C", "F"], "continues": 0, "terminal": null}
 ```
 
-`terminal` stays `null` until the run ends: `DONE` (Definition of done proven), `ABORTED`, `ESCALATED`, or `AWAITING_USER` (a question only the user can answer is pending). A Stop hook (`hooks/andx_continue.rb`) sends the agent back to work while the ledger written in this conversation is non-terminal (max 5 pushes). Set `terminal` honestly; never set `DONE` to silence the hook.
-
-**Cursor goal (optional, parent only):** call `CreateGoal` exactly once with `{"objective": "<mode-scoped Definition of done>"}` (MR mode never requires DEPLOYED). Call `UpdateGoal` with `{"status": "complete"}` only after a requirement-by-requirement audit with fresh output. Claude has no model-armed goal; the ledger hook covers it.
+`terminal` stays `null` until the run ends: `DONE` (Definition of done proven), `ABORTED`, `ESCALATED`, or `AWAITING_USER` (a question only the user can answer is pending). A Stop hook re-prompts while the ledger is non-terminal ([HARNESS](./HARNESS.md#goals-and-continuation)); set `terminal` honestly.
 
 **Final status line (every composer reply that ends a run):**
 
@@ -57,7 +55,7 @@ MERGED <s> | PUSHED <s> | MR <url or -> | DEPLOYED <s>
 
 State `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR` in the reply before spawning.
 
-**Path rule:** `WORKTREE_DIR` only under `$REPO_ROOT/.worktrees/`. Do not reuse ad-hoc sibling directory names (`*-exec/`, `*-andx-*` at repo parent) — they are easy to orphan and confuse later sessions as a second codebase.
+**Path rule:** `WORKTREE_DIR` lives under `$REPO_ROOT/.worktrees/` only (sibling dirs get orphaned and mistaken for a second codebase).
 
 ## Step 1 — Always create worktree
 
@@ -90,71 +88,24 @@ Note explicitly that uncommitted changes may move with checkout. Set `WORKTREE_D
 Spawn per [HARNESS.md](./HARNESS.md) (worker / analyst / reviewer). Prompt must include:
 
 - `WORKTREE_DIR`, `EXEC_BRANCH`, `TARGET_BRANCH`, `REPO_ROOT` (omit `WORKTREE_DIR` for debug analyst)
-- Worker skill section (andx-execute Worker, debug analyst, deploy-hotfix worker)
+- Role file: [WORKER.md](../andx-execute/WORKER.md) for workers and hotfix workers; debug-and-fix Phase B for the analyst
 - Anchored plan, verification table (or template), bug/deploy evidence
 - Companions from [SKILL-MAP.md](./SKILL-MAP.md): `/tdd`; evidence rule in HARNESS; `/react-best-practices` when `REACT_STACK`; `/impeccable` when `ui`/`mixed`
 - **Return schema** (below)
 
 Resume (`resume=<id>`) for same worktree continuation. New spawn when roles differ (debug analyst → execute worker) or prior failed / worktree torn down.
 
-**Foreground:** spawn workers, reviewers, and Bugbot with `run_in_background: false`. Parallel work = several Task calls in one message (the parent blocks until all return). Background spawns end the parent's turn and caused most stalled pipelines.
+**Foreground** always; parallel = several spawns in one message (HARNESS).
 
 **Worker died** (`resource_exhausted`, rate limit, timeout): read `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, then resume the **same** agent id with "continue from current worktree state" (Claude: `SendMessage` to the named agent). Max 2 resumes, then new spawn only if the worktree is gone, else report blocker.
 
-### Subagent workspace rules
-
-- **Parent stays at `REPO_ROOT`.** Never `move_agent_to_root` or `move_agent_to_cloned_root` to a worktree.
-- **Worker:** every Read/Write/StrReplace/Shell uses **absolute** `$WORKTREE_DIR/...` paths, or Shell `working_directory=$WORKTREE_DIR`. A relative path resolves to the primary TARGET checkout. The worker stays in the parent's workspace (no `move_agent_to_*`). Spawn agent `andx-worker` in the **same** workspace; instruct cwd in the prompt only (HARNESS).
-- After handoff: if workspace drifted, parent `move_agent_to_root(REPO_ROOT)` to restore.
-- Still allowed: `move_agent_to_root` when the **project** is wrong (`/andx-plan`, `/andx-init`) — not for exec worktrees.
-- Commits land on `EXEC_BRANCH` only; do not push unless the prompt explicitly allows it
-- Before handoff: `git status` must be **clean** on `EXEC_BRANCH`; all work committed
-- **Do not** run `git worktree remove` or `git branch -d` — parent owns cleanup after merge
-- Do not merge; return handoff to parent with `worktree_preserved: true` and `WORKTREE_DIR`
+`move_agent_to_root` is only for a wrong **project** (`/andx-plan`, `/andx-init`), never for exec worktrees.
 
 ## Step 3 — Subagent handoff schema
 
-Subagent must return:
-
-```markdown
-## Handoff
-
-- **Status:** pass | fail
-- **EXEC_BRANCH:** andx/exec-…
-- **WORKTREE_DIR:** …
-- **worktree_preserved:** true
-- **Pre-handoff git status:** clean | dirty (must be clean on pass)
-- **Commits:** `git log TARGET_BRANCH..EXEC_BRANCH --oneline`
-- **Verification table:** (each row: command, outcome, snippet)
-- **Phase 3 regression:** command + outcome on EXEC_BRANCH
-- **Blockers:** (if fail) symptom, attempts, next experiment
-```
+Worker returns the `## Handoff` block in [WORKER.md](../andx-execute/WORKER.md#phase-4--commit-and-hand-off); analyst returns the block in [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md#phase-b--analyst).
 
 Parent treats handoff as stale unless output is from the current spawn.
-
-## Debug analyst handoff (readonly — andx-debug-and-fix Phase B)
-
-Readonly subagent returns **before** worktree creation. No commits. Parent maps this into an execution plan for Phase D.
-
-```markdown
-## Debug analyst handoff
-
-- **Status:** pass | fail | inconclusive
-- **Feedback loop:** one command + its red output (red-capable, deterministic, fast)
-- **Minimised repro:** smallest scenario still red
-- **Hypotheses:** 3–5 ranked, each with its prediction and status (confirmed / killed / open)
-- **Correct seam:** where the regression test belongs, or `none` (that is a finding)
-- **Issue:** …
-- **Evidence:** …
-- **Investigation:** …
-- **Root Cause:** … (with evidence)
-- **Recommended Fix:** files, lines, minimal change description
-- **Verification Plan:** commands/tests post-fix
-- **Risk Assessment:** side effects, confidence
-- **Blockers:** (if fail/inconclusive) next falsifiable experiment
-```
-
-Execute worker spawn prompt must include the full debug handoff as anchored plan context.
 
 ## Step 4 — Merge back (always on pass)
 
@@ -165,7 +116,7 @@ After subagent reports pass and Phase 3 passed on `EXEC_BRANCH`. Wave merges inh
 1. **Do not steal another agent's merge.** If `TARGET_BRANCH` is dirty or a merge is in progress: retry/backoff or stop.
 2. **Always integrate latest TARGET into EXEC** in `WORKTREE_DIR` (`git merge "$TARGET_BRANCH"`) before landing. No-op if EXEC already based on TARGET.
 3. **Conflicts:** parent never edits conflict markers. Spawn or resume worker on `EXEC_BRANCH`. Intent: keep both sides when compatible (same as [/andx-mr-babysit](../andx-mr-babysit/SKILL.md)). Irreconcilable → abort the worktree merge, ask user, leave worktree.
-4. **After a conflict-resolution commit:** Phase 3 on EXEC. If parent is review-gated ([/andx-execute-and-review](../andx-execute-and-review/SKILL.md) or [/andx-execute-review-and-deploy](../andx-execute-review-and-deploy/SKILL.md)) **and** product source changed → re-run always reviewers 1–3 before landing. Clean integrate → no extra review.
+4. **After a conflict-resolution commit:** Phase 3 on EXEC. If parent is review-gated ([/andx-execute-and-review](../andx-execute-and-review/SKILL.md) or [/andx-execute-review-and-deploy](../andx-execute-review-and-deploy/SKILL.md)) **and** product source changed → Bugbot on the resolution delta before landing. Clean integrate → no extra review.
 5. **If TARGET moved again:** retry integrate ≤3.
 6. **Land on primary (fast-forward only):** EXEC already contains TARGET, so landing never creates a merge on primary.
 
@@ -204,46 +155,23 @@ Skip `worktree remove` only when `WORKTREE_DIR="$REPO_ROOT"` (fallback). Still r
 
 **Push-to-MR runs** (no local landing): after the push succeeds, remove `WORKTREE_DIR` (branch lives on the remote), then run the sweep dry-run and quote its summary.
 
-**Before push or deploy:** Cleanup is part of Step 4, not optional post-ship housekeeping. [/andx-execute-and-deploy](../andx-execute-and-deploy/SKILL.md) and [/andx-execute-review-and-deploy](../andx-execute-review-and-deploy/SKILL.md) must not start Phase A′ until cleanup evidence is logged — even if prod is still failing and the session continues debugging.
-
 **Parallel waves** ([/andx-schedule](../andx-schedule/SKILL.md)): when EXEC-MATRIX present, parent cleans **each** `WORKTREE_DIR` from wave handoffs after integration merge. Subagents still never pre-merge cleanup.
 
 ### On fail
 
 Do **not** merge partial work unless the user explicitly asks. **Do not** remove the worktree — leave it for inspection. Report `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR`, conflict paths, failing commands.
 
-## Parent allowed actions
-
-- Read files anywhere in repo
-- Run read-only commands (tests, curl, git log/status) on primary checkout
-- Create/remove worktrees, checkout, `git merge --ff-only "$EXEC_BRANCH"` on `TARGET_BRANCH` (no other commits on primary)
-- `git merge --abort` on TARGET (never leave TARGET conflicted)
-- `move_agent_to_root(REPO_ROOT)` to restore after drift; `move_agent_to_root` when the **project** is wrong (`/andx-plan`, `/andx-init`)
-- Deploy commands (SSH, make deploy, health checks)
-- Write plans, verification tables, progress updates in chat
-
 ## Guardrails
 
 Hard limits; the steps above are the source of truth for each.
 
-- Every source change (including a one-line lint fix) is made by a worker in a `.worktrees/` worktree, even when the tree is clean. The parent writes plans, ledgers, and chat only.
-- Parent stays at `REPO_ROOT`; workers address `$WORKTREE_DIR` by absolute path.
+- Every source change (including a one-line lint fix) is made by a worker in a `.worktrees/` worktree, even when the tree is clean. The parent reads anything, runs read-only commands and deploy commands, and writes plans, ledgers, and chat.
+- Parent stays at `REPO_ROOT` (`move_agent_to_root(REPO_ROOT)` restores drift); workers address `$WORKTREE_DIR` by absolute path.
 - Workers commit on `EXEC_BRANCH` and hand off; the parent alone merges and cleans up.
 - Primary is touched only by `checkout` and `merge --ff-only`. A failed integrate ends in `git merge --abort`, leaving TARGET clean.
 - "Done" means merge + post-merge Phase 3 on `TARGET_BRANCH` + quoted cleanup evidence, all fresh from this run.
 - Push and deploy start after Step 4 cleanup.
 
-## Referenced by
+## Workspace rules
 
-- [HARNESS.md](./HARNESS.md) — Cursor/Claude spawn matrix
-- [SKILL-MAP.md](./SKILL-MAP.md) — companion skill routing
-- [/andx-init](../andx-init/SKILL.md)
-- [/andx-plan](../andx-plan/SKILL.md)
-- [/andx-schedule](../andx-schedule/SKILL.md)
-- [/andx-execute](../andx-execute/SKILL.md)
-- [/andx-execute-and-review](../andx-execute-and-review/SKILL.md)
-- [/andx-execute-review-and-deploy](../andx-execute-review-and-deploy/SKILL.md)
-- [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md)
-- [/andx-execute-and-deploy](../andx-execute-and-deploy/SKILL.md)
-- [/andx-deploy](../andx-deploy/SKILL.md) — hotfix loop only
-- [/andx-mr-review](../andx-mr-review/SKILL.md)
+Before spawning workers or reviewers: [WORKSPACE-RULES.md](./WORKSPACE-RULES.md).

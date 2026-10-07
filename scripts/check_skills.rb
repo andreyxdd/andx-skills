@@ -4,6 +4,7 @@
 #   ruby check_skills.rb [ROOT]            # default: this repo; exit 1 on errors
 #   ruby check_skills.rb --budget          # catalog cost report across installed skill dirs
 #   ruby check_skills.rb --prose           # line counts, duplicated clauses, unresolved links (report only)
+#   ruby check_skills.rb --tokens          # read-chain tokens per composer/agent + catalog tokens per turn
 require "yaml"
 require "json"
 
@@ -92,6 +93,30 @@ def budget
        cp.map { |k, v| "#{k}=#{v.size}" }.join(" ")
 end
 
+# ponytail: chains are hand-maintained; derive from links if they drift from what agents actually read.
+CHAINS = {
+  "execute" => %w[andx-execute/SKILL.md andx-orchestration/SKILL.md andx-orchestration/HARNESS.md andx-plan/PARSE.md],
+  "execute-and-review" => %w[andx-execute-and-review/SKILL.md andx-execute/SKILL.md andx-orchestration/SKILL.md
+                             andx-orchestration/HARNESS.md andx-orchestration/SKILL-MAP.md andx-plan/PARSE.md
+                             andx-mr-review/FINDINGS-SCHEMA.md andx-security-review/VERIFIER.md],
+  "worker" => %w[agents/andx-worker.md andx-execute/WORKER.md],
+  "analyst" => %w[agents/andx-analyst.md andx-debug-and-fix/SKILL.md],
+  "plan" => %w[andx-plan/SKILL.md andx-plan/PLAN-FORMAT.md andx-plan/PARSE.md andx-orchestration/SKILL-MAP.md],
+  "mr-review" => %w[andx-mr-review/SKILL.md andx-mr-review/HOSTS.md andx-mr-review/FINDINGS-SCHEMA.md
+                    andx-mr-review/COMMENT-STYLE.md andx-mr-review/REPORT-FORMAT.md andx-mr-review/EXAMPLES.md],
+  "mr-babysit" => %w[andx-mr-babysit/SKILL.md andx-mr-review/HOSTS.md],
+}
+
+def chain_tokens(root, files)
+  files.sum { |f| File.size(File.join(root, f)) } / 4
+end
+
+def tokens(root)
+  CHAINS.each { |name, files| puts "  #{chain_tokens(root, files)}\t#{name}" }
+  rows = visible_skills.map { |n, v| n.size + v.first[1].size + 20 }
+  puts "catalog tokens per turn (visible skills): #{rows.sum / 4}"
+end
+
 # Report only: SKILL.md line counts, clauses repeated across files, unresolved links.
 def prose(root)
   mds = Dir.glob(File.join(root, "*/**/*.md")).reject { |p| p.include?("/references/") || p.include?("/templates/") }
@@ -111,7 +136,9 @@ def prose(root)
 end
 
 if $PROGRAM_NAME == __FILE__
-  if ARGV.first == "--prose"
+  if ARGV.first == "--tokens"
+    tokens(File.expand_path("..", __dir__))
+  elsif ARGV.first == "--prose"
     prose(File.expand_path("..", __dir__))
   elsif ARGV.first == "--budget"
     budget

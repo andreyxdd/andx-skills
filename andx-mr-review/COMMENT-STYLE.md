@@ -56,7 +56,7 @@ Do not use `HIGH:` / `CRITICAL:` labels in MR comments (reserved for VERDICT in 
 - Essay-length MR comments (depth → chat report)
 - Generic checklist without file/line
 - `**nitpick:**` on real bugs
-- Posting without user approval (unless `--post` explicitly passed)
+- Posting without user approval
 
 ## Examples
 

@@ -20,7 +20,7 @@ Cursor-primary, Claude Code supported. Same skills and agents in both; spawn det
 | Background | always `run_in_background=false` (background ends the parent turn) | Claude may background subagents anyway → parent waits for the handoff before the next phase |
 | Nesting | subagents cannot spawn subagents → parent spawns every reviewer and refuter | same rule, for portability |
 
-Worker prompt: absolute `$WORKTREE_DIR/...` paths or Shell `working_directory=$WORKTREE_DIR`; never `move_agent_to_root` to a worktree. Parent stays at `REPO_ROOT`, merges, and cleans up ([SKILL.md](./SKILL.md) Step 4).
+Worker rules: [WORKER.md](../andx-execute/WORKER.md). Parent stays at `REPO_ROOT`, merges, and cleans up ([SKILL.md](./SKILL.md) Step 4).
 
 **Never on the default path:** Claude `isolation: worktree`, Cursor `best-of-n-runner`, cloud agents. They create their own branch/worktree and fight andx merge, `resume`, and cleanup. Parallel experiments only.
 
@@ -30,11 +30,11 @@ Fresh agents, no worker context, judge only `git diff $MERGE_BASE_SHA..$EXEC_HEA
 
 | Role | Cursor | Claude Code |
 |------|--------|-------------|
-| 1 Bugbot (always) | `Task(subagent_type="bugbot")` per `~/.cursor/skills-cursor/review-bugbot/SKILL.md` | built-in `/code-review` run by the orchestrator (GitLab `--comment` needs ≥ 2.1.257); else `general-purpose` with the Bugbot prompt |
-| 2 Security (always) | `Task(subagent_type="andx-security-reviewer")`; then parent spawns one `andx-refuter` per proposed critical/high (all in one message). `--deep` adds Cursor `security-review` | `Agent` with the same agent names |
-| 3 Ponytail-review (always) | `generalPurpose` + [ponytail resolve](#ponytail-resolve) | same |
-| 8 Spec (always) | `Task(subagent_type="andx-spec-reviewer")` with plan path + diff + verification table | `Agent` with the same name |
-| Ponytail-audit / react / a11y (conditional) | `generalPurpose` + skill path from [SKILL-MAP.md](./SKILL-MAP.md) | same |
+| Bugbot (always) | `Task(subagent_type="bugbot")` per `~/.cursor/skills-cursor/review-bugbot/SKILL.md` | built-in `/code-review` run by the orchestrator (GitLab `--comment` needs ≥ 2.1.257); else `general-purpose` with the Bugbot prompt |
+| Security (always) | `Task(subagent_type="andx-security-reviewer")`; then parent spawns one `andx-refuter` per proposed critical/high (all in one message). `--deep` adds Cursor `security-review` | `Agent` with the same agent names |
+| Ponytail (always) | `generalPurpose` + [ponytail resolve](#ponytail-resolve) | same |
+| Spec (always) | `Task(subagent_type="andx-spec-reviewer")` with plan path + diff + verification table | `Agent` with the same name |
+| Audit / React / A11y (conditional) | `generalPurpose` + skill path from [SKILL-MAP.md](./SKILL-MAP.md) | same |
 
 Normalize every reviewer's output with `andx-execute-and-review/scripts/parse_review.rb` before union.
 
@@ -50,8 +50,8 @@ Never use `~/.cursor/skills-cursor/ponytail-*` (not shipped there).
 
 ## Goals and continuation
 
-- Cursor: parent may `CreateGoal` per the run ledger ([SKILL.md](./SKILL.md) Run ledger); subagents cannot.
-- Claude: `/goal` is user-only; the andx Stop hook (`hooks/andx_continue.rb`) continues a non-terminal ledger instead.
+- Cursor (optional, parent only; subagents cannot): call `CreateGoal` exactly once with `{"objective": "<mode-scoped Definition of done>"}` (MR mode never requires DEPLOYED). Call `UpdateGoal` with `{"status": "complete"}` only after a requirement-by-requirement audit with fresh output.
+- Stop hook `hooks/andx_continue.rb` (both harnesses): re-prompts while the ledger written in this conversation is non-terminal, max 5 pushes. Never set `DONE` to silence it. Claude `/goal` is user-only.
 
 ## Evidence rule
 

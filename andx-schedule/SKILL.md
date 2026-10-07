@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 Plan → **EXEC-MATRIX** → parallel `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).
 
-Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Orch: [/andx-orchestration](../andx-orchestration/SKILL.md) · Harness: [HARNESS.md](../andx-orchestration/HARNESS.md) · Format: [PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md)
+Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Orch: [/andx-orchestration](../andx-orchestration/SKILL.md) · Harness: [HARNESS.md](../andx-orchestration/HARNESS.md) · Fields: [PARSE.md](../andx-plan/PARSE.md)
 
 **Before:** `/andx-plan` (plan has `depends` + `touch`). **After:** `/andx-execute` | `/andx-execute-and-review` | `/andx-execute-and-deploy` | `/andx-execute-review-and-deploy`.
 
@@ -25,7 +25,7 @@ Run when plan has **≥2 steps that can share a wave**: same wave, deps satisfie
 ## Algorithm
 
 1. Anchor plan — prefer `.cursor/plans/<slug>.plan.md` with `andx_ready: true`.
-2. Parse steps per PLAN-FORMAT (`depends`, `touch`).
+2. Parse steps per PARSE.md (`depends`, `touch`).
 3. Topological waves:
    - Wave 1: `depends: []` (or missing deps on step-1)
    - Wave N: steps whose deps are all in earlier waves
@@ -83,4 +83,4 @@ Single-step waves → one worker (same as classic execute).
 - [/andx-orchestration](../andx-orchestration/SKILL.md)
 - [/andx-execute](../andx-execute/SKILL.md)
 - [/andx-plan](../andx-plan/SKILL.md)
-- [PLAN-FORMAT.md](../andx-plan/PLAN-FORMAT.md)
+- [PARSE.md](../andx-plan/PARSE.md)

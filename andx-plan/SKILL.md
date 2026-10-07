@@ -23,7 +23,7 @@ Phase 0 Anchor → 1 Domain grill? → 1.5 Design? → 2 Execution grill → 3 W
 1. **Workspace gate:** plans only under target project `.cursor/plans/`. Never `~/.cursor/plans`. If root ≠ target repo → `move_agent_to_root` first. Ensure `.cursor/plans/` exists (gitignore by default).
 2. **Plan-mode upgrade:** if `.cursor/plans/*.plan.md` or Cursor Plan draft exists but lacks `depends`/`touch`/`verification`, upgrade in place to PLAN-FORMAT — skip domain grill unless gaps.
 3. Read OKF/ICM when present: `IDENTITY.md`, `ROUTING.md`, `knowledge/index.md`, active `pipeline/<stage>/CONTEXT.md`, legacy CONTEXT/ADRs/thread.
-4. **Workspace agent rules:** if `agents/rules/README.md` exists, read always-on + any **plan/dev/execute** scoped rules whose paths match likely `touch` (e.g. hygiene). Bake constraints into steps (`depends`/`success`/`verification`) — do not leave cross-repo sync implicit.
+4. **Workspace rules:** per [workspace rules](../andx-orchestration/WORKSPACE-RULES.md) on the likely `touch`. Bake constraints into steps (`depends`/`success`/`verification`) — do not leave cross-repo sync implicit.
 5. Missing `knowledge/` → suggest `/andx-init` once (non-blocking).
 6. Detect `stack`, `workstream` (`code`|`docs`|`mixed`), doc verifier, whether Phase 1 needed, `pipeline_stage`, slug.
 7. Confirm slug if ambiguous. Propose archetype skeleton when fit (mirror-doc / OKF hardening — see below).

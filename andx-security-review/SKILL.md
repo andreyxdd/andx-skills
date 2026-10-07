@@ -1,6 +1,6 @@
 ---
 name: andx-security-review
-description: "/andx-security-review: diff-scoped security review with boundary-proven findings, Cloudflare attack-class router, and refuted critical/high. Use for \"security review\" of a branch/MR, or as andx Reviewer 2."
+description: "/andx-security-review: diff-scoped security review with boundary-proven findings, Cloudflare attack-class router, and refuted critical/high. Use for \"security review\" of a branch/MR, or as the andx Security reviewer."
 ---
 # Andx Security Review
 
@@ -10,7 +10,7 @@ Find vulnerabilities that cross a real trust boundary in a diff, prove them from
 
 | Mode | Caller | Scope | Output |
 |------|--------|-------|--------|
-| `gate` | `andx-security-reviewer` agent (andx Reviewer 2) | `git diff $MERGE_BASE_SHA..$EXEC_HEAD` only | `## VERDICT` + candidates JSON |
+| `gate` | `andx-security-reviewer` agent (andx Security reviewer) | `git diff $MERGE_BASE_SHA..$EXEC_HEAD` only | `## VERDICT` + candidates JSON |
 | `standalone` | user (`/andx-security-review`, `/security-review`) | branch diff vs merge-base (default), MR diff, or named subsystem | markdown report + same JSON |
 
 Stacked MR: base is the parent MR head, never the default branch. Findings about code outside the scope are dropped as wrong-base.
@@ -35,7 +35,7 @@ Every untrusted entry point the diff adds or changes (routes, resolvers, RPC, we
 
 ### 3. Workspace review gates
 
-If the workspace (or parent multi-repo map) has `agents/rules/README.md`, load `*-review-gates.md` whose scope matches the diff. Violations are findings at the severity the gate file defines.
+Load review gates per [workspace rules](../andx-orchestration/WORKSPACE-RULES.md); violations are findings at the gate severity.
 
 ### 4. Class router
 
