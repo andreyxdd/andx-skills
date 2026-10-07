@@ -8,7 +8,7 @@ Evidence-first diagnose → plan → worktree fix → merge.
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Spawn: [HARNESS.md](../andx-orchestration/HARNESS.md)
 
-**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), `/debug-like-expert`, [/andx-execute](../andx-execute/SKILL.md) § Worker.
+**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), `/diagnosing-bugs` (Matt Pocock, via install-companions.sh), [/andx-execute](../andx-execute/SKILL.md) § Worker.
 
 ## When
 
@@ -18,7 +18,7 @@ Symptom known; root cause/fix unclear. Greenfield → `/andx-execute`. Plan alre
 
 ```
 A Parent: read-only repro (must fail)
-B Analyst: debug-like-expert → handoff (no worktree)
+B Analyst: diagnosing-bugs Phases 1–3 → handoff (no worktree)
 C Parent: map handoff → steps + verification table; detect REACT_STACK
 0 Orch Step 1 worktree
 D New execute worker Phases 0–4 → orch Step 4 concurrent-merge + cleanup
@@ -32,7 +32,7 @@ Anchor symptom; falsifiable repro; run read-only on primary checkout → must fa
 
 ## Phase B — Analyst
 
-Spawn agent `andx-analyst` (HARNESS). Prompt: symptom, repro output, `REPO_ROOT`, follow `/debug-like-expert`, return orch debug handoff schema. Skip user decision gate — auto-proceed on `pass`.
+Spawn agent `andx-analyst` (HARNESS). Prompt: symptom, repro output, `REPO_ROOT`, read `~/.cursor/skills/diagnosing-bugs/SKILL.md` and run **Phases 1–3 only** (tight red-capable loop, minimise, 3–5 ranked falsifiable hypotheses), redact secrets, scratch scripts under `/tmp` only. Probes that need source instrumentation go into the handoff as experiments for the worker. Return orch debug handoff schema. Skip user decision gate — auto-proceed on `pass` (show the ranked hypotheses in chat).
 
 `fail`/`inconclusive` → stop; no worktree. No edits/commits in Phase B.
 
@@ -44,7 +44,7 @@ From handoff: steps + `touch` + verification table. `REACT_STACK` same rules as 
 
 ## Phase D — Execute
 
-New worker; prompt includes debug handoff + Phase C plan + `REACT_STACK`. Follow execute § Worker (same workspace; `WORKTREE_DIR` as tool cwd). Parent: orch Step 4 concurrent-merge on pass.
+New worker; prompt includes debug handoff + Phase C plan + `REACT_STACK`. Follow execute § Worker (same workspace; `WORKTREE_DIR` as tool cwd) plus diagnosing-bugs **Phases 4–6**: tagged `[DEBUG-xxxx]` probes only for listed experiments, regression test at the handoff's correct seam before the fix (forced red → `diff` proves the mutation landed), fix, re-run the original loop, grep the tag to zero, commit message states the confirmed hypothesis. No correct seam → document it in the handoff instead of a shallow test. Parent: orch Step 4 concurrent-merge on pass.
 
 ## Anti-patterns
 

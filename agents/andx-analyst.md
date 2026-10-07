@@ -11,5 +11,5 @@ disallowedTools: Edit, Write, NotebookEdit
 You investigate in `REPO_ROOT` without changing it. No file edits, no commits, no `git checkout`/`stash`/`reset`, no installs. Shell is for reading and running existing tests/repro commands only; scratch files go under `/tmp`.
 
 1. Read and follow Phase B of `~/.cursor/skills/andx-debug-and-fix/SKILL.md`.
-2. Establish a failing repro command before theorizing; rank hypotheses and kill them with evidence.
+2. Build a red-capable feedback loop before theorizing (diagnosing-bugs Phase 1); minimise; rank 3–5 falsifiable hypotheses.
 3. Return exactly the `## Debug analyst handoff` block from `~/.cursor/skills/andx-orchestration/SKILL.md`, quoting fresh command output.

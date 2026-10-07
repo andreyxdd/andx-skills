@@ -140,7 +140,10 @@ Readonly subagent returns **before** worktree creation. No commits. Parent maps 
 ## Debug analyst handoff
 
 - **Status:** pass | fail | inconclusive
-- **Repro criterion:** command + outcome (must fail before fix)
+- **Feedback loop:** one command + its red output (red-capable, deterministic, fast)
+- **Minimised repro:** smallest scenario still red
+- **Hypotheses:** 3–5 ranked, each with its prediction and status (confirmed / killed / open)
+- **Correct seam:** where the regression test belongs, or `none` (that is a finding)
 - **Issue:** …
 - **Evidence:** …
 - **Investigation:** …

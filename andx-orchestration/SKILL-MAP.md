@@ -104,7 +104,7 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.
 
 | Skill | Trigger |
 |-------|---------|
-| `debug-like-expert` | `/andx-debug-and-fix` Phase B |
+| `diagnosing-bugs` | `/andx-debug-and-fix` Phase B (Phases 1–3, analyst) + Phase D (Phases 4–6, worker) |
 | `andx-deploy-init` | First production CI/CD |
 | `andx-deploy` | Ship committed revision |
 | `andx-execute-review-and-deploy` | Execute + review gate + push + deploy |
