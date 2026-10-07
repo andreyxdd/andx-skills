@@ -1,8 +1,7 @@
 ---
 name: andx-orchestration
-description: Parent-orchestrator protocol for andx skills — always-on worktree isolation, subagent spawn contract, merge-back to checked-out branch, and handoff schema. Use when /andx-execute, /andx-execute-and-review, /andx-execute-review-and-deploy, /andx-debug-and-fix, /andx-execute-and-deploy, or /andx-deploy spawns implementation work.
+description: "/andx-orchestration: shared worktree, spawn, handoff, merge and cleanup protocol that andx execute/debug/deploy skills read by path. Not a user entry point."
 ---
-
 # Andx Orchestration
 
 Shared protocol for **parent orchestrators**. The parent never edits application source; subagents implement in an isolated worktree and merge back to `TARGET_BRANCH`.
@@ -62,6 +61,8 @@ State `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR` in the reply b
 ## Step 1 — Always create worktree
 
 Run **before any implementation subagent spawn**, regardless of clean/dirty status. Do not edit the primary checkout.
+
+**Sweep first (dry-run):** `bash ~/.cursor/skills/andx-orchestration/scripts/worktree-sweep.sh "$REPO_ROOT"` → put the one-line summary (`removed= kept=`) in the reply. Use `--apply` only on user request. It removes clean + merged worktrees only and prints manual commands for the rest. Never force-remove without per-item confirmation.
 
 **Exception:** [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md) defers Step 1 until after readonly debug handoff (Phase C). All **implementation** subagents still require worktree before spawn.
 
@@ -160,19 +161,21 @@ After subagent reports pass and Phase 3 passed on `EXEC_BRANCH`. Wave merges inh
 3. **Conflicts:** parent never edits conflict markers. Spawn or resume worker on `EXEC_BRANCH`. Intent: keep both sides when compatible (same as [/andx-mr-babysit](../andx-mr-babysit/SKILL.md)). Irreconcilable → abort the worktree merge, ask user, leave worktree.
 4. **After a conflict-resolution commit:** Phase 3 on EXEC. If parent is review-gated ([/andx-execute-and-review](../andx-execute-and-review/SKILL.md) or [/andx-execute-review-and-deploy](../andx-execute-review-and-deploy/SKILL.md)) **and** product source changed → re-run always reviewers 1–3 before landing. Clean integrate → no extra review.
 5. **If TARGET moved again:** retry integrate ≤3.
-6. **Land on primary:**
+6. **Land on primary (fast-forward only):** EXEC already contains TARGET, so landing never creates a merge on primary.
 
 ```bash
 cd "$REPO_ROOT"
 git checkout "$TARGET_BRANCH"
-git merge "$EXEC_BRANCH"
+git merge --ff-only "$EXEC_BRANCH"
 ```
 
-If conflicts or index lock: `git merge --abort` (never leave TARGET conflicted), go back to worktree integrate, retry ≤3.
+- **Not fast-forward** (TARGET moved): back to step 2 (integrate in worktree), retry ≤3.
+- **Dirty primary refusal** (`would be overwritten`): other agents/user own those files. Wait 2 min and retry, max 3. Then stop and report: overlapping files (`git diff --name-only "$TARGET_BRANCH" "$EXEC_BRANCH"` ∩ `git status --porcelain`), plus recovery for the user: `commit or move your edits to <files>, then: git -C "$REPO_ROOT" merge --ff-only "$EXEC_BRANCH"`.
+- **Never** `git stash`, `git reset`, `git checkout -- <file>`, or `git clean` on primary. A separate TARGET worktree is impossible while primary has TARGET checked out.
 
 7. Then post-merge Phase 3 + cleanup as below.
 
-Parent may `git merge --abort` on TARGET. Still only merge commits on TARGET; resolution commits on EXEC.
+Parent may `git merge --abort` on TARGET. Resolution commits live on EXEC only.
 
 **Anti-pattern:** leaving TARGET with conflict markers / merge in progress.
 
@@ -195,6 +198,8 @@ git worktree list   # prove andx/exec-… entry gone
 
 Skip `worktree remove` only when `WORKTREE_DIR="$REPO_ROOT"` (fallback). Still run `git branch -d "$EXEC_BRANCH"` when safe.
 
+**Push-to-MR runs** (no local landing): after the push succeeds, remove `WORKTREE_DIR` (branch lives on the remote), then run the sweep dry-run and quote its summary.
+
 **Before push or deploy:** Cleanup is part of Step 4, not optional post-ship housekeeping. [/andx-execute-and-deploy](../andx-execute-and-deploy/SKILL.md) and [/andx-execute-review-and-deploy](../andx-execute-review-and-deploy/SKILL.md) must not start Phase A′ until cleanup evidence is logged — even if prod is still failing and the session continues debugging.
 
 **Parallel waves** ([/andx-schedule](../andx-schedule/SKILL.md)): when EXEC-MATRIX present, parent cleans **each** `WORKTREE_DIR` from wave handoffs after integration merge. Subagents still never pre-merge cleanup.
@@ -207,7 +212,7 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 
 - Read files anywhere in repo
 - Run read-only commands (tests, curl, git log/status) on primary checkout
-- Create/remove worktrees, merge, checkout, commit **only** merge commits on `TARGET_BRANCH`
+- Create/remove worktrees, checkout, `git merge --ff-only "$EXEC_BRANCH"` on `TARGET_BRANCH` (no other commits on primary)
 - `git merge --abort` on TARGET (never leave TARGET conflicted)
 - `move_agent_to_root(REPO_ROOT)` to restore after drift; `move_agent_to_root` when the **project** is wrong (`/andx-plan`, `/andx-init`)
 - Deploy commands (SSH, make deploy, health checks)
@@ -223,6 +228,7 @@ Do **not** merge partial work unless the user explicitly asks. **Do not** remove
 - Push, deploy, or `git push heroku` before Step 4 cleanup completes
 - Ad-hoc `WORKTREE_DIR` outside `.worktrees/` (orphan risk; later agents may treat it as a permanent second tree)
 - Leaving TARGET with conflict markers or a merge in progress
+- `git stash` / `reset` / `clean` / `checkout -- <file>` on primary to make landing work
 
 ## Anti-patterns
 

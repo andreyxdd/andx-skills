@@ -89,9 +89,9 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.
 | `andx-mr-review` | MR URL | After push; **review** + draft/post comments; uses artifact when `head_sha` matches |
 | `andx-mr-babysit` | MR URL + babysit / merge-ready | After push (or after mr-review) when conflicts/comments/CI must be **fixed** toward merge |
 
-**Order:** review (`andx-mr-review`) → fix (`andx-mr-babysit`). GitHub + `~/.cursor/skills-cursor/babysit` present → mr-babysit delegates to Cursor babysit after auth/checkout; else andx-owned `gh`/`glab` loop via [HOSTS.md](../andx-mr-review/HOSTS.md).
+**Order:** review (`andx-mr-review`) → fix (`andx-mr-babysit`). GitHub + `~/.cursor/skills-cursor/autopilot` present → mr-babysit delegates to Cursor autopilot (formerly babysit) after auth/checkout; else andx-owned `gh`/`glab` loop via [HOSTS.md](../andx-mr-review/HOSTS.md).
 
-| | `andx-mr-review` | `andx-mr-babysit` | Cursor `babysit` |
+| | `andx-mr-review` | `andx-mr-babysit` | Cursor `autopilot` |
 |--|------------------|------------------|------------------|
 | Job | Findings + comments | Merge-ready fixes | Same jobs as mr-babysit (GitHub-native) |
 | Hosts | glab / gh / Bitbucket draft | Same HOSTS; Bitbucket may escalate | GitHub only |

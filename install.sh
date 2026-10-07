@@ -3,6 +3,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+if [[ "${1:-}" == "--uninstall-hooks" ]]; then
+  /usr/bin/ruby "$ROOT/scripts/install_hooks.rb" uninstall
+  exit 0
+fi
+
+/usr/bin/ruby "$ROOT/scripts/check_skills.rb" "$ROOT" || { echo "check_skills failed; nothing linked" >&2; exit 1; }
+
 SKILLS=(
   andx-init
   andx-plan
@@ -17,6 +25,9 @@ SKILLS=(
   andx-execute-review-and-deploy
   andx-mr-review
   andx-mr-babysit
+  andx-mr-create
+  andx-listen-start
+  andx-listen-end
 )
 RETIRED=(
   andx-pr-review
@@ -44,6 +55,7 @@ install_target() {
 install_target "$HOME/.cursor/skills"
 install_target "$HOME/.claude/skills"
 install_target "$HOME/.codex/skills"
+/usr/bin/ruby "$ROOT/scripts/install_hooks.rb" install
 
 echo "Done. Canonical source: $ROOT"
 echo "Run ./install-companions.sh for optional companions (e.g. react-best-practices)."

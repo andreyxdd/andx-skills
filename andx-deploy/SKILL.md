@@ -1,8 +1,7 @@
 ---
 name: andx-deploy
-description: Deploys the current revision to production and verifies health. Source hotfixes run in a subagent worktree and merge to the checked-out branch. Discovers deploy method from repo docs each run. Use for /andx-deploy, "deploy to production", or when code is already committed and only prod deploy plus health checks are needed.
+description: "/andx-deploy: deploy the committed revision to production using this repo's documented method, then verify health. Use for \"deploy to production\"."
 ---
-
 # Andx Deploy
 
 Ship current revision; confirm healthy. Hotfixes only via orchestration worktree.

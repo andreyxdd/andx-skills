@@ -1,8 +1,7 @@
 ---
 name: andx-debug-and-fix
-description: Readonly debug-like-expert analysis on primary checkout, then executes the recommended fix via andx-execute worker in a deferred worktree. Parent merges to checked-out target when verified. Use for /andx-debug-and-fix or "debug and fix".
+description: "/andx-debug-and-fix: reproduce a bug, readonly root-cause analysis, then fix in a worktree worker and merge when verified. Use for \"debug and fix\" or a known symptom with unknown cause."
 ---
-
 # Andx Debug and Fix
 
 Evidence-first diagnose → plan → worktree fix → merge.

@@ -1,14 +1,7 @@
 ---
 name: andx-mr-review
-description: >-
-  Review a remote GitLab/GitHub/Bitbucket MR from a URL — run layered review
-  (Bugbot, Security, ponytail; tiered --fast/--deep), draft human MR comments in
-  COMMENT-STYLE voice with fix snippets and line links, print a detailed chat report
-  (UI/UX flows, API contract). Posts only after explicit approval. Skips subagents
-  when REVIEW-ARTIFACT.json on MR head matches head_sha (from /andx-execute-and-review).
-  Use for /andx-mr-review, /andx-pr-review (alias), "review this MR", or MR links with code review + comments.
+description: "/andx-mr-review: review a GitLab/GitHub/Bitbucket MR from a URL, draft human comments plus a chat report, post only after approval. Use for \"review this MR\" or /andx-pr-review."
 ---
-
 # Andx MR Review
 
 Remote MR review with **dual output**: teaching-depth chat report + human MR comments.

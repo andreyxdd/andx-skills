@@ -1,8 +1,7 @@
 ---
 name: andx-deploy-init
-description: Bootstrap first-time production CI/CD through a one-question-at-a-time deploy grill, human infrastructure checklist, and review-gated execution plan. Use for /andx-deploy-init, "set up CI/CD", "first production deploy", or "bootstrap deployment".
+description: "/andx-deploy-init: first-time production CI/CD setup via grill, human checklist, and a review-gated plan. Use for \"set up CI/CD\" or \"bootstrap deployment\"."
 ---
-
 # Andx Deploy Init
 
 Prepare a target app repo for first production CI/CD. Do not implement CI, deploy, or handle secret values here.

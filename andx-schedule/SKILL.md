@@ -1,8 +1,7 @@
 ---
 name: andx-schedule
-description: Builds EXEC-MATRIX waves from plan depends+touch so /andx-execute can spawn parallel workers (max_parallel default 2). Use for /andx-schedule, after /andx-plan when ≥2 steps can share a wave, or when execute should parallelize.
+description: "/andx-schedule: build EXEC-MATRIX parallel waves from plan depends+touch so andx-execute can run workers in parallel. Use after andx-plan when 2+ steps can share a wave."
 ---
-
 # Andx Schedule
 
 Plan → **EXEC-MATRIX** → parallel `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).

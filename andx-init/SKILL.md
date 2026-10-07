@@ -1,8 +1,7 @@
 ---
 name: andx-init
-description: Scaffold OKF + ICM hybrid layout into a target repo — IDENTITY, ROUTING, knowledge bundle, pipeline stages. Presets app, data, content. Additive only (never overwrite). Use for /andx-init or before /andx-plan when knowledge/ is missing.
+description: "/andx-init: scaffold the OKF + ICM layout (IDENTITY, ROUTING, knowledge/, pipeline/) into a repo, additive only. Use before andx-plan when knowledge/ is missing."
 ---
-
 # Andx Init
 
 Bootstrap **OKF** (knowledge bundle) + **ICM** (pipeline stages) into a project repo. All writes are **additive** — existing files are never overwritten.

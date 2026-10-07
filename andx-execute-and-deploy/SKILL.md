@@ -1,8 +1,7 @@
 ---
 name: andx-execute-and-deploy
-description: Runs /andx-execute orchestrator (worktree worker, merge, cleanup), auto-pushes TARGET_BRANCH when origin exists, then /andx-deploy. Use for /andx-execute-and-deploy or "execute and deploy".
+description: "/andx-execute-and-deploy: andx-execute, push, then andx-deploy with health checks (no review gate). Use for \"execute and deploy\"."
 ---
-
 # Andx Execute and Deploy
 
 ```

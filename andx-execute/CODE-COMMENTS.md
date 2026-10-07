@@ -51,3 +51,15 @@ git diff "$BASE"...HEAD | rg -n '^\+.*(ponytail:|shrink:|andx:|caveman|/andx-|an
 ```
 
 Fail closed: strip or rewrite hits, then push.
+
+## MR and commit text gate
+
+Write MR title, MR description, and commit subjects/bodies for a reviewer who has never heard of these tools: no skill names, `andx/exec-*` branches, worktree paths or run ids, review-round talk. Operator chat is exempt.
+
+```bash
+J='ponytail|shrink:|caveman|andx|\.worktrees/|exec-[a-z0-9-]*20[0-9]{6}'
+git log --format='%s%n%b' "$BASE"..HEAD | rg -in "$J" && exit 1 || true
+rg -in "$J" /tmp/mr-title.txt /tmp/mr-body.md && exit 1 || true   # draft text before create/edit
+```
+
+Hits in commits not yet pushed → `git commit --amend` / interactive reword on EXEC only. Already pushed → fix MR text; leave history.

@@ -1,8 +1,7 @@
 ---
 name: andx-execute-and-review
-description: Executes an approved plan in an isolated worktree, then gates merge behind independent adversarial review (bugbot + security + ponytail always; scoped audit/React/a11y conditional). Worker fixes blockers in a bounded loop before merge. Use for /andx-execute-and-review or "execute and review".
+description: "/andx-execute-and-review: andx-execute plus blind reviewers (Bugbot, security, ponytail) gating the merge; --mr pushes a draft MR and babysits it. Use for \"execute and review\"."
 ---
-
 # Andx Execute and Review
 
 Worker implements in worktree; **blind reviewers** gate merge to `TARGET_BRANCH`.

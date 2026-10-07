@@ -1,8 +1,7 @@
 ---
 name: andx-execute
-description: Orchestrates subagent execution of an approved plan in an always-on worktree branch, merges to the checked-out target branch when verified. TDD and Karpathy-style verification loops. Use for /andx-execute, "execute the plan", or "run the plan".
+description: "/andx-execute: run an approved andx plan in a git worktree via a worker subagent, verify, merge to the current branch, clean up. Use for \"execute the plan\" or \"run the plan\"."
 ---
-
 # Andx Execute
 
 Approved plan → verified code on `TARGET_BRANCH`. Parent orchestrates; worker implements in worktree.
@@ -87,7 +86,7 @@ Rewrite hits to plain English / public branch pins before Phase 4.
 
 ## Phase 4 — Commit
 
-Stage plan scope; conventional commits; clean `git status`. Return orch handoff schema.
+Stage plan scope; conventional commits; clean `git status`. Commit messages pass the [MR and commit text gate](./CODE-COMMENTS.md#mr-and-commit-text-gate). Return orch handoff schema.
 
 ## Worker anti-patterns
 

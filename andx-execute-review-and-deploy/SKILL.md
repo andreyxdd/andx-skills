@@ -1,8 +1,7 @@
 ---
 name: andx-execute-review-and-deploy
-description: Runs /andx-execute-and-review (worktree worker, review gate, concurrent merge, cleanup), auto-pushes TARGET_BRANCH when origin exists, then /andx-deploy. Use for /andx-execute-review-and-deploy or "execute, review, and deploy".
+description: "/andx-execute-review-and-deploy: andx-execute-and-review, push, then andx-deploy with health checks. Use for \"execute, review, and deploy\" or \"ship it\"."
 ---
-
 # Andx Execute, Review, and Deploy
 
 ```

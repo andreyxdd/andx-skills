@@ -1,8 +1,7 @@
 ---
 name: andx-plan
-description: Plans features for andx execution — grill-with-docs domain interview plus steps with depends, touch, and verification criteria. Writes project-local .cursor/plans/*.plan.md only (never ~/.cursor/plans; do not commit .cursor). Hard-gate: must end with Next menu; bare go runs default andx-execute*. Use for /andx-plan, "plan for andx-execute", or after Plan mode when execution metadata is missing.
+description: "/andx-plan: turn an idea into an execution-ready .cursor/plans/<slug>.plan.md (grill, steps with depends/touch/verification, Next menu). Use for \"plan this feature\" or planning for andx-execute."
 ---
-
 # Andx Plan
 
 Idea → execution-ready **`<project>/.cursor/plans/<slug>.plan.md`**.
