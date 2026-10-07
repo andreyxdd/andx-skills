@@ -10,7 +10,7 @@ Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Format: [PLAN-FOR
 
 **Not for:** tests, source edits, deploy. First CI/CD → [/andx-deploy-init](../andx-deploy-init/SKILL.md).
 
-Companions: `/grill-with-docs`, `/andx-init`, Phase 1.5 design/api/mcp skills, a11y/impeccable on UI — see SKILL-MAP. Do not duplicate their prose.
+Companions: `/grilling`, `/andx-init`, Phase 1.5 design/api/mcp skills, a11y/impeccable on UI — see SKILL-MAP. Do not duplicate their prose.
 
 ```
 Phase 0 Anchor → 1 Domain grill? → 1.5 Design? → 2 Execution grill → 3 Write plan → Next menu
@@ -36,13 +36,13 @@ Phase 0 Anchor → 1 Domain grill? → 1.5 Design? → 2 Execution grill → 3 W
 
 ## Phase 1 — Domain grill (when needed)
 
-Follow grill-with-docs; **andx-plan owns** `knowledge/` writes + `knowledge/log.md`. Collect `knowledge_refs`. Exit when user confirms domain stable.
+Follow grilling; **andx-plan owns** `knowledge/` writes + `knowledge/log.md`. Collect `knowledge_refs`. Exit when user confirms domain stable.
 
 ## Phase 1.5 — Design (conditional)
 
 New module / HTTP-GraphQL / MCP / user asks design. Skip if extending documented contract → `design_pass: skipped`.
 
-Delegate to design-an-interface / api-design / create-mcp-server; capture under `knowledge/modules|apis/`; first doc copy from andx-init templates. Record `companion_skills` + `design_refs`.
+Delegate to codebase-design / api-design / create-mcp-server; capture under `knowledge/modules|apis/`; first doc copy from andx-init templates. Record `companion_skills` + `design_refs`.
 
 ## Phase 2 — Execution grill (always)
 

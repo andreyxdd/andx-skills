@@ -9,7 +9,7 @@
 ## Process
 
 - Explore repo and external docs
-- Interview domain (grill-with-docs / andx-plan Phase 1)
+- Interview domain (grilling / andx-plan Phase 1)
 - Update [knowledge/domain/glossary.md](../../knowledge/domain/glossary.md)
 
 ## Outputs

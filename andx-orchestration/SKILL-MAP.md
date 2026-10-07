@@ -10,15 +10,15 @@ Harness spawn: [HARNESS.md](./HARNESS.md).
 
 | Skill | Trigger | Outcome |
 |-------|---------|---------|
-| `write-a-prd` | Greenfield feature, no PRD | PRD → `/andx-plan` |
-| `grill-me` | Scope still hand-wavy after Phase 0 | Blocks until decisions resolved |
-| `grill-with-docs` | Domain fuzzy (andx-plan Phase 1) | `knowledge/domain/*` |
+| `to-spec` (user-invoked) | Greenfield feature, no spec | spec → `/andx-plan` |
+| `grill-me` (user-invoked) | Scope still hand-wavy after Phase 0 | Blocks until decisions resolved |
+| `grilling` | Domain fuzzy (andx-plan Phase 1) | andx-plan writes `knowledge/domain/*` |
 
 ## Plan phase (`/andx-plan`)
 
 | Skill | Trigger | Artifact |
 |-------|---------|----------|
-| `design-an-interface` | New module/boundary | `knowledge/modules/<slug>.md` |
+| `codebase-design` | New module/boundary | `knowledge/modules/<slug>.md` |
 | `api-design` | HTTP/GraphQL surface | `knowledge/apis/<slug>.md` |
 | `create-mcp-server` | Plan adds MCP tools | `knowledge/apis/mcp-<slug>.md` |
 | `accessibility` | UI a11y requirements | step `success` + verification |
@@ -109,7 +109,7 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.
 
 ## Out of scope
 
-`short`, `btw`, `caveman-*`, `dlc-meeting-summary`, `qa` — not routed through andx.
+`short`, `btw`, `caveman-*`, `dlc-meeting-summary` — not routed through andx.
 
 ## Knowledge templates
 

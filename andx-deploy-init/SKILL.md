@@ -12,7 +12,7 @@ Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · [CHECKLIST.
 
 | Skill | Role |
 |---|---|
-| [/grill-with-docs](../grill-with-docs/SKILL.md) | One-question deploy/CI grill; ADR rules |
+| [/grilling](../grilling/SKILL.md) | Deploy/CI grill; ADR rules |
 | [/andx-orchestration](../andx-orchestration/SKILL.md) | Worktree and merge awareness |
 | [/andx-execute-and-review](../andx-execute-and-review/SKILL.md) | Review-gated CI/CD implementation |
 | [/andx-deploy](../andx-deploy/SKILL.md) | Pair only after merged CI/CD |
@@ -37,7 +37,7 @@ Read target repo context and current deploy/CI artifacts. Ask one question at a 
 - deploy trigger, rollback method, migration/backup policy, and required CI checks;
 - environment separation and where secrets live.
 
-Use `/grill-with-docs` rules. Explore source before asking questions whose answer is already documented.
+Use `/grilling` rules. Explore source before asking questions whose answer is already documented.
 
 ### B. ADR
 

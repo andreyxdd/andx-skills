@@ -73,11 +73,11 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/`.
 - `move_agent_to_root` only when workspace ≠ target **project** (`/andx-plan`, `/andx-init`). Never for exec worktrees — worker uses `WORKTREE_DIR` as tool cwd in the same workspace.
 - Flow: `/andx-plan` → optional `/andx-schedule` (multi-wave) → `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).
 - After `/andx-plan`: Next menu; bare `go` runs default skill on that plan.
-- Companions (`grill-with-docs`, `tdd`, `impeccable`, …) install separately.
+- Companions (`grilling`, `tdd`, `impeccable`, …): `./install-companions.sh` (Matt Pocock skills pinned clone + react-best-practices).
 - Ponytail: resolve via HARNESS (not `skills-cursor/`).
 
 ## Companion skills
 
-Required for full flows: `grill-with-docs`, `grill-me`, `tdd`, `impeccable`, Cursor `review-bugbot` / `review-security`.
+Required for full flows: `grilling`, `tdd`, `codebase-design`, `impeccable`, Cursor `review-bugbot` / `review-security`.
 
 **React/Next:** `react-best-practices` via `./install-companions.sh` — wired when `REACT_STACK` / plan `stack: react-next`.

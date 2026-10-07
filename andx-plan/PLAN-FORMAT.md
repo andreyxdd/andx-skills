@@ -119,7 +119,7 @@ verification: pnpm verify:docs
 | `pipeline_stage` | when OKF layout present | ICM stage id from `ROUTING.md` (e.g. `03-build`, `02-draft`) |
 | `knowledge_refs` | when OKF layout present | Bracket list of `knowledge/` paths cited by this plan (must include all `design_refs`) |
 | `design_refs` | when Phase 1.5 ran | Bracket list of `knowledge/apis/*.md` and `knowledge/modules/*.md` |
-| `companion_skills` | when companion skills invoked | Bracket list, e.g. `[api-design, design-an-interface, accessibility]` |
+| `companion_skills` | when companion skills invoked | Bracket list, e.g. `[api-design, codebase-design, accessibility]` |
 | `stack` | no | `react-next` \| `react` \| `next` \| `none` — drives `REACT_STACK` in `/andx-execute` (`none` disables) |
 | `source` | yes | `thread` \| `plan-mode` \| issue URL |
 | `todos` | no | Cursor todos; execution steps live in body |
