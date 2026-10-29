@@ -61,24 +61,20 @@ end
       fake_home(d)
       `HOME=#{d} ruby #{File.expand_path('check_skills.rb', __dir__)} --budget`
     end
-    assert_match(/^cursor: visible=3 description_chars=12 tokens_per_turn=21 duplicates=dup$/, out)
-    assert_match(/^claude: visible=1 description_chars=6 tokens_per_turn=7 duplicates=dup$/, out)
+    assert_match(/^cursor: visible=4 description_chars=14 tokens_per_turn=27 duplicates=dup$/, out)
+    assert_match(/^claude: visible=2 description_chars=8 tokens_per_turn=13 duplicates=dup$/, out)
   end
 
-  def test_install_companions_adds_paths_once_and_warns_on_plugin_dups
+  def test_install_companions_adds_frontmatter_paths_once
     require "tmpdir"
-    require "fileutils"
     script = File.expand_path("../install-companions.sh", __dir__)
     Dir.mktmpdir do |d|
-      fake_home(d)
       skill = File.join(d, "rbp.md")
-      File.write(skill, "---\nname: react-best-practices\ndescription: x\n---\n# body\n")
-      out = `HOME=#{d} bash -c 'source #{script} && add_react_paths #{skill} && add_react_paths #{skill} && warn_plugin_dups #{d}/.claude/skills'`
+      File.write(skill, "---\nname: react-best-practices\ndescription: x\n---\n# body\npaths: in body\n")
+      out = `HOME=#{d} bash -c 'source #{script} && add_react_paths #{skill} && add_react_paths #{skill}'`
       assert $?.success?, out
-      assert_equal "---\nname: react-best-practices\ndescription: x\npaths: \"**/*.tsx, **/*.jsx\"\n---\n# body\n", File.read(skill)
-      assert_match(%r{^warn: #{d}/.claude/skills/dup duplicates an enabled plugin skill}, out)
-      assert File.exist?(File.join(d, ".claude/skills/dup/SKILL.md"))
-      refute_match(/offskill/, out)
+      assert_equal "---\nname: react-best-practices\ndescription: x\npaths: \"**/*.tsx, **/*.jsx\"\n---\n# body\npaths: in body\n",
+                   File.read(skill)
     end
   end
 

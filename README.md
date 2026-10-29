@@ -86,18 +86,31 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/`.
 
 `ruby scripts/spend_report.rb --summary ~/.claude/projects` (2026-10-29, 90 Claude Code runs that invoke an andx skill; input = uncached + cache write + cache read):
 
-| Median per run | Value |
-|----------------|-------|
+| Median per run (all skills) | Value |
+|-----------------------------|-------|
 | Input tokens, total | 77,809,198 |
 | Input tokens, parent | 24,218,974 |
-| Input tokens, subagents | 11,960,600 |
+| Input tokens, subagents | 13,283,361 |
 | Requests, parent | 121 |
-| Requests, subagents | 119 |
-| Output tokens | 137,776 |
+| Requests, subagents | 134 |
+| Output tokens | 141,287 |
 | Peak parent context | 339,894 |
 | Image tool results | 0 |
 
-Target: median total input −40% over the next 10 runs. Per-run detail: `ruby scripts/spend_report.rb <session.jsonl|dir>`.
+Each median is taken independently per metric, so parent + subagents does not add up to total.
+
+Per first-invoked skill (a run is grouped by the first andx skill its parent session invokes):
+
+| Skill | Runs | Median input total | Median output |
+|-------|------|--------------------|---------------|
+| `andx-plan` | 53 | 148,150,580 | 249,269 |
+| `andx-mr-review` | 27 | 14,612,676 | 32,919 |
+| `andx-init` | 5 | 46,668,385 | 179,398 |
+| `andx-execute` | 3 | 130,779,762 | 207,083 |
+| `andx-debug-and-fix` | 1 | 25,153,371 | 74,919 |
+| `andx-execute-and-deploy` | 1 | 3,972,369 | 19,151 |
+
+**Target:** −40% per-skill median input total over the next 10 runs of each skill, judged primarily on the `andx-execute*` skills; compare a skill only with its own baseline row. Caveat: most baseline execution ran in the planning thread (`go`), so it sits in the `andx-plan` row. After a fresh-chat handoff, add each feature's plan-run and execute-run input totals, and compare the median of those sums with the `andx-plan` baseline; a falling `andx-plan` row alone only shows execution moving out. Per-run detail: `ruby scripts/spend_report.rb <session.jsonl|dir>`.
 
 ## Companion skills
 

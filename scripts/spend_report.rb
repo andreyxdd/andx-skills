@@ -9,22 +9,36 @@
 #   ruby spend_report.rb --summary <dir>       # medians + totals; no project names or session ids
 require "json"
 
-def andx_run?(path)
-  File.foreach(path).any? do |l|
-    next false unless l.include?("andx-")
+# Unreadable files are counted, never named: paths carry project names.
+$skipped = {}
+
+def each_line(path, &blk)
+  File.foreach(path, &blk)
+rescue SystemCallError
+  $skipped[path] = true
+  nil
+end
+
+# First andx skill the parent invokes, or nil.
+def first_andx_skill(path)
+  each_line(path) do |l|
+    next unless l.include?("andx-")
     j = (JSON.parse(l) rescue nil)
-    next false unless j.is_a?(Hash)
+    next unless j.is_a?(Hash)
     c = j.dig("message", "content")
     blocks = c.is_a?(Array) ? c.select { |b| b.is_a?(Hash) } : []
     case j["type"]
     when "user"
       texts = c.is_a?(String) ? [c] : blocks.map { |b| b["text"].to_s }
-      texts.any? { |t| t.match?(%r{(?:\A|[\s>])/andx-[a-z]}) }
+      texts.each { |t| return $1 if t =~ %r{(?:\A|[\s>])/(andx-[a-z][a-z-]*)} }
     when "assistant"
-      blocks.any? { |b| b["type"] == "tool_use" && b["name"] == "Skill" && b.dig("input", "skill").to_s.start_with?("andx-") }
-    else false
+      blocks.each do |b|
+        skill = b.dig("input", "skill").to_s
+        return skill if b["type"] == "tool_use" && b["name"] == "Skill" && skill.start_with?("andx-")
+      end
     end
   end
+  nil
 end
 
 # Assistant lines repeat the same usage once per content block; count each message id once.
@@ -33,7 +47,7 @@ def usage_of(files)
   seen = {}
   names = {}
   files.each do |f|
-    File.foreach(f) do |l|
+    each_line(f) do |l|
       next if l.start_with?('{"type":"api-')
       next unless l.include?('"usage"') || l.include?('"tool_result"')
       j = (JSON.parse(l) rescue nil)
@@ -65,42 +79,45 @@ end
 
 def sibling_agents(dir)
   (@siblings ||= {})[dir] ||= Dir.glob(File.join(dir, "agent-*.jsonl")).group_by do |f|
-    File.foreach(f).lazy.map { |l| l[/"sessionId":"([^"]+)"/, 1] }.find { |x| x }
+    id = nil
+    each_line(f) { |l| break if (id = l[/"sessionId":"([^"]+)"/, 1]) }
+    id
   end
 end
 
-def run_of(path)
+def run_of(path, skill)
   id = File.basename(path, ".jsonl")
   dir = File.dirname(path)
   subs = Dir.glob(File.join(dir, id, "subagents", "*.jsonl")) + (sibling_agents(dir)[id] || [])
-  { id: id, parent: usage_of([path]), sub: usage_of(subs) }
+  { id: id, skill: skill, parent: usage_of([path]), sub: usage_of(subs) }
 end
 
 def runs(arg)
   sessions = File.file?(arg) ? [arg] : Dir.glob(File.join(arg, "**", "*.jsonl")).reject do |f|
     File.basename(f).start_with?("agent-") || f.include?("/subagents/")
   end
-  sessions.sort.select { |f| andx_run?(f) }.map { |f| run_of(f) }
-end
-
-def print_run(r)
-  p, s = r[:parent], r[:sub]
-  tools = p[:tools].merge(s[:tools]) { |_, a, b| a + b }.sort_by { |_, v| -v }.first(5)
-  puts "run #{r[:id]}"
-  puts "  requests parent=#{p[:requests]} subagent=#{s[:requests]}"
-  puts "  input parent=#{p[:input]} subagent=#{s[:input]} total=#{p[:input] + s[:input]}"
-  puts "  output parent=#{p[:output]} subagent=#{s[:output]}"
-  puts "  peak_context parent=#{p[:peak]} subagent=#{s[:peak]}"
-  puts "  image_results #{p[:images] + s[:images]}"
-  puts "  top_tool_output #{tools.map { |n, c| "#{n}=#{c / 4}" }.join(' ')}"
+  sessions.sort.map { |f| (skill = first_andx_skill(f)) && run_of(f, skill) }.compact
 end
 
 def metrics(r)
   p, s = r[:parent], r[:sub]
   { "input_total" => p[:input] + s[:input], "input_parent" => p[:input], "input_subagent" => s[:input],
     "requests_parent" => p[:requests], "requests_subagent" => s[:requests],
-    "output" => p[:output] + s[:output], "peak_context_parent" => p[:peak],
+    "output" => p[:output] + s[:output], "output_parent" => p[:output], "output_subagent" => s[:output],
+    "peak_context_parent" => p[:peak], "peak_context_subagent" => s[:peak],
     "image_results" => p[:images] + s[:images] }
+end
+
+def print_run(r)
+  m = metrics(r)
+  tools = r[:parent][:tools].merge(r[:sub][:tools]) { |_, a, b| a + b }.sort_by { |_, v| -v }.first(5)
+  puts "run #{r[:id]}"
+  puts "  requests parent=#{m['requests_parent']} subagent=#{m['requests_subagent']}"
+  puts "  input parent=#{m['input_parent']} subagent=#{m['input_subagent']} total=#{m['input_total']}"
+  puts "  output parent=#{m['output_parent']} subagent=#{m['output_subagent']}"
+  puts "  peak_context parent=#{m['peak_context_parent']} subagent=#{m['peak_context_subagent']}"
+  puts "  image_results #{m['image_results']}"
+  puts "  top_tool_output #{tools.map { |n, c| "#{n}=#{c / 4}" }.join(' ')}"
 end
 
 def median(xs)
@@ -110,20 +127,25 @@ def median(xs)
 end
 
 def summary(dir)
-  rows = runs(dir).map { |r| metrics(r) }
+  all = runs(dir)
+  rows = all.map { |r| metrics(r) }
   puts "runs #{rows.size}"
   return if rows.empty?
   keys = rows.first.keys
   puts "median " + keys.map { |k| "#{k}=#{median(rows.map { |r| r[k] })}" }.join(" ")
   puts "total " + keys.map { |k| "#{k}=#{rows.sum { |r| r[k] }}" }.join(" ")
-end
-
-if $PROGRAM_NAME == __FILE__
-  if ARGV.first == "--summary" && ARGV[1]
-    summary(File.expand_path(ARGV[1]))
-  elsif ARGV.first && File.exist?(ARGV.first)
-    runs(File.expand_path(ARGV.first)).each { |r| print_run(r) }
-  else
-    abort "usage: spend_report.rb <session.jsonl|dir> | --summary <dir>"
+  all.group_by { |r| r[:skill] }.sort.each do |skill, rs|
+    ms = rs.map { |r| metrics(r) }
+    puts "#{skill} runs=#{rs.size} median input_total=#{median(ms.map { |m| m['input_total'] })} " \
+         "output=#{median(ms.map { |m| m['output'] })}"
   end
 end
+
+if ARGV.first == "--summary" && ARGV[1]
+  summary(File.expand_path(ARGV[1]))
+elsif ARGV.first && File.exist?(ARGV.first)
+  runs(File.expand_path(ARGV.first)).each { |r| print_run(r) }
+else
+  abort "usage: spend_report.rb <session.jsonl|dir> | --summary <dir>"
+end
+warn "skipped #{$skipped.size} unreadable files" unless $skipped.empty?

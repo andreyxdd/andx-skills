@@ -94,26 +94,36 @@ def visible_skills(harness = "cursor")
   seen
 end
 
+# Same-name skills dedupe across skill dirs, but each plugin-cache copy is listed alongside them.
+def shown(entries)
+  local, plugin = entries.partition { |p, _| !p.include?("/plugins/cache/") }
+  local.first(1) + plugin
+end
+
+def catalog_copies(seen)
+  seen.flat_map { |n, v| shown(v).map { |_, d| [n, d] } }
+end
+
 def catalog_tokens(seen)
-  seen.sum { |n, v| n.size + v.first[1].size + 20 } / 4
+  catalog_copies(seen).sum { |n, d| n.size + d.size + 20 } / 4
 end
 
 def budget
+  cursor = nil
   HARNESS_DIRS.each_key do |h|
     seen = visible_skills(h)
-    # Same-name skills dedupe across skill dirs but not against plugin caches.
-    rows = seen.map { |n, v| [n, v.first[1], v.map(&:first)] }
-    dups = rows.select { |_, _, paths| paths.size > 1 && paths.any? { |p| p.include?("/plugins/cache/") } }
-    puts "#{h}: visible=#{rows.size} description_chars=#{rows.sum { |_, d, _| d.size }} " \
-         "tokens_per_turn=#{catalog_tokens(seen)} duplicates=#{dups.map(&:first).sort.join(',')}"
+    rows = catalog_copies(seen)
+    dups = seen.select { |_, v| shown(v).size > 1 }.keys.sort
+    puts "#{h}: visible=#{rows.size} description_chars=#{rows.sum { |_, d| d.size }} " \
+         "tokens_per_turn=#{catalog_tokens(seen)} duplicates=#{dups.join(',')}"
+    cursor ||= rows
   end
-  rows = visible_skills.map { |n, v| [n, v.first[1], v.map(&:first)] }
-  long = rows.select { |_, d, _| d.size > 250 }
-  late = rows.select { |n, d, _| n.start_with?("andx-") && !d[0, 90].include?("/#{n}") }
+  long = cursor.select { |_, d| d.size > 250 }
+  late = cursor.select { |n, d| n.start_with?("andx-") && !d[0, 90].include?("/#{n}") }.map(&:first).uniq
   puts "cursor descriptions > 250 chars: #{long.size}"
-  long.sort_by { |_, d, _| -d.size }.first(15).each { |n, d, _| puts "  #{d.size}\t#{n}" }
-  puts "andx descriptions without /name in first 90 chars: #{late.map(&:first).sort.join(' ')}"
-  puts "visible andx skills: #{rows.count { |n, _, _| n.start_with?('andx-') }}"
+  long.sort_by { |_, d| -d.size }.first(15).each { |n, d| puts "  #{d.size}\t#{n}" }
+  puts "andx descriptions without /name in first 90 chars: #{late.sort.join(' ')}"
+  puts "visible andx skills: #{cursor.count { |n, _| n.start_with?('andx-') }}"
   cp = Dir.glob(File.expand_path("~/.cursor/plugins/cache/*/*/*/skills*/*/SKILL.md")).group_by { |p| p.split("/plugins/cache/")[1].split("/")[1] }
   puts "cursor plugin cache skills (enable state lives in Cursor Settings > Plugins, not counted above): " +
        cp.map { |k, v| "#{k}=#{v.size}" }.join(" ")

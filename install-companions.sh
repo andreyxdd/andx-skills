@@ -26,25 +26,11 @@ MATT_SKILLS=(
 
 # Cursor loads react-best-practices only when a .tsx/.jsx file is in play.
 add_react_paths() {
-  local file="$1"
-  grep -q '^paths:' "$file" && return 0
-  /usr/bin/ruby -i -pe 'BEGIN { $n = 0 }; if $_ =~ /\A---\s*\z/ then $n += 1; $_ = "paths: \"**/*.tsx, **/*.jsx\"\n" + $_ if $n == 2 end' "$file"
-}
-
-# Warn only: a local copy and an enabled plugin with the same skill both cost catalog tokens.
-warn_plugin_dups() {
-  local target="$1" name
-  for name in $(/usr/bin/ruby -rjson -e '
-    on = (JSON.parse(File.read(File.expand_path("~/.claude/settings.json")))["enabledPlugins"] rescue {}) || {}
-    on.select { |_, v| v }.keys.each do |k|
-      plugin, market = k.split("@")
-      dir = Dir.glob(File.expand_path("~/.claude/plugins/cache/#{market}/#{plugin}/*/skills")).max_by { |p| File.mtime(p) }
-      Dir.glob("#{dir}/*/SKILL.md").each { |p| puts File.basename(File.dirname(p)) } if dir
-    end'); do
-    if [[ -e "$target/$name" ]]; then
-      echo "warn: $target/$name duplicates an enabled plugin skill; remove one copy to save catalog tokens"
-    fi
-  done
+  /usr/bin/ruby -e '
+    f = ARGV[0]
+    _, fm, body = File.read(f).split(/^---[ \t]*$/, 3)
+    exit if body.nil? || fm =~ /^paths:/
+    File.write(f, "---#{fm}paths: \"**/*.tsx, **/*.jsx\"\n---#{body}")' "$1"
 }
 
 [[ "${BASH_SOURCE[0]}" == "$0" ]] || return 0
@@ -80,10 +66,12 @@ install_target() {
     ln -sfn "$MATT_DIR/skills/$path" "$target/$name"
     echo "linked $target/$name -> $MATT_DIR/skills/$path"
   done
-  warn_plugin_dups "$target"
 }
 
 install_target "$HOME/.cursor/skills"
 install_target "$HOME/.claude/skills"
+
+# Catalog cost per harness; a non-empty duplicates= list means a skill dir copy shadows an enabled plugin.
+/usr/bin/ruby "$(dirname "$0")/scripts/check_skills.rb" --budget
 
 echo "Done. Matt Pocock skills pinned at $MATT_PIN."

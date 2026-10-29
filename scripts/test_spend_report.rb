@@ -34,6 +34,20 @@ class SpendReportTest < Minitest::Test
     assert_match(/^median .*requests_parent=1\b/, out)
     assert_match(/^total .*input_total=9218\b/, out)
     refute_match(/secret-proj/, out)
-    refute_match(/\bs[1-4]\b/, out)
+    refute_match(/\bs[1-5]\b/, out)
+  end
+
+  def test_summary_prints_medians_per_first_invoked_skill
+    out = run_script("--summary", File.dirname(PROJ))
+    assert_match(/^andx-execute runs=1 median input_total=3218 output=85$/, out)
+    assert_match(/^andx-plan runs=2 median input_total=3000 output=1$/, out)
+  end
+
+  def test_unreadable_transcript_is_skipped_without_naming_it
+    %w[--summary list].each do |mode|
+      out = mode == "list" ? run_script(PROJ) : run_script("--summary", File.dirname(PROJ))
+      assert_match(/^skipped 1 unreadable files$/, out)
+      refute_match(/secret-proj|missing-target/, out)
+    end
   end
 end
