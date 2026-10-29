@@ -82,7 +82,7 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/`.
 
 - Claude Code ≥ 2.1.312: older versions ignore the agents' `autoCompactWindow: 200000` when it is lower than the session window.
 - `export CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` (shell profile): caps parent context before compaction; without it a 1M-context model grows toward 1M and every request pays for it.
-- Frontmatter already sets `effort: medium` on the orchestrator skills and the spec reviewer; the worker, security reviewer, and refuter inherit the session model and effort. `ruby scripts/check_skills.rb` rejects frontmatter keys neither Cursor nor Claude Code documents.
+- Frontmatter already sets `effort: medium` on the orchestrator skills and the spec reviewer; the worker, security reviewer, and refuter inherit the session model and effort. `node scripts/check-skills.mjs` rejects frontmatter keys neither Cursor nor Claude Code documents.
 
 ## Spend baseline
 

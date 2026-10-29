@@ -9,7 +9,7 @@ if [[ "${1:-}" == "--uninstall-hooks" ]]; then
   exit 0
 fi
 
-/usr/bin/ruby "$ROOT/scripts/check_skills.rb" "$ROOT" || { echo "check_skills failed; nothing linked" >&2; exit 1; }
+node "$ROOT/scripts/check-skills.mjs" "$ROOT" || { echo "check_skills failed; nothing linked" >&2; exit 1; }
 
 SKILLS=(
   andx-init
