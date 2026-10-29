@@ -34,13 +34,9 @@ const REACT = "react-best-practices";
 // Cursor loads react-best-practices only when a .tsx/.jsx file is in play.
 export function addReactPaths(file) {
   const text = fs.readFileSync(file, "utf8");
-  const re = /^---[ \t]*$/gm;
-  const open = re.exec(text);
-  const close = open?.index === 0 && re.exec(text);
-  if (!close) return;
-  const fm = text.slice(open[0].length, close.index);
-  if (/^paths:/m.test(fm)) return;
-  fs.writeFileSync(file, `---${fm}paths: "**/*.tsx, **/*.jsx"\n---${text.slice(close.index + close[0].length)}`);
+  const out = text.replace(/^---[ \t]*\n([\s\S]*?\n)?---[ \t]*(?=\n|$)/, (all, fm = "") =>
+    (/^paths:/m.test(fm) ? all : `---\n${fm}paths: "**/*.tsx, **/*.jsx"\n---`));
+  if (out !== text) fs.writeFileSync(file, out);
 }
 
 export function installTarget(target, reactSrc, mattDir, mattSkills = MATT_SKILLS) {

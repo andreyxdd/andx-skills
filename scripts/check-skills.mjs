@@ -44,101 +44,57 @@ const mdTree = (dir) => fs.readdirSync(dir).filter((e) => e[0] !== ".").sort().f
   return fs.lstatSync(p).isDirectory() ? mdTree(p) : e.endsWith(".md") ? [p] : [];
 });
 
-// YAML subset for frontmatter: block maps/lists, flow lists, plain/quoted scalars, | and > blocks.
-// Throws where YAML would (e.g. "key: a: b") so bad frontmatter is reported, not guessed.
+// Top-level frontmatter keys: plain/quoted scalars, | and > blocks ("-" chomp), flow and block lists.
+// Nested maps stay opaque ({}). Throws where YAML would on these shapes (e.g. "key: a: b") so bad
+// frontmatter is reported, not guessed.
 function yaml(src) {
-  const L = src.replace(/\r?\n$/, "").split(/\r?\n/);
-  let i = 0;
+  const L = src.split(/\r?\n/), out = {};
   const ind = (l) => l.search(/\S/);
-  const blank = (l) => /^\s*$/.test(l);
+  const skip = (l) => /^\s*(#.*)?$/.test(l);
+  const fail = (m, i) => { throw new Error(`${m} at line ${i + 1}`); };
   const isSeq = (l) => /^\s*-(\s|$)/.test(l);
-  const skip = () => { while (i < L.length && /^\s*(#.*)?$/.test(L[i])) i++; };
-  const fail = (m) => { throw new Error(`${m} at line ${i + 1}`); };
-  const fold = (ls, keepIndent) => ls.reduce((s, l, k) => k === 0 ? l : s + (l === "" ? "\n" : ls[k - 1] === ""
-    ? l : (keepIndent && /\s/.test(l[0] + ls[k - 1][0]) ? "\n" : " ") + l), "");
-  const more = (n) => { const a = []; while (i < L.length && (blank(L[i]) || ind(L[i]) > n)) a.push(L[i++]); return a; };
-  const plain = (s) => /^(true|True|TRUE|yes|Yes|YES|on|On|ON)$/.test(s) ? true
-    : /^(false|False|FALSE|no|No|NO|off|Off|OFF)$/.test(s) ? false : /^(~|null|Null|NULL|)$/.test(s) ? null : s;
+  const fold = (ls) => ls.reduce((s, l, k) => k === 0 ? l : s + (l === "" ? "\n" : ls[k - 1] === ""
+    ? l : (/\s/.test(l[0] + ls[k - 1][0]) ? "\n" : " ") + l), "");
 
-  function scalar(rest, n) {
-    const block = /^([|>])([+-]?)\s*(#.*)?$/.exec(rest);
+  function scalar(s, i) {
+    let m;
+    if ((m = /^"((?:[^"\\]|\\.)*)"\s*(#.*)?$/.exec(s))) return JSON.parse(`"${m[1]}"`);
+    if ((m = /^'((?:[^']|'')*)'\s*(#.*)?$/.exec(s))) return m[1].replaceAll("''", "'");
+    if (/^["']/.test(s)) fail("unterminated quoted scalar", i);
+    if ((m = /^\[(.*)\]\s*(#.*)?$/.exec(s))) return m[1].split(",").map((x) => x.trim()).filter(Boolean).map((x) => scalar(x, i));
+    if (s[0] === "[") fail("unterminated flow sequence", i);
+    s = s.replace(/\s+#.*$/, "");
+    if (/:(\s|$)/.test(s)) fail("mapping values are not allowed in this context", i);
+    return s === "true" ? true : s === "false" ? false : s === "" || s === "null" ? null : s;
+  }
+
+  for (let i = 0; i < L.length;) {
+    if (skip(L[i])) { i++; continue; }
+    const at = i, m = /^([^\s#'"[\]{}][^:]*?)\s*:(?:\s+(.*))?$/.exec(L[i++]);
+    if (ind(L[at]) > 0) fail("bad indentation of a mapping entry", at);
+    if (!m) fail("could not find expected ':'", at);
+    const rest = (m[2] ?? "").replace(/^#.*/, "");
+    const body = [];
+    while (i < L.length && (ind(L[i]) !== 0 || (!rest && isSeq(L[i])))) body.push(L[i++]);
+    const lines = body.filter((l) => !skip(l));
+    const block = /^([|>])(-?)\s*(#.*)?$/.exec(rest);
     if (block) {
-      const raw = more(n);
-      const k = ind(raw.find((l) => !blank(l)) ?? "");
-      const ls = raw.map((l) => (blank(l) ? "" : l.slice(k)));
-      let end = ls.length;
-      while (end && ls[end - 1] === "") end--;
-      if (!end) return "";
-      const s = block[1] === "|" ? ls.slice(0, end).join("\n") : fold(ls.slice(0, end), true);
-      return s + (block[2] === "-" ? "" : "\n".repeat(block[2] === "+" ? ls.length - end + 1 : 1));
+      while (body.length && !body.at(-1).trim()) body.pop();
+      const k = ind(lines[0] ?? "");
+      const ls = body.map((l) => (l.trim() ? l.slice(k) : ""));
+      out[m[1]] = ls.length ? (block[1] === "|" ? ls.join("\n") : fold(ls)) + (block[2] ? "" : "\n") : "";
+    } else if (rest || (lines.length && !isSeq(lines[0]) && !/^\s*[^\s#'"[\]{}][^:]*?:(\s|$)/.test(lines[0]))) {
+      // Continuation lines fold to spaces, as YAML does for plain and quoted scalars.
+      out[m[1]] = scalar([rest, ...lines.map((l) => l.trim())].filter(Boolean).join(" "), at);
+    } else if (lines.length && isSeq(lines[0])) {
+      const k = ind(lines[0]);
+      out[m[1]] = lines.map((l) => (ind(l) === k && isSeq(l) ? scalar(l.trim().slice(1).trim(), at) : fail("bad indentation of a sequence entry", at)));
+    } else {
+      if (lines.some((l) => ind(l) < ind(lines[0]))) fail("bad indentation of a mapping entry", at);
+      out[m[1]] = lines.length ? {} : null;
     }
-    if (rest[0] === '"' || rest[0] === "'") {
-      const re = rest[0] === '"' ? /^"((?:[^"\\]|\\[\s\S])*)"(.*)$/ : /^'((?:[^']|'')*)'(?!')(.*)$/;
-      let text = rest, m;
-      while (!(m = re.exec(text))) { if (i >= L.length) fail("unterminated quoted scalar"); text += "\n" + L[i++]; }
-      if (!/^\s*(#.*)?$/.test(m[2]) || /^#/.test(m[2])) fail("did not find expected key");
-      const ls = m[1].split("\n").map((l, k, a) => (a.length === 1 ? l : k === 0 ? l.trimEnd() : k === a.length - 1 ? l.trimStart() : l.trim()));
-      const s = fold(ls, false);
-      if (rest[0] === "'") return s.replaceAll("''", "'");
-      const esc = { n: "\n", t: "\t", r: "\r", 0: "\0", " ": " ", "/": "/", '"': '"', "\\": "\\", "\t": "\t" };
-      return s.replace(/\\(x[\da-fA-F]{2}|u[\da-fA-F]{4}|U[\da-fA-F]{8}|.)/g, (_, e) =>
-        e.length > 1 ? String.fromCodePoint(parseInt(e.slice(1), 16)) : esc[e] ?? fail("found unknown escape character"));
-    }
-    if (rest[0] === "[") {
-      let text = rest;
-      while (!text.includes("]")) { if (i >= L.length) fail("unterminated flow sequence"); text += " " + L[i++].trim(); }
-      return text.slice(1, text.lastIndexOf("]")).split(",").map((s) => s.trim()).filter(Boolean)
-        .map((s) => (/^["']/.test(s) ? s.slice(1, -1) : plain(s)));
-    }
-    if (/^[@`%]/.test(rest)) fail("found character that cannot start any token");
-    const ls = [];
-    for (const l of [rest, ...more(n)].map((x) => x.trim())) {
-      if (l[0] === "#") break;
-      const s = l.replace(/\s+#.*$/, "");
-      if (/:(\s|$)/.test(s)) fail("mapping values are not allowed in this context");
-      ls.push(s);
-      if (s !== l) break;
-    }
-    while (ls.at(-1) === "") ls.pop();
-    return ls.length > 1 ? fold(ls, false) : plain(ls[0] ?? "");
   }
-
-  function node(min) {
-    skip();
-    if (i >= L.length || ind(L[i]) < min) return null;
-    const n = ind(L[i]);
-    if (isSeq(L[i])) {
-      const out = [];
-      while ((skip(), i < L.length && ind(L[i]) === n && isSeq(L[i]))) {
-        const rest = L[i].slice(n + 1).trimStart();
-        if (/^[^\s#'"[{][^:]*:(\s|$)/.test(rest)) {
-          L[i] = " ".repeat(L[i].length - rest.length) + rest;
-          out.push(node(n + 1));
-        } else {
-          i++;
-          out.push(rest && rest[0] !== "#" ? scalar(rest, n) : node(n + 1));
-        }
-      }
-      return out;
-    }
-    if (!/^[^\s#'"[\]{}][^:]*?:(\s|$)/.test(L[i].slice(n))) return scalar(L[i++].slice(n), n - 1);
-    const out = {};
-    while ((skip(), i < L.length && ind(L[i]) >= n)) {
-      if (ind(L[i]) > n) fail("bad indentation of a mapping entry");
-      const m = /^([^\s#'"[\]{}][^:]*?)\s*:(?:\s+(.*))?$/.exec(L[i].slice(n));
-      if (!m) fail("could not find expected ':'");
-      i++;
-      const rest = m[2] ?? "";
-      out[m[1]] = rest && rest[0] !== "#" ? scalar(rest, n)
-        : (skip(), i < L.length && ind(L[i]) === n && isSeq(L[i])) ? node(n) : node(n + 1);
-    }
-    return out;
-  }
-
-  const doc = node(0);
-  skip();
-  if (i < L.length) fail("did not find expected key");
-  return doc;
+  return out;
 }
 
 function frontmatter(p) {

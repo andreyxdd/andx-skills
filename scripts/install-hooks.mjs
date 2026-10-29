@@ -25,7 +25,6 @@ function save(p, data) {
   if (fs.existsSync(p)) fs.copyFileSync(p, `${p}.bak-${stamp}`);
   const tmp = `${p}.tmp-${process.pid}`;
   fs.writeFileSync(tmp, text);
-  JSON.parse(fs.readFileSync(tmp, "utf8"));
   fs.renameSync(tmp, p);
 }
 
