@@ -1,0 +1,228 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/andx-token-spend.plan.md",
+  "target_branch": "main",
+  "base_sha": "73db875eb128373ed77026f6b2b494a0afd26287",
+  "head_sha": "aa76e3f9202c9cf2f9189b4a43518bced15aceba",
+  "reviewed_at": "2026-10-29T04:28:40Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "companions-dup-plugin-warning",
+      "status": "confirmed",
+      "location": "install-companions.sh:35",
+      "finding": "warn_plugin_dups duplicated check_skills plugin enumeration; replaced by check_skills --budget",
+      "reviewers": [
+        "ponytail",
+        "audit"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "spend-report-unused-main-guard",
+      "status": "confirmed",
+      "location": "scripts/spend_report.rb:121",
+      "finding": "unused PROGRAM_NAME guard removed",
+      "reviewers": [
+        "audit"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "harness-cursor-self-fork",
+      "status": "confirmed",
+      "location": "andx-orchestration/HARNESS.md:24",
+      "finding": "fork ban now also covers Cursor Task resume=self",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "bitbucket-wait-early-exit",
+      "status": "confirmed",
+      "location": "andx-mr-review/HOSTS.md:98",
+      "finding": "Bitbucket wait exited on curl failure or empty statuses; now waits with a 24-iteration cap",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "verifier-edit-outside-touch",
+      "status": "confirmed",
+      "location": "andx-security-review/VERIFIER.md:5",
+      "finding": "doc-only removal of stale cannot-spawn claim outside touch; consistent with step-6",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "accepted"
+    },
+    {
+      "id": "spend-summary-path-leak-on-io-error",
+      "status": "confirmed",
+      "location": "scripts/spend_report.rb:13",
+      "finding": "unreadable transcripts skipped with a count only, no path",
+      "reviewers": [
+        "security"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "budget-double-scan",
+      "status": "confirmed",
+      "location": "scripts/check_skills.rb:110",
+      "finding": "budget reuses cursor rows",
+      "reviewers": [
+        "ponytail",
+        "audit"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "budget-dup-token-undercount",
+      "status": "confirmed",
+      "location": "scripts/check_skills.rb:97",
+      "finding": "tokens_per_turn counts plugin duplicates twice, matching the Cursor catalog",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "print-run-resums-metrics",
+      "status": "confirmed",
+      "location": "scripts/spend_report.rb:86",
+      "finding": "print_run derives totals from metrics",
+      "reviewers": [
+        "audit"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "babysit-no-poll-restated",
+      "status": "confirmed",
+      "location": "andx-mr-babysit/SKILL.md:102",
+      "finding": "restated no-poll rule replaced by HOSTS pointer",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "paths-guard-frontmatter-only",
+      "status": "confirmed",
+      "location": "install-companions.sh:30",
+      "finding": "paths guard scoped to frontmatter",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "baseline-blended-median",
+      "status": "confirmed",
+      "location": "README.md:86",
+      "finding": "baseline split per first-invoked skill so mix shifts cannot fake the target",
+      "reviewers": [
+        "spec",
+        "bugbot"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "fixture-outside-touch",
+      "status": "confirmed",
+      "location": "scripts/fixtures/check-skills/unknown-key/",
+      "finding": "fixture required by the step-3 test",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "low",
+      "resolution": "accepted"
+    },
+    {
+      "id": "cursor-plugin-cache-dups",
+      "status": "confirmed",
+      "location": "install-companions.sh:35",
+      "finding": "Cursor plugin cache duplicates not reported by budget",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "low",
+      "resolution": "deferred"
+    },
+    {
+      "id": "bitbucket-status-pagination",
+      "status": "confirmed",
+      "location": "andx-mr-review/HOSTS.md:98",
+      "finding": "INPROGRESS on a later status page could be missed",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "low",
+      "resolution": "deferred"
+    },
+    {
+      "id": "spend-report-shrinks",
+      "status": "confirmed",
+      "location": "scripts/spend_report.rb:82",
+      "finding": "three optional shrinks (session-id loop, per-skill metrics regroup, test mode plumbing)",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "low",
+      "resolution": "deferred"
+    },
+    {
+      "id": "ruby-inplace-backup-file",
+      "status": "rejected",
+      "location": "install-companions.sh:31",
+      "finding": "claimed ruby -i -pe leaves SKILL.md- backup; verified none on /usr/bin/ruby 2.6",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "cursor-budget-includes-claude-plugins",
+      "status": "rejected",
+      "location": "scripts/check_skills.rb:80",
+      "finding": "claimed Cursor never loads Claude plugins; Cursor catalog shows enabled Claude plugin skills",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "subagent-filename-vs-sessionid",
+      "status": "rejected",
+      "location": "scripts/spend_report.rb:72",
+      "finding": "real transcripts have sessionId equal to the session file basename",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "paths-guard-not-idempotent",
+      "status": "rejected",
+      "location": "install-companions.sh:32",
+      "finding": "Ruby ^ is a line anchor; two calls insert one frontmatter paths line (verified)",
+      "reviewers": [
+        "bugbot"
+      ]
+    }
+  ]
+}
