@@ -2,6 +2,8 @@
 
 Commands for `/andx-mr-review` (alias `/andx-pr-review`). Prefer host CLIs over raw curl.
 
+CI waits: one blocking wait per host (below), run as a background shell ([HARNESS.md](../andx-orchestration/HARNESS.md) long-wait row). Never poll in short model turns: each turn re-reads the whole context.
+
 ## GitLab (`glab`)
 
 ### Auth
@@ -23,6 +25,7 @@ glab mr diff 17 -R group/repo --color=never
 glab api projects/:id/merge_requests/17
 glab api projects/:id/merge_requests/17/pipelines
 glab mr note list 17 -R group/repo
+glab ci status --live -b <head_branch> -R group/repo   # blocking CI wait
 ```
 
 From repo with matching remote, omit `-R`.
@@ -72,6 +75,7 @@ gh auth status
 gh pr view 17 --json title,body,state,headRefName,baseRefName,commits,url
 gh pr diff 17
 gh pr checks 17
+gh pr checks 17 --watch --interval 60   # blocking CI wait
 gh api repos/:owner/:repo/pulls/17/comments
 ```
 
@@ -91,6 +95,7 @@ gh api repos/:owner/:repo/pulls/17/comments -f body="…" -f commit_id=… -f pa
 2. `git fetch origin pull/<id>/head:pr-<id>` or branch name
 3. `git diff base...pr-<id>`
 4. **Post:** draft-only in v1 unless `BITBUCKET_TOKEN` + API documented — chat report + comment drafts for manual paste
+5. **CI wait:** one shell loop, ≥ 5 min between checks: `while curl -fsS -H "Authorization: Bearer $BITBUCKET_TOKEN" "https://api.bitbucket.org/2.0/repositories/<ws>/<repo>/commit/<head_sha>/statuses" | rg -q '"INPROGRESS"'; do sleep 300; done`
 
 ## MCP fallback
 
