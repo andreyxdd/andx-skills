@@ -7,7 +7,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 // Comparable form: resolved, native separators, lower-cased where the filesystem is case-insensitive (win32).
 const key = (p, P = path) => (P.sep === "\\" ? P.resolve(p).toLowerCase() : P.resolve(p));
@@ -65,6 +64,4 @@ function main(args) {
   console.log(`target=${target} removed=${removed} kept=${kept} apply=${apply}`);
 }
 
-if (process.argv[1] && key(fs.realpathSync(process.argv[1])) === key(fs.realpathSync(fileURLToPath(import.meta.url)))) {
-  main(process.argv.slice(2));
-}
+if (import.meta.main) main(process.argv.slice(2));

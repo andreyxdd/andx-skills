@@ -88,10 +88,4 @@ function main(args) {
   return 0;
 }
 
-// True when `url` is the CLI entry, also when run via a symlink or a differently-cased Windows path.
-export function isMain(url) {
-  const real = (p) => (process.platform === "win32" ? fs.realpathSync(p).toLowerCase() : fs.realpathSync(p));
-  return !!process.argv[1] && real(process.argv[1]) === real(fileURLToPath(url));
-}
-
-if (isMain(import.meta.url)) process.exitCode = main(process.argv.slice(2));
+if (import.meta.main) process.exitCode = main(process.argv.slice(2));

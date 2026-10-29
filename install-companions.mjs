@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { isMain, link } from "./install.mjs";
+import { link } from "./install.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const MATT_REPO = "https://github.com/mattpocock/skills.git";
@@ -86,4 +86,4 @@ function main() {
   console.log(`Done. Matt Pocock skills pinned at ${MATT_PIN}.`);
 }
 
-if (isMain(import.meta.url)) main();
+if (import.meta.main) main();

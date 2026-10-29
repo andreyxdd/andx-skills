@@ -49,10 +49,10 @@ test("PASS with an unfixed confirmed high is invalid", () => {
   assert.match(validate(bad).errors.join(), /PASS with unfixed high/);
 });
 
-test("CLI runs when invoked through a symlinked skill dir", { skip: process.platform === "win32" }, () => {
+test("CLI runs when invoked through a symlinked skill dir", () => {
   const dir = fs.mkdtempSync(join(tmpdir(), "validate-artifact-"));
   try {
-    fs.symlinkSync(dirname(fileURLToPath(import.meta.url)), join(dir, "scripts"));
+    fs.symlinkSync(dirname(fileURLToPath(import.meta.url)), join(dir, "scripts"), "junction");
     fs.writeFileSync(join(dir, "a.json"), JSON.stringify(v2));
     const r = spawnSync(process.execPath, [join(dir, "scripts", "validate-review-artifact.mjs"), join(dir, "a.json"), "--head", HEAD, "--base", BASE], { encoding: "utf8" });
     assert.equal(r.stdout, "TRUSTED\n", r.stderr);
