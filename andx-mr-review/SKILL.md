@@ -97,7 +97,7 @@ step 4, never the default branch) + focus UX/API for forms + API clients +
 message, foreground.
 
 Normalize each output with
-[parse_review.rb](../andx-execute-and-review/scripts/parse_review.rb)
+[parse-review.mjs](../andx-execute-and-review/scripts/parse-review.mjs)
 (Bugbot native XML first; never re-request Bugbot), then synthesize.
 
 ### 7. Synthesize

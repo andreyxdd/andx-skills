@@ -41,7 +41,7 @@ Fresh agents, no worker context, judge only `git diff $MERGE_BASE_SHA..$EXEC_HEA
 | Spec (always) | `Task(subagent_type="andx-spec-reviewer")` with plan path + diff + verification table | `Agent` with the same name |
 | Audit / React / A11y (conditional) | `generalPurpose` + skill path from [SKILL-MAP.md](./SKILL-MAP.md) | same |
 
-Normalize every reviewer's output with `andx-execute-and-review/scripts/parse_review.rb` before union.
+Normalize every reviewer's output with `node andx-execute-and-review/scripts/parse-review.mjs` before union.
 
 ## Ponytail resolve
 

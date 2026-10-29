@@ -57,7 +57,7 @@ advisory:
 Save each reviewer's raw output to `/tmp/andx-review-<slug>-<reviewer>.txt` and run:
 
 ```bash
-ruby ~/.cursor/skills/andx-execute-and-review/scripts/parse_review.rb <reviewer> /tmp/andx-review-<slug>-<reviewer>.txt
+node ~/.cursor/skills/andx-execute-and-review/scripts/parse-review.mjs <reviewer> /tmp/andx-review-<slug>-<reviewer>.txt
 ```
 
 It reads, in order: Bugbot native `<answer><bug>…</bug></answer>` (empty = PASS), a single real VERDICT (echoed `BLOCK | PASS` templates ignored), a severity table, "no bugs" prose. Output `{status: BLOCK|FIX|PASS|UNPARSED, findings[]}`. Union the normalized findings across reviewers; compute BLOCK from the union.
