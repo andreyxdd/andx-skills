@@ -86,7 +86,7 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/`.
 
 ## Spend baseline
 
-`ruby scripts/spend_report.rb --summary ~/.claude/projects` (2026-10-29, 90 Claude Code runs that invoke an andx skill; input = uncached + cache write + cache read):
+`node scripts/spend-report.mjs --summary ~/.claude/projects` (2026-10-29, 90 Claude Code runs that invoke an andx skill; input = uncached + cache write + cache read):
 
 | Median per run (all skills) | Value |
 |-----------------------------|-------|
@@ -112,7 +112,7 @@ Per first-invoked skill (a run is grouped by the first andx skill its parent ses
 | `andx-debug-and-fix` | 1 | 25,153,371 | 74,919 |
 | `andx-execute-and-deploy` | 1 | 3,972,369 | 19,151 |
 
-**Target:** −40% per-skill median input total over the next 10 runs of each skill, judged primarily on the `andx-execute*` skills; compare a skill only with its own baseline row. Caveat: most baseline execution ran in the planning thread (`go`), so it sits in the `andx-plan` row. After a fresh-chat handoff, add each feature's plan-run and execute-run input totals, and compare the median of those sums with the `andx-plan` baseline; a falling `andx-plan` row alone only shows execution moving out. Per-run detail: `ruby scripts/spend_report.rb <session.jsonl|dir>`.
+**Target:** −40% per-skill median input total over the next 10 runs of each skill, judged primarily on the `andx-execute*` skills; compare a skill only with its own baseline row. Caveat: most baseline execution ran in the planning thread (`go`), so it sits in the `andx-plan` row. After a fresh-chat handoff, add each feature's plan-run and execute-run input totals, and compare the median of those sums with the `andx-plan` baseline; a falling `andx-plan` row alone only shows execution moving out. Per-run detail: `node scripts/spend-report.mjs <session.jsonl|dir>`.
 
 ## Companion skills
 
@@ -167,6 +167,6 @@ Then install the other required companions above (impeccable for UI work, ponyta
 3. Open a **fresh chat** (Claude Code: `/clear`) and paste the plan's `Fresh chat:` line, e.g. `/andx-execute-and-review /abs/repo/.cursor/plans/buyer-refund-request.plan.md`.
 4. The run works in `.worktrees/exec-<slug>-<stamp>`: worker implements per step with TDD, blind reviewers gate, then fast-forward merge to your branch and cleanup. It ends with `MERGED PASS | PUSHED … | MR … | DEPLOYED …`.
 5. Ship: pick `/andx-execute-review-and-deploy` in step 3, or run `/andx-deploy` after the merge (first time: `/andx-deploy-init`). Draft MR instead of a local merge: `/andx-execute-and-review --mr` (pushes and babysits). Someone else's MR: `/andx-mr-review <url>`, then `/andx-mr-babysit <url>`.
-6. Optional: `/retro` after a run that escalated or needed ≥ 2 review rounds; `ruby ~/Dev/tools/andx-skills/scripts/spend_report.rb --summary ~/.claude/projects` to track spend.
+6. Optional: `/retro` after a run that escalated or needed ≥ 2 review rounds; `node ~/Dev/tools/andx-skills/scripts/spend-report.mjs --summary ~/.claude/projects` to track spend.
 
 Bug instead of feature: `/andx-debug-and-fix <symptom>` (read-only analysis → worktree fix → merge).
