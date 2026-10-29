@@ -61,7 +61,7 @@ State `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR` in the reply b
 
 Run **before any implementation subagent spawn**, regardless of clean/dirty status. Do not edit the primary checkout.
 
-**Sweep first (dry-run):** `bash ~/.cursor/skills/andx-orchestration/scripts/worktree-sweep.sh "$REPO_ROOT"` → put the one-line summary (`removed= kept=`) in the reply. Use `--apply` only on user request. It removes clean + merged worktrees only and prints manual commands for the rest. Never force-remove without per-item confirmation.
+**Sweep first (dry-run):** `node ~/.cursor/skills/andx-orchestration/scripts/worktree-sweep.mjs "$REPO_ROOT"` → put the one-line summary (`removed= kept=`) in the reply. Use `--apply` only on user request. It removes clean + merged worktrees only and prints manual commands for the rest. Never force-remove without per-item confirmation.
 
 **Exception:** [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md) defers Step 1 until after readonly debug handoff (Phase C). All **implementation** subagents still require worktree before spawn.
 

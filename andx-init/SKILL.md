@@ -47,16 +47,10 @@ Template gap notes: [templates/CHANGELOG-notes.md](./templates/CHANGELOG-notes.m
 
 1. **Confirm target repo** — workspace root must be the project. Use `move_agent_to_root` if needed.
 2. **Choose preset** — `app` (default for software), `data`, or `content`. Ask once if unclear.
-3. **Run scaffold** — from this repo's canonical script:
+3. **Run scaffold** — installed via `node install.mjs` (Claude Code: `~/.claude/skills/...`; from a clone: `/path/to/andx-skills/andx-init/scripts/scaffold.mjs`):
 
 ```bash
-/path/to/andx-skills/andx-init/scripts/scaffold.sh <preset> <repo_root>
-```
-
-Or when `andx-init` is installed via `./install.sh`:
-
-```bash
-"$(dirname "$(readlink -f ~/.cursor/skills/andx-init 2>/dev/null || echo .)")/scripts/scaffold.sh" <preset> <repo_root>
+node ~/.cursor/skills/andx-init/scripts/scaffold.mjs <preset> <repo_root>
 ```
 
 4. **Report** — list created vs skipped paths.

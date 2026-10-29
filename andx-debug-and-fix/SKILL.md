@@ -9,7 +9,7 @@ Evidence-first diagnose → plan → worktree fix → merge.
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Spawn: [HARNESS.md](../andx-orchestration/HARNESS.md)
 
-**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), `/diagnosing-bugs` (Matt Pocock, via install-companions.sh), [WORKER.md](../andx-execute/WORKER.md).
+**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), `/diagnosing-bugs` (Matt Pocock, via `node install-companions.mjs`), [WORKER.md](../andx-execute/WORKER.md).
 
 ## When
 

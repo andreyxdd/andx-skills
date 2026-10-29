@@ -2,7 +2,7 @@
 
 Cursor-primary, Claude Code supported. Same skills and agents in both; spawn details live here, entry skills describe roles + contracts only. Never invent tool parameters.
 
-## Agents (`~/.claude/agents/`, installed by `install.sh`; Cursor reads the same dir)
+## Agents (`~/.claude/agents/`, installed by `node install.mjs`; Cursor reads the same dir)
 
 | Agent | Role | Mode |
 |-------|------|------|

@@ -49,7 +49,7 @@ Presets: `app` | `data` | `content`. Scaffold **additive** (never overwrite); gi
 Gap inventory: [andx-init/templates/CHANGELOG-notes.md](./andx-init/templates/CHANGELOG-notes.md).
 
 ```bash
-andx-init/scripts/scaffold.sh app /path/to/repo
+node andx-init/scripts/scaffold.mjs app /path/to/repo
 ```
 
 ## Install
@@ -57,16 +57,16 @@ andx-init/scripts/scaffold.sh app /path/to/repo
 Requires Node.js >= 20 (no npm dependencies; `npm test` runs the test suite).
 
 ```bash
-./install.sh
-./install-companions.sh   # optional; React/Next companions
+node install.mjs
+node install-companions.mjs   # optional; React/Next companions
 ```
 
-Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/`.
+Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/` (Windows: directory junctions, no admin needed). `node install.mjs --uninstall-hooks` removes only the hooks.
 
 ## Edit workflow
 
 1. Edit only this repo (`~/Dev/tools/andx-skills/`).
-2. Re-run `./install.sh` after pull/change.
+2. Re-run `node install.mjs` after pull/change.
 
 ## Conventions (Cursor-primary)
 
@@ -75,7 +75,7 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/`.
 - `move_agent_to_root` only when workspace ≠ target **project** (`/andx-plan`, `/andx-init`). Never for exec worktrees — worker uses `WORKTREE_DIR` as tool cwd in the same workspace.
 - Flow: `/andx-plan` → optional `/andx-schedule` (multi-wave) → `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).
 - After `/andx-plan`: Next menu. Recommended: open a fresh chat (Claude Code: `/clear`) and paste its `Fresh chat: /andx-<default> <abs plan path>` line, so execution requests do not carry the grill transcript. Fallback: bare `go` runs the default skill in the same thread, grill context included.
-- Companions (`grilling`, `tdd`, `impeccable`, …): `./install-companions.sh` (Matt Pocock skills pinned clone + react-best-practices).
+- Companions (`grilling`, `tdd`, `impeccable`, …): `node install-companions.mjs` (Matt Pocock skills pinned clone + react-best-practices).
 - Ponytail: resolve via HARNESS (not `skills-cursor/`).
 
 ## Recommended harness settings
@@ -137,7 +137,7 @@ External skills the andx skills route to (see [SKILL-MAP.md](./andx-orchestratio
 
 Vendored, not installed separately: Cloudflare attack classes in `andx-security-review/references/cloudflare/` ([cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill), see [ATTRIBUTION.md](./andx-security-review/references/cloudflare/ATTRIBUTION.md)); the spec reviewer adapts Matt Pocock's [`code-review`](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/code-review) spec axis.
 
-`./install-companions.sh` installs the Matt Pocock skills (pinned commit) and `react-best-practices`. Install the rest from their repos, e.g.:
+`node install-companions.mjs` installs the Matt Pocock skills (pinned commit) and `react-best-practices`. Install the rest from their repos, e.g.:
 
 ```bash
 npx skills add https://github.com/pbakaus/impeccable --skill impeccable
@@ -153,8 +153,8 @@ claude plugin marketplace add DietrichGebert/ponytail && claude plugin install p
 ```bash
 git clone https://github.com/andreyxdd/andx-skills.git ~/Dev/tools/andx-skills
 cd ~/Dev/tools/andx-skills
-./install.sh               # links skills into ~/.cursor, ~/.claude, ~/.codex; agents into ~/.claude/agents; Stop hook
-./install-companions.sh    # Matt Pocock skills + react-best-practices; prints the per-harness catalog budget
+node install.mjs              # links skills into ~/.cursor, ~/.claude, ~/.codex; agents into ~/.claude/agents; hooks
+node install-companions.mjs   # Matt Pocock skills + react-best-practices; prints the per-harness catalog budget
 export CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000   # add to your shell profile (Claude Code ≥ 2.1.312)
 ```
 
