@@ -1,0 +1,208 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/node-cross-os-tooling.plan.md",
+  "target_branch": "main",
+  "base_sha": "e7823f0c83bc96901277fff03ec7296160411a6a",
+  "head_sha": "388d3a97211e3c8aef5b2fcc7e3136c601bdd8d2",
+  "reviewed_at": "2026-10-29T16:07:21Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "sweep-windows-path-compare",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/worktree-sweep.mjs:33",
+      "finding": "agent worktree prefix compared with mixed separators; now resolved and case-folded",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "yaml-reader-overbuilt",
+      "status": "confirmed",
+      "location": "scripts/check-skills.mjs:49",
+      "finding": "general YAML parser shrunk to a top-level-keys reader; parity with Ruby YAML on 841 files",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "guard-debug-dump",
+      "status": "confirmed",
+      "location": "hooks/deny-worktree-root.mjs:22",
+      "finding": "raw hook input dumped to tmpdir; removed",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "install-hooks-reparse",
+      "status": "confirmed",
+      "location": "scripts/install-hooks.mjs:28",
+      "finding": "re-parse of freshly stringified JSON removed",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "node20-eol",
+      "status": "confirmed",
+      "location": "package.json:6",
+      "finding": "Node 20 is end-of-life; floor raised to 22.18 (import.meta.main)",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "cli-guard-copies",
+      "status": "confirmed",
+      "location": "install.mjs:91",
+      "finding": "hand-written run-as-CLI checks replaced by import.meta.main",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "plan-node-floor-text",
+      "status": "confirmed",
+      "location": ".cursor/plans/node-cross-os-tooling.plan.md:19",
+      "finding": "plan text amended to Node 22.18",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "no-ruby-guard-skips-cursor",
+      "status": "confirmed",
+      "location": "scripts/no-ruby.test.mjs:20",
+      "finding": "plan and review records legitimately quote old ruby commands",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "accepted"
+    },
+    {
+      "id": "parse-review-proto-severity",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/parse-review.mjs:10",
+      "finding": "inherited keys scored as severities; null-prototype table",
+      "reviewers": [
+        "security",
+        "ponytail"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "thread-guard-empty-bots",
+      "status": "confirmed",
+      "location": "andx-mr-babysit/scripts/thread-guard.mjs:24",
+      "finding": "empty --bots entries matched empty authors; filtered",
+      "reviewers": [
+        "security"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "spend-walk-path-leak",
+      "status": "confirmed",
+      "location": "scripts/spend-report.mjs:112",
+      "finding": "unreadable entries counted as skipped, never printed",
+      "reviewers": [
+        "security"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "test-glob-scope",
+      "status": "confirmed",
+      "location": "package.json:9",
+      "finding": "explicit test globs; nothing under .worktrees runs",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "scaffold-behavior-fixes",
+      "status": "confirmed",
+      "location": "andx-init/scripts/scaffold.mjs:18",
+      "finding": "preset validation and gitignore newline fix vs bash",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "low",
+      "resolution": "accepted"
+    },
+    {
+      "id": "windows-agent-copy-fallback",
+      "status": "confirmed",
+      "location": "install.mjs:38",
+      "finding": "agent files copied when file symlink lacks privilege",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "low",
+      "resolution": "accepted"
+    },
+    {
+      "id": "parse-review-no-entry-guard",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/parse-review.mjs:49",
+      "finding": "runs on import; nothing imports it today",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "deferred"
+    },
+    {
+      "id": "old-node-silent-noop",
+      "status": "confirmed",
+      "location": "install.mjs:91",
+      "finding": "on Node below 22.18 import.meta.main is undefined so CLIs exit 0 doing nothing; engines declares 22.18",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "deferred"
+    },
+    {
+      "id": "tilde-link-resolve",
+      "status": "rejected",
+      "location": "scripts/check-skills.mjs:111",
+      "finding": "claimed path.join drops home; verified it keeps it",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "ruby-size-bytes",
+      "status": "rejected",
+      "location": "scripts/check-skills.mjs:20",
+      "finding": "claimed Ruby size counts bytes; it counts characters",
+      "reviewers": [
+        "bugbot"
+      ]
+    }
+  ]
+}
