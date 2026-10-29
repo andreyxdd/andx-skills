@@ -107,9 +107,22 @@ function runOf(p, skill) {
   return { id, skill, parent: usageOf([p]), sub: usageOf(subs) };
 }
 
-// "**/*.jsonl": sorted, dot entries skipped, symlinked directories matched but not entered.
-const walk = (dir) => sorted(dir, () => true).flatMap((p) =>
-  [...(p.endsWith(".jsonl") ? [p] : []), ...(fs.lstatSync(p).isDirectory() ? walk(p) : [])]);
+// "**/*.jsonl": dot entries skipped, symlinked directories matched but not entered.
+// Per-directory reads: one unreadable directory is counted in `skipped` instead of hiding every run
+// (a recursive readdirSync throws on the first one).
+function walk(dir) {
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    skipped.add(dir);
+    return [];
+  }
+  return entries.filter((e) => e.name[0] !== ".").flatMap((e) => {
+    const p = path.join(dir, e.name);
+    return [...(e.name.endsWith(".jsonl") ? [p] : []), ...(e.isDirectory() ? walk(p) : [])];
+  });
+}
 
 function runs(arg) {
   const sessions = fs.statSync(arg, { throwIfNoEntry: false })?.isFile() ? [arg]
@@ -164,16 +177,12 @@ function summary(all) {
 
 const abs = (p) => path.resolve(p.replace(/^~(?=$|[\\/])/, os.homedir()));
 const [first, second] = process.argv.slice(2);
-let report;
-if (first === "--summary" && second) {
-  const all = runs(abs(second));
-  report = () => summary(all);
-} else if (first && fs.existsSync(first)) {
-  const all = runs(abs(first));
-  report = () => all.forEach(printRun);
-} else {
+const isSummary = first === "--summary" && !!second;
+if (!isSummary && !(first && fs.existsSync(first))) {
   console.error("usage: spend-report.mjs <session.jsonl|dir> | --summary <dir>");
   process.exit(1);
 }
+const all = runs(abs(isSummary ? second : first));
 if (skipped.size) console.error(`skipped ${skipped.size} unreadable files`);
-report();
+if (isSummary) summary(all);
+else all.forEach(printRun);

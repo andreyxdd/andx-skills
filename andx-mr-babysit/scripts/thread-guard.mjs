@@ -21,7 +21,8 @@ function violations(before, after, bots = BOTS) {
 const argv = process.argv.slice(2);
 const [before, after] = argv.slice(0, 2).map((f) => JSON.parse(fs.readFileSync(f, "utf8")));
 const i = argv.indexOf("--bots");
-const bad = violations(before, after, i >= 0 ? [...BOTS, ...(argv[i + 1] ?? "").split(",")] : BOTS);
+const extra = i >= 0 ? (argv[i + 1] ?? "").split(",").map((b) => b.trim().toLowerCase()).filter(Boolean) : [];
+const bad = violations(before, after, [...BOTS, ...extra]);
 if (bad.length) {
   console.log(`thread-guard: FAIL human threads resolved by agent: ${bad.join(", ")}`);
   process.exit(1);

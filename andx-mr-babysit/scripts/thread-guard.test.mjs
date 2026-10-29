@@ -43,3 +43,10 @@ test("extra bot allowlist", () => {
   assert.equal(guard(before, resolved).code, 1);
   assert.equal(guard(before, resolved, "--bots", "renovate").code, 0);
 });
+
+test("empty --bots entries do not match a missing author", () => {
+  const before = [{ id: "n", author: null, resolved: false }];
+  const resolved = [{ id: "n", author: null, resolved: true }];
+  assert.deepEqual(guard(before, resolved, "--bots", "x,"), { code: 1, out: "thread-guard: FAIL human threads resolved by agent: n\n" });
+  assert.equal(guard(before, resolved, "--bots", " ,  , ").code, 1);
+});

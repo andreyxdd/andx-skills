@@ -35,6 +35,12 @@ test("security needs_validation is kept but not blocking (stdin)", () => {
   assert.equal(r.findings[0].severity, "needs_validation");
 });
 
+test("inherited object keys are not severities", () => {
+  const bug = (sev) => `<bug><severity>${sev}</severity><file>a.js</file><start_line>1</start_line><title>t</title></bug>`;
+  assert.equal(parse("bugbot", null, `<answer>${bug("critical")}${bug("constructor")}</answer>`).status, "BLOCK");
+  assert.equal(parse("bugbot", null, `<answer>${bug("__proto__")}${bug("toString")}</answer>`).status, "PASS");
+});
+
 test("xml findings normalized", () => {
   assert.deepEqual(parse("bugbot", join(DIR, "xml-high.txt")).findings[0], {
     reviewer: "bugbot", severity: "high", location: "src/provider.ts:42", finding: "Race on provider init",

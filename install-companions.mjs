@@ -6,8 +6,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { link } from "./install.mjs";
+import { fileURLToPath } from "node:url";
+import { isMain, link } from "./install.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const MATT_REPO = "https://github.com/mattpocock/skills.git";
@@ -90,4 +90,4 @@ function main() {
   console.log(`Done. Matt Pocock skills pinned at ${MATT_PIN}.`);
 }
 
-if (import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) main();
+if (isMain(import.meta.url)) main();

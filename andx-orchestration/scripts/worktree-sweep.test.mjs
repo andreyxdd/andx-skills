@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
+import path, { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { agentPath } from "./worktree-sweep.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "worktree-sweep.mjs");
 let repo;
@@ -47,6 +48,19 @@ test("dry run removes nothing and prints actions", () => {
   assert.match(out, /^keep {4}clean  unmerged wt\/exec-unmerged \S.*exec-unmerged$/m);
   assert.match(out, /^ {8}manual: git worktree remove --force '.*exec-dirty' && git branch -D 'wt\/exec-dirty' {2}# only after you confirm$/m);
   assert.match(out, /^target=main removed=0 kept=2 apply=0$/m);
+});
+
+test("agent worktree paths match across separators and drive-letter case", () => {
+  const W = "C:\\Users\\Me\\proj";
+  assert.equal(agentPath("c:/users/me/proj/.worktrees/feature", W, path.win32), true);
+  assert.equal(agentPath("C:\\Users\\Me\\proj\\.worktrees\\feature", W, path.win32), true);
+  assert.equal(agentPath("C:\\Users\\Me\\proj\\.worktreesX\\feature", W, path.win32), false);
+  assert.equal(agentPath("D:\\elsewhere\\feature", W, path.win32), false);
+  assert.equal(agentPath("D:\\tmp\\Review-1", W, path.win32), true);
+  assert.equal(agentPath("/r/proj/.worktrees/a", "/r/proj", path.posix), true);
+  assert.equal(agentPath("/r/proj/.worktreesX/a", "/r/proj", path.posix), false);
+  assert.equal(agentPath("/r/other", "/r/proj", path.posix), false);
+  assert.equal(agentPath("/r/proj-exec-1", "/r/proj", path.posix), true);
 });
 
 test("--target selects the merge base branch", () => {

@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SKILLS = [
@@ -88,4 +88,10 @@ function main(args) {
   return 0;
 }
 
-if (import.meta.url === pathToFileURL(fs.realpathSync(process.argv[1])).href) process.exitCode = main(process.argv.slice(2));
+// True when `url` is the CLI entry, also when run via a symlink or a differently-cased Windows path.
+export function isMain(url) {
+  const real = (p) => (process.platform === "win32" ? fs.realpathSync(p).toLowerCase() : fs.realpathSync(p));
+  return !!process.argv[1] && real(process.argv[1]) === real(fileURLToPath(url));
+}
+
+if (isMain(import.meta.url)) process.exitCode = main(process.argv.slice(2));

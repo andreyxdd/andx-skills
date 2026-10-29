@@ -1,5 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { validate } from "./validate-review-artifact.mjs";
 
 const HEAD = "a".repeat(40);
@@ -42,6 +47,18 @@ test("tampered base is not trusted", () => {
 test("PASS with an unfixed confirmed high is invalid", () => {
   const bad = { ...v2, findings: [{ ...v2.findings[0], resolution: undefined }] };
   assert.match(validate(bad).errors.join(), /PASS with unfixed high/);
+});
+
+test("CLI runs when invoked through a symlinked skill dir", { skip: process.platform === "win32" }, () => {
+  const dir = fs.mkdtempSync(join(tmpdir(), "validate-artifact-"));
+  try {
+    fs.symlinkSync(dirname(fileURLToPath(import.meta.url)), join(dir, "scripts"));
+    fs.writeFileSync(join(dir, "a.json"), JSON.stringify(v2));
+    const r = spawnSync(process.execPath, [join(dir, "scripts", "validate-review-artifact.mjs"), join(dir, "a.json"), "--head", HEAD, "--base", BASE], { encoding: "utf8" });
+    assert.equal(r.stdout, "TRUSTED\n", r.stderr);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("needs_validation must not carry severity", () => {

@@ -2,7 +2,7 @@
 // Validate a REVIEW-ARTIFACT and decide whether mr-review may skip its reviewers.
 //   node validate-review-artifact.mjs <artifact.json> [--head SHA] [--base SHA]
 // Prints READABLE | TRUSTED, or INVALID with reasons (exit 1). TRUSTED requires v2 + matching head and base.
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const SOURCES = new Set(["andx-execute-and-review", "andx-mr-review", "andx-security-review"]);
@@ -53,7 +53,8 @@ export function validate(a, { head, base } = {}) {
   return { errors, mismatch, trusted };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const real = (p) => (process.platform === "win32" ? realpathSync(p).toLowerCase() : realpathSync(p));
+if (process.argv[1] && real(process.argv[1]) === real(fileURLToPath(import.meta.url))) {
   const [file, ...rest] = process.argv.slice(2);
   const opt = (name) => (rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined);
   if (!file) { console.error("usage: validate-review-artifact.mjs <artifact.json> [--head SHA] [--base SHA]"); process.exit(2); }

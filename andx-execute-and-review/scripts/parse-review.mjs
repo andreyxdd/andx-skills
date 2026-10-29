@@ -7,7 +7,7 @@ import fs from "node:fs";
 const SEV = { critical: 4, high: 3, medium: 2, low: 1, nitpick: 0 };
 
 function statusFor(findings) {
-  const top = Math.max(0, ...findings.map((f) => SEV[f.severity] ?? 0));
+  const top = Math.max(0, ...findings.map((f) => (Object.hasOwn(SEV, f.severity) ? SEV[f.severity] : 0)));
   return top >= 3 ? "BLOCK" : top === 2 ? "FIX" : "PASS";
 }
 

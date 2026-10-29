@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,6 +44,23 @@ test("summary prints medians per first invoked skill", () => {
   const out = run("--summary", dirname(PROJ));
   assert.match(out, /^andx-execute runs=1 median input_total=3218 output=85$/m);
   assert.match(out, /^andx-plan runs=2 median input_total=3000 output=1$/m);
+});
+
+test("unreadable directory is counted, other runs still reported", { skip: process.platform === "win32" || process.getuid?.() === 0 }, () => {
+  const root = mkdtempSync(join(tmpdir(), "spend-"));
+  const locked = join(root, "secret-proj", "locked-dir");
+  try {
+    mkdirSync(locked, { recursive: true });
+    copyFileSync(join(PROJ, "s2.jsonl"), join(root, "secret-proj", "s2.jsonl"));
+    chmodSync(locked, 0);
+    const out = run(join(root, "secret-proj"));
+    assert.match(out, /^run s2$/m);
+    assert.match(out, /^skipped 1 unreadable files$/m);
+    assert.doesNotMatch(out, /secret-proj|locked-dir/);
+  } finally {
+    chmodSync(locked, 0o700);
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("unreadable transcript is skipped without naming it", () => {
