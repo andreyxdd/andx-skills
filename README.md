@@ -54,7 +54,7 @@ node andx-init/scripts/scaffold.mjs app /path/to/repo
 
 ## Install
 
-Requires Node.js >= 20 (no npm dependencies; `npm test` runs the test suite).
+Requires Node.js 22+ (no npm dependencies; `npm test` runs the test suite).
 
 ```bash
 node install.mjs

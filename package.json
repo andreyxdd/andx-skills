@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test \"scripts/*.test.mjs\" \"hooks/*.test.mjs\" \"andx-*/scripts/*.test.mjs\""
   }
 }
