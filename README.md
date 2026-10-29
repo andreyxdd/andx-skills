@@ -54,6 +54,8 @@ andx-init/scripts/scaffold.sh app /path/to/repo
 
 ## Install
 
+Requires Node.js >= 20 (no npm dependencies; `npm test` runs the test suite).
+
 ```bash
 ./install.sh
 ./install-companions.sh   # optional; React/Next companions
