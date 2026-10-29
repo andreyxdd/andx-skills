@@ -55,10 +55,11 @@ verification: pnpm --filter web test src/pages/foo.test.tsx
     - /andx-execute-and-review
     - /andx-execute-and-deploy
     - /andx-execute-review-and-deploy
+    Fresh chat: /andx-execute <project>/.cursor/plans/<slug>.plan.md
     Reply go → run default on this plan.
 ```
 
-Outside the plan file: mark exactly one `(default)` per andx-plan session-end rules; chat reply must end with the same Next block.
+Outside the plan file: mark exactly one `(default)` per andx-plan session-end rules; chat reply must end with the same Next block. The `Fresh chat` line names the `(default)` skill and the absolute plan path (Claude Code: run it after `/clear`); `go` is the same-thread fallback that keeps the grill context.
 
 ## Docs workstream (delta from the template above)
 
@@ -83,4 +84,4 @@ Field reference and parsing rules: [PARSE.md](./PARSE.md).
 
 ## Session-end Next (required in every plan file)
 
-Every written plan **must** include a trailing `## Next` section matching the chat Next block (plan path + andx-execute* options + `go` contract). See SKILL.md Phase 3 hard gate. Planner must also print that block in the chat reply; writing the file alone is not enough.
+Every written plan **must** include a trailing `## Next` section matching the chat Next block (plan path + andx-execute* options + `Fresh chat` line + `go` contract). See SKILL.md Phase 3 hard gate. Planner must also print that block in the chat reply; writing the file alone is not enough.

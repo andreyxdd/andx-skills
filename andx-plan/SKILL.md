@@ -73,8 +73,11 @@ Next:
 - /andx-execute-and-review
 - /andx-execute-and-deploy
 - /andx-execute-review-and-deploy
+Fresh chat: /andx-execute <abs>/.cursor/plans/<slug>.plan.md
 Reply go → run default on this plan.
 ```
+
+**Fresh chat line (recommended):** same skill as `(default)` plus the absolute plan path. Starting execution in a new chat (Claude Code: after `/clear`) drops the grill transcript from every later request; the plan file carries everything execute needs.
 
 **Default picker (exactly one `(default)`):**
 - User said review+deploy, or ship → `/andx-execute-review-and-deploy`
@@ -83,7 +86,7 @@ Reply go → run default on this plan.
 - Multi-wave (disjoint `touch`, deps allow ≥2 parallel) → offer `/andx-schedule` before execute (optional; not default unless user asked schedule)
 - Else (incl. `workstream: docs`) → `/andx-execute`
 
-**`go` contract:** same thread, bare `go` / `Go` / `/go` → immediately Read `~/.cursor/skills/<default-skill>/SKILL.md` and follow it with this plan path (works for user-only skills too); do not re-ask Phase 2. `review` / `deploy` / skill name → matching option when unambiguous.
+**`go` contract (same-thread fallback, keeps the grill context):** same thread, bare `go` / `Go` / `/go` → immediately Read `~/.cursor/skills/<default-skill>/SKILL.md` and follow it with this plan path (works for user-only skills too); do not re-ask Phase 2. `review` / `deploy` / skill name → matching option when unambiguous.
 
 ## Anti-patterns
 
