@@ -1,0 +1,2 @@
+{"type":"assistant","sessionId":"s1","isSidechain":true,"message":{"id":"m3","content":[{"type":"tool_use","id":"t3","name":"Grep","input":{}}],"usage":{"input_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":500,"output_tokens":10}}}
+{"type":"user","sessionId":"s1","isSidechain":true,"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t3","content":"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"}]}}

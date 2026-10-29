@@ -1,0 +1,1 @@
+{"type":"assistant","sessionId":"s2","message":{"id":"m5","content":[{"type":"tool_use","id":"t5","name":"Skill","input":{"skill":"andx-plan"}}],"usage":{"input_tokens":0,"cache_creation_input_tokens":0,"cache_read_input_tokens":4000,"output_tokens":1}}}

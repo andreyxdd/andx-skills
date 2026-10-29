@@ -76,6 +76,23 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/`.
 - Companions (`grilling`, `tdd`, `impeccable`, …): `./install-companions.sh` (Matt Pocock skills pinned clone + react-best-practices).
 - Ponytail: resolve via HARNESS (not `skills-cursor/`).
 
+## Spend baseline
+
+`ruby scripts/spend_report.rb --summary ~/.claude/projects` (2026-10-29, 90 Claude Code runs that invoke an andx skill; input = uncached + cache write + cache read):
+
+| Median per run | Value |
+|----------------|-------|
+| Input tokens, total | 77,809,198 |
+| Input tokens, parent | 24,218,974 |
+| Input tokens, subagents | 11,960,600 |
+| Requests, parent | 121 |
+| Requests, subagents | 119 |
+| Output tokens | 137,776 |
+| Peak parent context | 339,894 |
+| Image tool results | 0 |
+
+Target: median total input −40% over the next 10 runs. Per-run detail: `ruby scripts/spend_report.rb <session.jsonl|dir>`.
+
 ## Companion skills
 
 Required for full flows: `grilling`, `tdd`, `codebase-design`, `impeccable`, Cursor `review-bugbot` / `review-security`.
