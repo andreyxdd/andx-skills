@@ -45,9 +45,9 @@ Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-an
 | `test` / `lint` | Toolchain from preflight | Phase 3 (lint always, even `DOCS_ONLY`) |
 | Doc verifier | `kind: docs` / `workstream: docs`\|`mixed` | Doc gate + Phase 3 |
 | `react-best-practices` | `REACT_STACK` + React paths | Worker Phase 1 |
-| `impeccable` | `kind: ui`\|`mixed` | Worker Phase 1 |
+| `impeccable` | `kind: ui`\|`mixed` | Worker Phase 1; screenshots per [WORKER.md](../andx-execute/WORKER.md) Screenshots |
 | `observability` | New service/job/worker | Logs/health in success |
-| `agent-browser` | UI needs browser | Step verification |
+| `agent-browser` | UI needs browser | Step verification; screenshots per [WORKER.md](../andx-execute/WORKER.md) Screenshots |
 | `dependency-upgrade` | Upgrade-only plan | Dedicated scope |
 
 Load `design_refs` as **immutable contract** in preflight + worker prompt.
