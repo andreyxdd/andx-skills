@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CONTINUE = `node "${path.join(ROOT, "hooks", "andx-continue.mjs")}"`;
 const GUARD = `node "${path.join(ROOT, "hooks", "deny-worktree-root.mjs")}"`;
-// Legacy entries (e.g. /usr/bin/ruby .../andx-skills/hooks/*.rb) in either separator style.
+// Legacy entries: any command under .../andx-skills/hooks/ (older hook scripts), either separator style.
 const ours = (cmd) => cmd === CONTINUE || cmd === GUARD || /andx-skills[\\/]hooks[\\/]/.test(String(cmd ?? ""));
 
 const load = (p, fallback) => (fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf8")) : fallback);

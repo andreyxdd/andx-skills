@@ -27,7 +27,7 @@ function seed() {
     hooks: {
       Stop: [
         { hooks: [OTHER] },
-        { hooks: [{ type: "command", command: "/usr/bin/ruby /old/andx-skills/hooks/andx_continue.rb", timeout: 10 }] },
+        { hooks: [{ type: "command", command: "/old/andx-skills/hooks/andx_continue.rb", timeout: 10 }] },
       ],
       PreToolUse: [{ hooks: [OTHER] }],
     },

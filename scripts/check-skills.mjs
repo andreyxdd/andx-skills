@@ -25,7 +25,7 @@ const SKILL_KEYS = new Set(`name description paths globs disable-model-invocatio
 const AGENT_KEYS = new Set(`name description model readonly is_background tools disallowedTools skills effort
   autoCompactWindow permissionMode mcpServers hooks memory isolation color maxTurns background`.split(/\s+/));
 
-// Ruby-style glob: "*" skips dot entries, each level sorted, symlinks followed.
+// Glob: "*" skips dot entries, each level sorted, symlinks followed.
 function glob(base, pattern) {
   let paths = [base];
   for (const seg of pattern.split("/")) {
