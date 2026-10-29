@@ -99,7 +99,7 @@ Intelligently resolve, preserving intent of both head and base. If intents confl
 - Fix failures **caused by this PR's changes**.
 - Never weaken CI checks/workflows just to pass; never unrelated refactors.
 - Merge-blocking failure looks unrelated → check if branch behind base; merge latest base (another PR may have fixed it).
-- Push scoped fixes, then wait with one background shell running the host's blocking CI wait from [HOSTS.md](../andx-mr-review/HOSTS.md) (Cursor: background shell + `AwaitShell`; Claude Code: `Monitor` or background Bash, then wait for the notification). Never re-poll in short model turns. Green → next pass; red → fix or escalate.
+- Push scoped fixes, then run the host's blocking CI wait from [HOSTS.md](../andx-mr-review/HOSTS.md) in one background shell (Cursor `AwaitShell`; Claude Code `Monitor`). Green → next pass; red → fix or escalate.
 
 Host commands: [HOSTS.md](../andx-mr-review/HOSTS.md) (`glab mr …`, `gh pr checks`, etc.).
 

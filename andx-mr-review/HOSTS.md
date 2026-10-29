@@ -95,7 +95,15 @@ gh api repos/:owner/:repo/pulls/17/comments -f body="…" -f commit_id=… -f pa
 2. `git fetch origin pull/<id>/head:pr-<id>` or branch name
 3. `git diff base...pr-<id>`
 4. **Post:** draft-only in v1 unless `BITBUCKET_TOKEN` + API documented — chat report + comment drafts for manual paste
-5. **CI wait:** one shell loop, ≥ 5 min between checks: `while curl -fsS -H "Authorization: Bearer $BITBUCKET_TOKEN" "https://api.bitbucket.org/2.0/repositories/<ws>/<repo>/commit/<head_sha>/statuses" | rg -q '"INPROGRESS"'; do sleep 300; done`
+5. **CI wait:** one shell loop, 5 min between checks, 2 h cap. Done only when statuses exist and none is `INPROGRESS`; a failed curl or empty list keeps waiting; the cap exits 1.
+
+   ```bash
+   (for i in $(seq 24); do
+     s=$(curl -fsS -H "Authorization: Bearer $BITBUCKET_TOKEN" "https://api.bitbucket.org/2.0/repositories/<ws>/<repo>/commit/<head_sha>/statuses") &&
+       rg -q '"state"' <<<"$s" && ! rg -q '"INPROGRESS"' <<<"$s" && exit 0
+     sleep 300
+   done; exit 1)
+   ```
 
 ## MCP fallback
 
