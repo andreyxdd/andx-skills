@@ -114,6 +114,57 @@ Per first-invoked skill (a run is grouped by the first andx skill its parent ses
 
 ## Companion skills
 
-Required for full flows: `grilling`, `tdd`, `codebase-design`, `impeccable`, Cursor `review-bugbot` / `review-security`.
+External skills the andx skills route to (see [SKILL-MAP.md](./andx-orchestration/SKILL-MAP.md) for when). **Required** ones are needed for the full plan → execute → review flow; the rest are optional.
 
-**React/Next:** `react-best-practices` via `./install-companions.sh` — wired when `REACT_STACK` / plan `stack: react-next`.
+| Skill | Source | Used by | |
+|-------|--------|---------|--|
+| `grilling` | [mattpocock/skills](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/productivity/grilling) | `andx-plan` grill rounds | Required |
+| `tdd` | [mattpocock/skills](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/tdd) | worker Red → Green | Required |
+| `codebase-design` | [mattpocock/skills](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/codebase-design) | `andx-plan` design pass | Required |
+| `diagnosing-bugs` | [mattpocock/skills](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/diagnosing-bugs) | `andx-debug-and-fix` | Required for debug |
+| `wizard`, `pr`, `retro` | [mattpocock/skills](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering) | deploy secrets, MR body, post-run retro | Optional |
+| `grill-me`, `to-spec`, `to-tickets`, `handoff`, `writing-for-agents`, `improve-codebase-architecture` | [mattpocock/skills](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills) | upstream of `andx-plan` (user-invoked) | Optional |
+| `impeccable` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | UI steps in plan, worker, review | Required for UI |
+| `review-bugbot`, `review-security`, `autopilot` | [Cursor built-in skills](https://cursor.com/docs/context/skills#built-in-cursor-skills) | Bugbot reviewer, `--deep` security, GitHub babysit | Required (Cursor) |
+| `/code-review` | [Claude Code built-in](https://docs.anthropic.com/en/docs/claude-code) | Bugbot reviewer on Claude Code | Required (Claude Code) |
+| `ponytail-review`, `ponytail-audit` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (Claude Code plugin) | Ponytail + Audit reviewers | Required |
+| `react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices) | worker + React reviewer when `stack: react-next` | Optional |
+| `accessibility` | [addyosmani/web-quality-skills](https://github.com/addyosmani/web-quality-skills) | A11y reviewer, UI plan steps | Optional |
+| `agent-browser` | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | UI step verification | Optional |
+| `api-design`, `create-mcp-server`, `observability`, `dependency-upgrade`, `test`, `lint`, `github-workflows` | [gsd-build/gsd-2](https://github.com/gsd-build/gsd-2/tree/main/src/resources/skills) | plan design pass, worker, deploy discovery | Optional |
+
+Vendored, not installed separately: Cloudflare attack classes in `andx-security-review/references/cloudflare/` ([cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill), see [ATTRIBUTION.md](./andx-security-review/references/cloudflare/ATTRIBUTION.md)); the spec reviewer adapts Matt Pocock's [`code-review`](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering/code-review) spec axis.
+
+`./install-companions.sh` installs the Matt Pocock skills (pinned commit) and `react-best-practices`. Install the rest from their repos, e.g.:
+
+```bash
+npx skills add https://github.com/pbakaus/impeccable --skill impeccable
+npx skills add https://github.com/addyosmani/web-quality-skills --skill accessibility
+npx skills add https://github.com/vercel-labs/agent-browser
+claude plugin marketplace add DietrichGebert/ponytail && claude plugin install ponytail@ponytail
+```
+
+## Sample workflow
+
+**One-time setup**
+
+```bash
+git clone https://github.com/andreyxdd/andx-skills.git ~/Dev/tools/andx-skills
+cd ~/Dev/tools/andx-skills
+./install.sh               # links skills into ~/.cursor, ~/.claude, ~/.codex; agents into ~/.claude/agents; Stop hook
+./install-companions.sh    # Matt Pocock skills + react-best-practices; prints the per-harness catalog budget
+export CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000   # add to your shell profile (Claude Code ≥ 2.1.312)
+```
+
+Then install the other required companions above (impeccable for UI work, ponytail).
+
+**Per feature** (in the target repo, not this one)
+
+1. `/andx-init app` — once per repo: scaffold `IDENTITY.md`, `ROUTING.md`, `knowledge/` (optional, recommended).
+2. `/andx-plan add buyer refund requests` — answer the grill rounds (`yes` accepts each recommendation), approve the step list; the plan lands in `.cursor/plans/<slug>.plan.md`.
+3. Open a **fresh chat** (Claude Code: `/clear`) and paste the plan's `Fresh chat:` line, e.g. `/andx-execute-and-review /abs/repo/.cursor/plans/buyer-refund-request.plan.md`.
+4. The run works in `.worktrees/exec-<slug>-<stamp>`: worker implements per step with TDD, blind reviewers gate, then fast-forward merge to your branch and cleanup. It ends with `MERGED PASS | PUSHED … | MR … | DEPLOYED …`.
+5. Ship: pick `/andx-execute-review-and-deploy` in step 3, or run `/andx-deploy` after the merge (first time: `/andx-deploy-init`). Draft MR instead of a local merge: `/andx-execute-and-review --mr` (pushes and babysits). Someone else's MR: `/andx-mr-review <url>`, then `/andx-mr-babysit <url>`.
+6. Optional: `/retro` after a run that escalated or needed ≥ 2 review rounds; `ruby ~/Dev/tools/andx-skills/scripts/spend_report.rb --summary ~/.claude/projects` to track spend.
+
+Bug instead of feature: `/andx-debug-and-fix <symptom>` (read-only analysis → worktree fix → merge).
