@@ -56,7 +56,7 @@ Never use `~/.cursor/skills-cursor/ponytail-*` (not shipped there).
 ## Goals and continuation
 
 - Cursor (optional, parent only; subagents cannot): call `CreateGoal` exactly once with `{"objective": "<mode-scoped Definition of done>"}` (MR mode never requires DEPLOYED). Call `UpdateGoal` with `{"status": "complete"}` only after a requirement-by-requirement audit with fresh output.
-- Stop hook `hooks/andx_continue.rb` (both harnesses): re-prompts while the ledger written in this conversation is non-terminal, max 5 pushes. Never set `DONE` to silence it. Claude `/goal` is user-only.
+- Stop hook `hooks/andx-continue.mjs` (both harnesses): re-prompts while the ledger written in this conversation is non-terminal, max 5 pushes. Never set `DONE` to silence it. Claude `/goal` is user-only.
 
 ## Evidence rule
 

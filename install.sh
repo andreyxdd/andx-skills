@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 if [[ "${1:-}" == "--uninstall-hooks" ]]; then
-  /usr/bin/ruby "$ROOT/scripts/install_hooks.rb" uninstall
+  node "$ROOT/scripts/install-hooks.mjs" uninstall
   exit 0
 fi
 
@@ -64,7 +64,7 @@ for agent in "$ROOT"/agents/*.md; do
   echo "linked $HOME/.claude/agents/$(basename "$agent")"
 done
 
-/usr/bin/ruby "$ROOT/scripts/install_hooks.rb" install
+node "$ROOT/scripts/install-hooks.mjs" install
 
 echo "Done. Canonical source: $ROOT"
 echo "Run ./install-companions.sh for optional companions (e.g. react-best-practices)."
