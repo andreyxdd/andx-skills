@@ -2,7 +2,7 @@
 
 Adapted from Cloudflare security-audit candidate verifier (MIT, `references/cloudflare/`); sandbox and artifact-promotion steps dropped because andx refuters are read-only and run no target code beyond the repo's existing test commands.
 
-The **parent** spawns one fresh `andx-refuter` per critical/high candidate (subagents cannot spawn subagents). Give it only: the candidate JSON, `MERGE_BASE_SHA..EXEC_HEAD`, the selected companions' Validation rules, and any earlier `rejected` record with the same fingerprint. Never another refuter's conclusion.
+The **parent** spawns one fresh `andx-refuter` per critical/high candidate (by choice, so each refuter stays blind; [HARNESS](../andx-orchestration/HARNESS.md) nesting rows). Give it only: the candidate JSON, `MERGE_BASE_SHA..EXEC_HEAD`, the selected companions' Validation rules, and any earlier `rejected` record with the same fingerprint. Never another refuter's conclusion.
 
 ```text
 You did not write this candidate. Try to refute it from repository source at EXEC_HEAD.

@@ -95,7 +95,7 @@ Spawn per [HARNESS.md](./HARNESS.md) (worker / analyst / reviewer). Prompt must 
 
 Resume (`resume=<id>`) for same worktree continuation. New spawn when roles differ (debug analyst → execute worker) or prior failed / worktree torn down.
 
-**Foreground** always; parallel = several spawns in one message (HARNESS).
+**Foreground** always; parallel = several spawns in one message (HARNESS). Parent spawns every worker, reviewer and refuter (by choice, though both harnesses nest); never a fork subagent.
 
 **Worker died** (`resource_exhausted`, rate limit, timeout): read `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, then resume the **same** agent id with "continue from current worktree state" (Claude: `SendMessage` to the named agent). Max 2 resumes, then new spawn only if the worktree is gone, else report blocker.
 

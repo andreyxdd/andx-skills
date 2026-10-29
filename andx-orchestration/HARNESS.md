@@ -17,9 +17,13 @@ Cursor-primary, Claude Code supported. Same skills and agents in both; spawn det
 | Fallback (agent not listed in this session) | `generalPurpose` + paste the agent file body into the prompt | same |
 | Parallel | several Task calls in one message | several Agent calls in one message |
 | Continue same agent | `resume=<id>` | `SendMessage` to the agent |
-| Background | always `run_in_background=false` (background ends the parent turn) | Claude may background subagents anyway → parent waits for the handoff before the next phase |
+| Background | always `run_in_background=false` (background ends the parent turn) | Desktop app and VS Code always background the main conversation's subagents → parent waits for the handoff before the next phase |
 | Long wait (CI, deploy) | Shell with `block_until_ms: 0`, then `AwaitShell` | `Monitor` or background Bash, then wait for the notification |
-| Nesting | subagents cannot spawn subagents → parent spawns every reviewer and refuter | same rule, for portability |
+| Nesting | allowed (2.5+), one level deep | allowed (nested `Agent` calls) |
+| andx choice | parent spawns every worker, reviewer and refuter anyway: blind reviewers, one union, one ledger | same |
+| Fork | n/a | never `subagent_type: "fork"` for workers or reviewers (on by default; inherits the parent conversation → breaks blind review, bloats worker context) |
+| Frontmatter | agent `model: inherit` or `<id>[effort=…]` (e.g. `claude-opus-5[effort=high]`), `readonly`, `is_background`; skill `paths:` globs, `disable-model-invocation` | `effort:`; agent `autoCompactWindow:` (≥ 2.1.312); skill `paths:` |
+| Discovery | skills: `~/.cursor/skills`, `~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`; agents: `~/.cursor/agents`, `~/.claude/agents` | `~/.claude/skills`, `~/.claude/agents` |
 
 Worker rules: [WORKER.md](../andx-execute/WORKER.md). Parent stays at `REPO_ROOT`, merges, and cleans up ([SKILL.md](./SKILL.md) Step 4).
 
