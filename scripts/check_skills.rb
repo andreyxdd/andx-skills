@@ -2,7 +2,7 @@
 # Validate SKILL.md files: YAML frontmatter, name == folder, description present,
 # relative links resolve (in-repo broken = error, external companion = warning).
 #   ruby check_skills.rb [ROOT]            # default: this repo; exit 1 on errors
-#   ruby check_skills.rb --budget          # catalog cost report across installed skill dirs
+#   ruby check_skills.rb --budget          # catalog cost per harness (cursor:, claude:) across installed skill dirs
 #   ruby check_skills.rb --prose           # line counts, duplicated clauses, unresolved links (report only)
 #   ruby check_skills.rb --tokens          # read-chain tokens per composer/agent + catalog tokens per turn
 require "yaml"
@@ -70,8 +70,13 @@ def check(root)
   [errors, warnings]
 end
 
-def visible_skills
-  dirs = %w[~/.cursor/skills ~/.cursor/skills-cursor ~/.claude/skills].map { |d| File.expand_path(d) }
+HARNESS_DIRS = {
+  "cursor" => %w[~/.cursor/skills ~/.agents/skills ~/.claude/skills ~/.codex/skills ~/.cursor/skills-cursor],
+  "claude" => %w[~/.claude/skills],
+}.freeze
+
+def visible_skills(harness = "cursor")
+  dirs = HARNESS_DIRS.fetch(harness).map { |d| File.expand_path(d) }
   enabled = (JSON.parse(File.read(File.expand_path("~/.claude/settings.json")))["enabledPlugins"] rescue {})
   plugin_globs = enabled.select { |_, v| v }.keys.map do |k|
     plugin, market = k.split("@")
@@ -89,17 +94,23 @@ def visible_skills
   seen
 end
 
+def catalog_tokens(seen)
+  seen.sum { |n, v| n.size + v.first[1].size + 20 } / 4
+end
+
 def budget
-  seen = visible_skills
-  # Cursor dedupes same-name skills across skill dirs but not across plugin caches.
-  rows = seen.map { |n, v| [n, v.first[1], v.map(&:first)] }
-  dups = rows.select { |_, _, paths| paths.size > 1 && paths.any? { |p| p.include?("/plugins/cache/") } }
+  HARNESS_DIRS.each_key do |h|
+    seen = visible_skills(h)
+    # Same-name skills dedupe across skill dirs but not against plugin caches.
+    rows = seen.map { |n, v| [n, v.first[1], v.map(&:first)] }
+    dups = rows.select { |_, _, paths| paths.size > 1 && paths.any? { |p| p.include?("/plugins/cache/") } }
+    puts "#{h}: visible=#{rows.size} description_chars=#{rows.sum { |_, d, _| d.size }} " \
+         "tokens_per_turn=#{catalog_tokens(seen)} duplicates=#{dups.map(&:first).sort.join(',')}"
+  end
+  rows = visible_skills.map { |n, v| [n, v.first[1], v.map(&:first)] }
   long = rows.select { |_, d, _| d.size > 250 }
   late = rows.select { |n, d, _| n.start_with?("andx-") && !d[0, 90].include?("/#{n}") }
-  puts "visible (model-invocable) skills: #{rows.size}"
-  puts "description chars: #{rows.sum { |_, d, _| d.size }}"
-  puts "duplicate visible names (plugin vs skill dir): #{dups.map(&:first).sort.join(' ')}"
-  puts "descriptions > 250 chars: #{long.size}"
+  puts "cursor descriptions > 250 chars: #{long.size}"
   long.sort_by { |_, d, _| -d.size }.first(15).each { |n, d, _| puts "  #{d.size}\t#{n}" }
   puts "andx descriptions without /name in first 90 chars: #{late.map(&:first).sort.join(' ')}"
   puts "visible andx skills: #{rows.count { |n, _, _| n.start_with?('andx-') }}"
@@ -128,8 +139,7 @@ end
 
 def tokens(root)
   CHAINS.each { |name, files| puts "  #{chain_tokens(root, files)}\t#{name}" }
-  rows = visible_skills.map { |n, v| n.size + v.first[1].size + 20 }
-  puts "catalog tokens per turn (visible skills): #{rows.sum / 4}"
+  puts "catalog tokens per turn (visible skills): #{catalog_tokens(visible_skills)}"
 end
 
 # Report only: SKILL.md line counts, clauses repeated across files, unresolved links.
