@@ -1,6 +1,7 @@
 ---
 name: andx-execute-and-review
 description: "/andx-execute-and-review: andx-execute plus blind reviewers (Bugbot, security, ponytail) gating the merge; --mr pushes a draft MR and babysits it. Use for \"execute and review\"."
+effort: medium
 ---
 # Andx Execute and Review
 

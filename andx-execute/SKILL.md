@@ -1,6 +1,7 @@
 ---
 name: andx-execute
 description: "/andx-execute: run an approved andx plan in a git worktree via a worker subagent, verify, merge to the current branch, clean up. Use for \"execute the plan\" or \"run the plan\"."
+effort: medium
 ---
 # Andx Execute
 

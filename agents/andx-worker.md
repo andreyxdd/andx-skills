@@ -3,6 +3,7 @@ name: andx-worker
 description: "Implements one andx plan step (or fix delta) inside a given git worktree and returns the andx handoff. Spawned by andx orchestrators only."
 model: inherit
 is_background: false
+autoCompactWindow: 200000
 ---
 # andx worker
 

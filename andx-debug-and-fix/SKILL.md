@@ -1,6 +1,7 @@
 ---
 name: andx-debug-and-fix
 description: "/andx-debug-and-fix: reproduce a bug, readonly root-cause analysis, then fix in a worktree worker and merge when verified. Use for \"debug and fix\" or a known symptom with unknown cause."
+effort: medium
 ---
 # Andx Debug and Fix
 

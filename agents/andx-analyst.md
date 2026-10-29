@@ -5,6 +5,7 @@ model: inherit
 readonly: true
 is_background: false
 disallowedTools: Edit, Write, NotebookEdit
+autoCompactWindow: 200000
 ---
 # andx analyst (read-only)
 

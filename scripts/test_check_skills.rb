@@ -24,6 +24,14 @@ class CheckSkillsTest < Minitest::Test
     assert_match(/MISSING\.md/, errors("broken-link").join)
   end
 
+  def test_unknown_frontmatter_keys_fail_cli
+    out = `ruby #{File.expand_path('check_skills.rb', __dir__)} #{File.join(F, 'unknown-key')}`
+    refute $?.success?
+    assert_match(/error: demo: unknown frontmatter key 'bogus'/, out)
+    assert_match(/error: agents\/demo-agent\.md: unknown frontmatter key 'colour'/, out)
+    refute_match(/'color'/, out)
+  end
+
 def test_hot_read_chains_stay_in_budget
   root = File.expand_path("..", __dir__)
   { "worker" => 1_200, "execute" => 6_000, "execute-and-review" => 11_000 }.each do |name, max|

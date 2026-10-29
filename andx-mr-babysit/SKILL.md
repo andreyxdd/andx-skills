@@ -1,6 +1,7 @@
 ---
 name: andx-mr-babysit
 description: "/andx-mr-babysit: drive a GitLab/GitHub MR to merge-ready (conflicts, unresolved comments, CI) in a bounded loop. Use for an MR URL plus \"babysit\" or \"make merge-ready\"."
+effort: medium
 ---
 # Andx MR Babysit
 

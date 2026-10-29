@@ -10,6 +10,14 @@ require "json"
 
 INSTALL = File.expand_path("~/.cursor/skills")
 
+# Documented frontmatter keys, union of Cursor and Claude Code; anything else is a typo or drift.
+SKILL_KEYS = %w[name description paths globs disable-model-invocation icon color metadata
+                allowed-tools argument-hint when_to_use model effort context agent hooks
+                user-invocable version license arguments].freeze
+AGENT_KEYS = %w[name description model readonly is_background tools disallowedTools skills effort
+                autoCompactWindow permissionMode mcpServers hooks memory isolation color maxTurns
+                background].freeze
+
 def frontmatter(path)
   text = File.read(path)
   return [nil, "no frontmatter"] unless text.start_with?("---")
@@ -43,6 +51,7 @@ def check(root)
     end
     errors << "#{folder}: name '#{fm['name']}' != folder" unless fm["name"] == folder
     errors << "#{folder}: empty description" if fm["description"].to_s.strip.empty?
+    (fm.keys - SKILL_KEYS).each { |k| errors << "#{folder}: unknown frontmatter key '#{k}'" }
     Dir.glob(File.join(dir, "*.md")).each do |md|
       links(md).each do |l|
         next if resolve(l, dir, folder)
@@ -51,6 +60,12 @@ def check(root)
         (local ? errors : warnings) << "#{folder}/#{File.basename(md)}: unresolved link #{l}"
       end
     end
+  end
+  Dir.glob(File.join(root, "agents/*.md")).sort.each do |path|
+    rel = path.sub("#{root}/", "")
+    fm, err = frontmatter(path)
+    next errors << "#{rel}: invalid frontmatter (#{err})" if err
+    (fm.keys - AGENT_KEYS).each { |k| errors << "#{rel}: unknown frontmatter key '#{k}'" }
   end
   [errors, warnings]
 end
