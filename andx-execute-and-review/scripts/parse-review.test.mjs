@@ -53,6 +53,14 @@ test("a Critical/High line without a verdict is UNPARSED, never prose PASS", () 
   assert.equal(parse("spec", null, "I looked.\n- [HIGH] a.js:1 — bug\nno bugs found\n").status, "UNPARSED");
 });
 
+test("a PASS verdict does not hide table or bullet findings", () => {
+  const table = "## VERDICT\nstatus: PASS\n\n| Severity | Location | Finding |\n|---|---|---|\n| HIGH | `a.js:1` | bad |\n";
+  const r = parse("spec", null, table);
+  assert.deepEqual([r.status, r.findings.map((f) => [f.severity, f.location])], ["BLOCK", [["high", "a.js:1"]]]);
+  const both = parse("spec", null, `${table}advisory:\n  - [MEDIUM] b.js:2 — meh\n`);
+  assert.deepEqual(both.findings.map((f) => f.location).sort(), ["a.js:1", "b.js:2"]);
+});
+
 test("status wrapped in backticks or underscores still counts", () => {
   assert.equal(parse("spec", null, "## VERDICT\nstatus: `BLOCK`\nblockers:\n  - [MEDIUM] a.js:1 — x\n").status, "BLOCK");
   assert.equal(parse("spec", null, "## VERDICT\nstatus: _PASS_\n").status, "PASS");

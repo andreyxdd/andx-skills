@@ -5,6 +5,7 @@ import os from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { reviewerOf } from "./review.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(here, "..", "fixtures", "bugbot");
@@ -56,11 +57,14 @@ function repo() {
   return { dir, base, head };
 }
 
-// keys without .txt are reviewer names, written as andx-review-s-<name>.txt for --slug s
+// keys without .txt are reviewer names, written as andx-review-s-<name>.txt for --slug s;
+// --expect defaults to the reviewers those keys name
 function union(r, reports, extra = []) {
   const dir = tmp();
   for (const [name, body] of Object.entries(reports)) fs.writeFileSync(join(dir, name.endsWith(".txt") ? name : `andx-review-s-${name}.txt`), body);
-  const out = run(["union", "--base", r.base, "--head", r.head, "--reports", dir, "--repo", r.dir, "--slug", "s", ...extra]);
+  const expect = [...new Set(Object.keys(reports).map((k) => reviewerOf(k.replace(/^andx-review-s-/, ""))).filter(Boolean))];
+  const args = extra.includes("--expect") ? extra : ["--expect", expect.join(","), ...extra];
+  const out = run(["union", "--base", r.base, "--head", r.head, "--reports", dir, "--repo", r.dir, "--slug", "s", ...args]);
   assert.equal(out.status, 0, out.stderr);
   return JSON.parse(out.stdout);
 }
@@ -145,7 +149,28 @@ test("--slug is required and reads only that run's reports", () => {
     "bugbot.txt": "nonsense",
   });
   assert.deepEqual([v.status, v.unparsed], ["PASS", []]);
-  assert.equal(run(["union", "--base", r.base, "--head", r.head, "--reports", tmp(), "--repo", r.dir]).status, 2);
+  assert.equal(run(["union", "--base", r.base, "--head", r.head, "--reports", tmp(), "--repo", r.dir, "--expect", "bugbot"]).status, 2);
+});
+
+test("--expect is required, canonical, and a missing report blocks", () => {
+  const r = repo();
+  const v = union(r, { "bugbot": "## VERDICT\nstatus: PASS\n" }, ["--expect", "bugbot,spec"]);
+  assert.deepEqual([v.status, v.unparsed], ["BLOCK", ["spec"]]);
+  const base = ["union", "--base", r.base, "--head", r.head, "--reports", tmp(), "--repo", r.dir, "--slug", "s"];
+  assert.equal(run(base).status, 2);
+  assert.equal(run([...base, "--expect", "bugbot,ponytail-review"]).status, 2);
+});
+
+test("a nearby lower-severity confirmation keeps the prior blocker's severity", () => {
+  const r = repo();
+  const prior = join(tmp(), "prior.json");
+  fs.writeFileSync(prior, JSON.stringify({
+    status: "BLOCK", round: 1, base_sha: r.base, head_sha: r.head,
+    blockers: [{ id: "x-panic", status: "confirmed", severity: "high", location: "src/x.go:10", finding: "index out of range panic", reviewers: ["bugbot"] }],
+  }));
+  const fix = commit(r.dir, { "src/x.go": lines(30, (i) => (i === 10 ? "v := items[1]" : `line ${i}`)) }, "fix");
+  const v = union({ ...r, base: r.head, head: fix }, { "bugbot": "## VERDICT\nstatus: PASS\nadvisory:\n  - [MEDIUM] src/x.go:11 — index panic remains\n" }, ["--round", "2", "--prior", prior]);
+  assert.deepEqual([v.status, v.blockers.map((f) => [f.id, f.severity])], ["BLOCK", [["x-panic", "high"]]]);
 });
 
 test("a/ diff prefix stripped once; a reviewer's b/ prefix is tolerated", () => {

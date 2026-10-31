@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Normalize one reviewer's raw output into {status, findings[]}.
 // Usage: node parse-review.mjs <reviewer-name> [file]   (stdin when no file)
-// status: BLOCK (any critical/high) | FIX (medium only) | PASS | UNPARSED
+// status: BLOCK (VERDICT says BLOCK, or any critical/high incl. table rows) | FIX (medium only) | PASS | UNPARSED
 // UNPARSED also: more than one real VERDICT; a Critical/High line with no VERDICT; bugbot XML with more
 // than one <answer>, an unclosed one, a <bug> that did not parse, or an unknown severity.
 // <answer> XML is read for bugbot only. "> " lines and `code` spans never count as a verdict, table or prose.
@@ -42,15 +42,15 @@ export function parse(text, reviewer) {
   if (verdicts.length > 1) return UNPARSED;
   const findings = [...text.matchAll(/^\s*-\s*\[(CRITICAL|HIGH|MEDIUM|LOW|NEEDS_VALIDATION)\]\s*(\S+)\s*[—-]\s*(.+)((?:\n[ \t]*>.*)*)/gim)].map(
     ([, sev, loc, msg, ev]) => withEvidence({ reviewer, severity: sev.toLowerCase(), location: loc, finding: msg.trim() }, ev.trim()));
-  if (verdicts.length === 1) return { status: verdicts[0].toUpperCase() === "BLOCK" ? "BLOCK" : statusFor(findings), findings };
-  if (findings.some((f) => SEV[f.severity] >= 3)) return UNPARSED;
-
   // 3) Severity table rows: | HIGH | `file:line` | finding |
-  const rows = [...unquoted.matchAll(/^\|\s*\**(CRITICAL|HIGH|MEDIUM|LOW)\**\s*\|\s*`?([^|`]+?)`?\s*\|\s*(.+?)\s*\|\s*$/gim)];
-  if (rows.length) {
-    const findings = rows.map(([, s, l, f]) => ({ reviewer, severity: s.toLowerCase(), location: l.trim(), finding: f }));
-    return { status: statusFor(findings), findings };
+  const rows = [...unquoted.matchAll(/^\|\s*\**(CRITICAL|HIGH|MEDIUM|LOW)\**\s*\|\s*`?([^|`]+?)`?\s*\|\s*(.+?)\s*\|\s*$/gim)]
+    .map(([, s, l, f]) => ({ reviewer, severity: s.toLowerCase(), location: l.trim(), finding: f }));
+  if (verdicts.length === 1) {
+    const all = [...findings, ...rows];
+    return { status: verdicts[0].toUpperCase() === "BLOCK" ? "BLOCK" : statusFor(all), findings: all };
   }
+  if (findings.some((f) => SEV[f.severity] >= 3)) return UNPARSED;
+  if (rows.length) return { status: statusFor(rows), findings: rows };
 
   // 4) Plain "no bugs" prose.
   if (/no (high-confidence )?bugs|found no bugs|no issues found/i.test(plain)) return { status: "PASS", findings: [] };
