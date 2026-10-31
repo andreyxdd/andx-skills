@@ -90,23 +90,40 @@ Unless artifact mode or `--fast`:
 
 `--deep`: add react-best-practices + accessibility passes on UI diff paths.
 
-Prompt shape per review-bugbot / review-security skills. `Custom Instructions`:
-MR context + "review only `git diff <base_sha>..<head_sha>`" (MR diff refs from
-step 4, never the default branch) + focus UX/API for forms + API clients +
-**workspace review gates** from step 5 (if any). Spawn all reviewers in one
-message, foreground.
+Package the MR diff (refs from step 4, never the default branch) into a per-MR reports dir:
 
-Normalize each output with
-[parse-review.mjs](../andx-execute-and-review/scripts/parse-review.mjs)
-(Bugbot native XML first; never re-request Bugbot), then synthesize.
+```bash
+RUN_DIR=.worktrees/.andx-run/review-mr-<iid>; mkdir -p "$RUN_DIR"
+git check-ignore -q .worktrees/ || echo .worktrees/ >> "$(git rev-parse --git-common-dir)/info/exclude"
+node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs package --base <base_sha> --head <head_sha> --out "$RUN_DIR/package.diff"
+```
+
+Prompt shape per review-bugbot / review-security skills, plus (Bugbot: in `Custom Instructions`, with "review only `git diff <base_sha>..<head_sha>`"):
+
+```
+Package: <RUN_DIR>/package.diff. Review only that diff. MR context: <title, description>.
+Focus: UX/API for forms + API clients. Workspace gates: <titles from step 5 or none>.
+Report: write your full report to <RUN_DIR>/andx-review-mr-<iid>-<reviewer>.txt and reply with one line:
+  that path and your status. If you cannot write files, reply with the full report instead.
+Rules: every High/Critical quotes the offending diff line (`code` or a "> " line), else it counts as Medium.
+End the report with a ## VERDICT block, one "- [SEV] <file:line> — <one line>" per finding.
+```
+
+Spawn all reviewers in one message, foreground. `<reviewer>`: `bugbot`, `security`, `ponytail`, `react`, `a11y`. Save inline replies to that path verbatim. Save the refuters' JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none). Cursor `security-review` (`--deep`) is not a union reviewer; fold its findings in by hand in step 7.
 
 ### 7. Synthesize
 
-- Dedup overlapping findings (same `location` or same root cause)
-- Sort: high → medium → low → nitpick
+```bash
+node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs union --base <base_sha> --head <head_sha> \
+  --reports "$RUN_DIR" --slug mr-<iid> --expect <reviewers spawned> --refuters "$RUN_DIR/refuters.json" > "$RUN_DIR/verdict.json"
+```
+
+The union dedups, drops wrong-base findings, applies refuters and fails closed (rules: `review.mjs --help`). Work from `verdict.json` only. A reviewer in `unparsed`: Bugbot → read its report and classify by hand (never re-request); others → re-request once, then report it as unreviewed.
+
+- Sort `blockers` + `advisory` + `deferred`: high → medium → low → nitpick
 - Enrich each with `ux_flow` / `api_note` (read i18n, apiSlice, types)
 - **Workspace gates:** each violated gate from step 5 → finding at the gate file severity.
-- **Harness jargon:** `git diff <base_sha>..<head_sha> | rg -n '^\+.*(ponytail:|shrink:|andx:|caveman|/andx-|andx/exec-)'`; each hit → medium per [CODE-COMMENTS.md](../andx-execute/CODE-COMMENTS.md).
+- **Harness jargon:** `node ~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs diff <base_sha> <head_sha>`; each hit → medium.
 - Apply comment budget: inline = high/medium; nitpicks → separate bucket
 - Cap ~8 inline; overflow → summary table only
 

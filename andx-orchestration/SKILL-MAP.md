@@ -52,8 +52,6 @@ Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-an
 
 Load `design_refs` as **immutable contract** in preflight + worker prompt.
 
-Composer: `/andx-execute-review-and-deploy` = execute-and-review DoD (incl. concurrent-merge) → auto-push → `/andx-deploy`.
-
 ## Review phase (`/andx-execute-and-review`)
 
 | Skill | Trigger | Name |
@@ -61,7 +59,7 @@ Composer: `/andx-execute-review-and-deploy` = execute-and-review DoD (incl. conc
 | `review-bugbot` → bugbot | Always | Bugbot |
 | `andx-security-review` (gate) → agent `andx-security-reviewer` | Always; parent refutes each proposed critical/high with `andx-refuter`; Cursor `security-review` only under `--deep` | Security |
 | `ponytail-review` | Always — [resolve](./HARNESS.md#ponytail-resolve) | Ponytail |
-| agent `andx-spec-reviewer` | Always (only reviewer checking plan compliance). Docs-only plans: Bugbot + Spec only. Drop after 20 artifacts with zero unique catches (`reviewers[]`) | Spec |
+| agent `andx-spec-reviewer` | Always (only reviewer checking plan compliance). Docs-only plans: Bugbot + Spec only. Drop after 20 artifacts with `spec unique=0` from `node "$(dirname "$(realpath ~/.cursor/skills/andx-orchestration)")/scripts/review-stats.mjs" .cursor/reviews` | Spec |
 | `ponytail-audit` | Diff adds deps or new files under `touch` | Audit |
 | `react-best-practices` | Diff touches React paths | React |
 | `accessibility` | UI diff + a11y in plan | A11y |
