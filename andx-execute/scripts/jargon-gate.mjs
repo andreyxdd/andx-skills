@@ -8,23 +8,29 @@ import { spawnSync } from "node:child_process";
 const HELP = `usage:
   jargon-gate.mjs diff <base> <head> [--repo DIR] [--allow-skill-text]
       scans lines added in git diff <base>...<head> (merge-base to head, like a PR diff)
+      for persona names, comment tags, skill-family tags / slash commands / run branches,
+      worktree paths and dated run ids; a bare skill-family name is allowed in code
   jargon-gate.mjs text <file|->
-      scans commit / MR text, e.g. git log --format='%s%n%b' main..HEAD | jargon-gate.mjs text -
+      scans commit / MR text with the same list plus any mention of the skill family,
+      e.g. git log --format='%s%n%b' main..HEAD | jargon-gate.mjs text -
   --allow-skill-text  skip *.md inside top-level folders that hold a SKILL.md (skill repos)
 exit: 0 clean, 1 hits (path:line: text), 2 usage or git error`;
 
 // One bracketed letter per alternative keeps this file from matching itself.
-export const JARGON = new RegExp([
+export const BASE = [
   "pony[t]ail", //               code-minimizing persona: skill name and its comment tag
   "shrin[k]:", //                 shrink-later comment tag
   "cavema[n]", //                 terse-prose persona
-  "an[d]x", //                    skill family: tags, slash commands, run branches
   "\\.worktree[s][\\\\/]", //     local worktree paths (POSIX or Windows)
   "exe[c]-[a-z0-9-]*20\\d{6}", // run ids and branch stamps with a date
-].join("|"), "i");
+];
+// Code may name the skill family (package or repo names); only its tags, commands and run branches leak.
+export const DIFF_JARGON = new RegExp([...BASE, "an[d]x:", "/an[d]x-", "an[d]x/exe[c]-"].join("|"), "i");
+// Commit and MR text must not mention the skill family at all.
+export const TEXT_JARGON = new RegExp([...BASE, "an[d]x"].join("|"), "i");
 
-const scan = (label, lines, first = 1) =>
-  lines.flatMap((l, i) => (JARGON.test(l) ? [`${label}:${first + i}: ${l.trim()}`] : []));
+const scan = (re, label, lines, first = 1) =>
+  lines.flatMap((l, i) => (re.test(l) ? [`${label}:${first + i}: ${l.trim()}`] : []));
 
 function git(repo, ...args) {
   const r = spawnSync("git", ["-C", repo, ...args], { encoding: "utf8", maxBuffer: 1 << 30 });
@@ -33,7 +39,8 @@ function git(repo, ...args) {
 }
 
 // Added lines per file from a -U0 diff; hunk counts decide what is a header, so an added
-// line that itself starts with "++" is still read as content.
+// line that itself starts with "++" is still read as content. Git ends "+++ b/<path>"
+// with a TAB when the path has a space.
 function addedLines(diff) {
   const out = [];
   let file = null, ln = 0, oldLeft = 0, newLeft = 0;
@@ -45,7 +52,7 @@ function addedLines(diff) {
     }
     const h = /^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(l);
     if (h) [oldLeft, ln, newLeft] = [Number(h[1] ?? 1), Number(h[2]), Number(h[3] ?? 1)];
-    else if (l.startsWith("+++ ")) file = l.slice(4).replace(/^b\//, "");
+    else if (l.startsWith("+++ ")) file = l.slice(4).replace(/\t$/, "").replace(/^b\//, "");
   }
   return out;
 }
@@ -59,7 +66,7 @@ function diffHits(base, head, repo, allowSkillText) {
   };
   return addedLines(diff)
     .filter(({ file }) => !(allowSkillText && file.endsWith(".md") && file.includes("/") && isSkill(file.split("/")[0])))
-    .flatMap(({ file, line, text }) => scan(file, [text], line));
+    .flatMap(({ file, line, text }) => scan(DIFF_JARGON, file, [text], line));
 }
 
 export function main(argv) {
@@ -71,7 +78,7 @@ export function main(argv) {
   let hits;
   try {
     if (mode === "diff" && a && b && repo && rest.length === 3) hits = diffHits(a, b, repo, flags.size > 0);
-    else if (mode === "text" && a && rest.length === 2) hits = scan(a, fs.readFileSync(a === "-" ? 0 : path.resolve(a), "utf8").split(/\r?\n/));
+    else if (mode === "text" && a && rest.length === 2) hits = scan(TEXT_JARGON, a, fs.readFileSync(a === "-" ? 0 : path.resolve(a), "utf8").split(/\r?\n/));
     else if (argv.includes("--help")) return console.log(HELP), 0;
     else return console.error(HELP), 2;
   } catch (e) {
