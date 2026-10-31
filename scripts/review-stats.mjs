@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Per-reviewer catch counts across REVIEW-ARTIFACT files (andx-mr-review/FINDINGS-SCHEMA.md, v1 and v2).
-//   node review-stats.mjs [--json] <dir|file...>   # dir = every *.json in it
+//   node review-stats.mjs <dir|file...>   # dir = every *.json in it
 // findings     non-rejected findings the reviewer raised
 // unique       of those, findings no other reviewer raised
 // high_unique  of those, confirmed (v1: no status) high or critical
@@ -8,11 +8,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// "cursor security-review", "andx-spec-reviewer", "Ponytail-Review" -> security, spec, ponytail.
-const ALIASES = { "ponytail-audit": "audit" };
+// "cursor security-review", "andx-spec-reviewer", "Ponytail-Review", "ponytail-audit" -> security, spec, ponytail, audit.
 export function canonical(name) {
   const n = String(name).trim().toLowerCase().replace(/^(cursor\s+|andx-)/, "").replace(/[-\s]review(er)?$/, "");
-  return ALIASES[n] ?? n;
+  return n === "ponytail-audit" ? "audit" : n;
 }
 
 export function stats(artifacts) {
@@ -43,12 +42,10 @@ const files = (p) => fs.statSync(p).isDirectory()
   : [p];
 
 if (import.meta.main) {
-  const args = process.argv.slice(2);
-  const json = args.includes("--json");
-  const inputs = args.filter((a) => a !== "--json");
-  if (!inputs.length || args.includes("--help")) {
-    console.error("usage: review-stats.mjs [--json] <dir|file...>");
-    process.exit(args.includes("--help") ? 0 : 2);
+  const inputs = process.argv.slice(2);
+  if (!inputs.length || inputs.includes("--help")) {
+    console.error("usage: review-stats.mjs <dir|file...>");
+    process.exit(inputs.includes("--help") ? 0 : 2);
   }
   let s;
   try {
@@ -58,9 +55,6 @@ if (import.meta.main) {
     process.exit(1);
   }
   const line = (c) => `findings=${c.findings} unique=${c.unique} high_unique=${c.high_unique} rejected=${c.rejected}`;
-  if (json) console.log(JSON.stringify(s, null, 2));
-  else {
-    for (const [r, c] of Object.entries(s.reviewers)) console.log(`${r} ${line(c)}`);
-    console.log(`total files=${s.files} ${line(s.total)}`);
-  }
+  for (const [r, c] of Object.entries(s.reviewers)) console.log(`${r} ${line(c)}`);
+  console.log(`total files=${s.files} ${line(s.total)}`);
 }
