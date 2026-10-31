@@ -26,6 +26,7 @@ SLUG=<plan file slug, kebab, [a-z0-9-], max 40>
 STAMP=$(date +%Y%m%d-%H%M%S)
 EXEC_BRANCH="andx/exec-${SLUG}-${STAMP}"
 WORKTREE_DIR="$REPO_ROOT/.worktrees/exec-${SLUG}-${STAMP}"
+SHIP_ID="$EXEC_BRANCH"   # ship queue id: set once, ledger ship_id; hotfix worktrees never change it
 ```
 
 `SLUG` from `.cursor/plans/<slug>.plan.md` basename (filesystem-safe; not the human `name:`). No plan → `debug` | `hotfix` | `unnamed`.
@@ -61,7 +62,7 @@ State `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR` in the reply b
 
 Run **before any implementation subagent spawn**, regardless of clean/dirty status. Do not edit the primary checkout.
 
-**Sweep first (dry-run):** `node ~/.cursor/skills/andx-orchestration/scripts/worktree-sweep.mjs "$REPO_ROOT"` → put the one-line summary (`removed= kept=`) in the reply. Use `--apply` only on user request. It removes clean + merged worktrees only and prints manual commands for the rest. Never force-remove without per-item confirmation. Then print `ship-queue.mjs status --repo "$REPO_ROOT" --touch <plan touch>` (Step 4 path; advisory overlap, never blocks).
+**Sweep first (dry-run):** `node ~/.cursor/skills/andx-orchestration/scripts/worktree-sweep.mjs "$REPO_ROOT"` → put the one-line summary (`removed= kept=`) in the reply. Use `--apply` only on user request. It removes clean + merged worktrees only and prints manual commands for the rest. Never force-remove without per-item confirmation. Then `ship-queue.mjs announce`, then `status`, each `"$SHIP_ID" --repo "$REPO_ROOT" --touch <plan touch>` (Step 4 path; advisory).
 
 **Exception:** [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md) defers Step 1 until after readonly debug handoff (Phase C). All **implementation** subagents still require worktree before spawn.
 
@@ -113,14 +114,14 @@ After subagent reports pass and Phase 3 passed on `EXEC_BRANCH`. Wave merges inh
 
 ### Ship queue
 
-Parallel runs land one at a time, in completion order. Start in one background shell (HARNESS long wait), ledger `phase: ship-wait`; skip for push-to-MR runs and deploy hotfixes (lock already held):
+Runs land one at a time, in completion order. One background shell (HARNESS long wait), ledger `phase: ship-wait`; skip for push-to-MR runs and deploy hotfixes (lock held):
 
 ```bash
 Q=~/.cursor/skills/andx-orchestration/scripts/ship-queue.mjs
-node "$Q" join "$EXEC_BRANCH" --repo "$REPO_ROOT" --touch <plan touch> && node "$Q" wait "$EXEC_BRANCH" --repo "$REPO_ROOT"
+node "$Q" join "$SHIP_ID" --repo "$REPO_ROOT" --touch <plan touch> && node "$Q" wait "$SHIP_ID" --repo "$REPO_ROOT"
 ```
 
-`GRANTED` → go. `HALTED`/`TIMEOUT` → stop, `AWAITING_USER`, quote `status`. Holder: `heartbeat` at each phase boundary, `ship-queue.mjs release` after cleanup (deploy composers: after fresh health); final deploy failure → `halt --reason <blocker>`. Rules: `--help`.
+`GRANTED` → go. `HALTED` → stop, `AWAITING_USER`, quote `status`. Holder: `heartbeat "$SHIP_ID"` at each phase boundary and right before and after each long wait (CI, deploy, health); `ship-queue.mjs release "$SHIP_ID"` after cleanup (deploy composers: after fresh health); failures → [On fail](#on-fail). Rules: `--help`.
 
 ### Concurrent-merge
 
@@ -128,7 +129,7 @@ node "$Q" join "$EXEC_BRANCH" --repo "$REPO_ROOT" --touch <plan touch> && node "
 2. **Always integrate latest TARGET into EXEC** in `WORKTREE_DIR` (`git merge "$TARGET_BRANCH"`) before landing. No-op if EXEC already based on TARGET.
 3. **Conflicts:** parent never edits conflict markers. Spawn or resume worker on `EXEC_BRANCH`. Intent: keep both sides when compatible (same as [/andx-mr-babysit](../andx-mr-babysit/SKILL.md)). Irreconcilable → abort the worktree merge, ask user, leave worktree.
 4. **After a conflict-resolution commit:** Phase 3 on EXEC. If parent is review-gated ([/andx-execute-and-review](../andx-execute-and-review/SKILL.md) or [/andx-execute-review-and-deploy](../andx-execute-review-and-deploy/SKILL.md)) **and** product source changed → Bugbot on the resolution delta before landing. Clean integrate → no extra review.
-5. **If TARGET moved again:** retry integrate ≤3.
+5. **If TARGET moved again** (fallback for manual commits): retry integrate ≤3.
 6. **Land on primary (fast-forward only):** EXEC already contains TARGET, so landing never creates a merge on primary.
 
 ```bash
@@ -145,9 +146,7 @@ git merge --ff-only "$EXEC_BRANCH"
 
 Parent may `git merge --abort` on TARGET. Resolution commits live on EXEC only.
 
-**Re-run Phase 3** on `TARGET_BRANCH` (full regression + every verification-table row). Parent runs these gates — do not trust subagent-only evidence after merge.
-
-**Post-merge/rebase lint (mandatory):** Run discovered lint on `TARGET_BRANCH` even for docs-only plans. A merge from `main` can fail CI on formatting in files the plan never touched.
+**Re-run Phase 3** on `TARGET_BRANCH` (full regression + lint even for docs-only + every verification-table row). Parent runs these gates; never trust subagent-only evidence after merge.
 
 **Lint failures on merged code:** Parent must **not** patch `src/` inline. Spawn a one-step worker in a fresh worktree (or resume worker) with `verification: pnpm run lint --fix` (or repo equivalent), merge, re-run Phase 3.
 
@@ -157,7 +156,7 @@ Run from `REPO_ROOT` on `TARGET_BRANCH`. Quote fresh command output in the reply
 
 ```bash
 git worktree list
-git worktree remove "$WORKTREE_DIR"   # skip only for same-checkout fallback
+git worktree remove "$WORKTREE_DIR"
 git branch -d "$EXEC_BRANCH"
 git worktree list   # prove andx/exec-… entry gone
 ```
@@ -172,13 +171,14 @@ Skip `worktree remove` only when `WORKTREE_DIR="$REPO_ROOT"` (fallback). Still r
 
 Do **not** merge partial work unless the user explicitly asks. **Do not** remove the worktree — leave it for inspection. Report `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR`, conflict paths, failing commands.
 
+Any stop while holding the ship queue: nothing landed yet (unresolvable conflict, Phase 3 red on EXEC, user abort) → `release "$SHIP_ID"`; after landing (post-merge Phase 3 red, final deploy failure) → `halt "$SHIP_ID" --reason <blocker>`.
+
 ## Guardrails
 
 Hard limits; the steps above are the source of truth for each.
 
 - Every source change (including a one-line lint fix) is made by a worker in a `.worktrees/` worktree, even when the tree is clean. The parent reads anything, runs read-only commands and deploy commands, and writes plans, ledgers, and chat.
 - Parent stays at `REPO_ROOT` (`move_agent_to_root(REPO_ROOT)` restores drift); workers address `$WORKTREE_DIR` by absolute path.
-- Workers commit on `EXEC_BRANCH` and hand off; the parent alone merges and cleans up.
 - Primary is touched only by `checkout` and `merge --ff-only`. A failed integrate ends in `git merge --abort`, leaving TARGET clean.
 - "Done" means merge + post-merge Phase 3 on `TARGET_BRANCH` + quoted cleanup evidence, all fresh from this run.
 - Push and deploy start after Step 4 cleanup.

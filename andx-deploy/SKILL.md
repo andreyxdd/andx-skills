@@ -15,7 +15,7 @@ Code committed; need prod deploy + health. Features → `/andx-execute` / `/andx
 
 ## Preflight
 
-Entered from `/andx-execute-and-deploy` or `/andx-execute-review-and-deploy` (Phase A′): start only after their cleanup evidence is quoted, from `REPO_ROOT` on `TARGET_BRANCH`, and always push in step 2 (no origin → skip and note it). The run still holds the ship queue lock (orch Step 4): `ship-queue.mjs heartbeat "$EXEC_BRANCH" --repo "$REPO_ROOT"` before push, deploy, and health.
+Entered from `/andx-execute-and-deploy` or `/andx-execute-review-and-deploy` (Phase A′): start only after their cleanup evidence is quoted, from `REPO_ROOT` on `TARGET_BRANCH`, and always push in step 2 (no origin → skip and note it). The run still holds the ship queue lock under the ledger's `ship_id` (orch Step 4): `ship-queue.mjs heartbeat "$SHIP_ID" --repo "$REPO_ROOT"` right before and after each push, CI watch, deploy, and health check.
 
 1. Anchor: `git rev-parse HEAD`, branch, dirty/unpushed.
 2. Push when `origin` exists **and** deploy needs remote: `git remote get-url origin && git push -u origin HEAD`. Force-push of main/master only on explicit ask. Push failed and deploy needs remote → fix before deploying.
@@ -46,7 +46,7 @@ Run documented production sequence only. Respect backup/migrate rules. No secret
 
 Fresh checks after deploy (HTTP health, process active, revision). Evidence rule: [HARNESS.md](../andx-orchestration/HARNESS.md).
 
-Entered from a composer: after fresh health output, `ship-queue.mjs release "$EXEC_BRANCH" --repo "$REPO_ROOT"` (the next queued run lands only now).
+Entered from a composer: after fresh health output, `ship-queue.mjs release "$SHIP_ID" --repo "$REPO_ROOT"` (the next queued run lands only now).
 
 ### Failure loop
 
@@ -56,7 +56,7 @@ FAIL → diagnose → (source fix?) orchestration worktree worker
      (max 3; then stop with blocker)
 ```
 
-The hotfix merge reuses the held lock (no `join`/`wait`). After the third failure, from a composer: `ship-queue.mjs halt "$EXEC_BRANCH" --repo "$REPO_ROOT" --reason "<blocker>"` instead of `release`, ledger `terminal: AWAITING_USER`. Queued runs stop with `HALTED`; the user runs `ship-queue.mjs resume` once HEAD is healthy.
+The hotfix gets its own `EXEC_BRANCH` but keeps `SHIP_ID` and the held lock (no `announce`/`join`/`wait`). After the third failure, from a composer: `ship-queue.mjs halt "$SHIP_ID" --repo "$REPO_ROOT" --reason "<blocker>"` instead of `release`, ledger `terminal: AWAITING_USER`. Queued runs stop with `HALTED`; the user runs `ship-queue.mjs resume` once HEAD is healthy.
 
 Parent never patches source inline.
 

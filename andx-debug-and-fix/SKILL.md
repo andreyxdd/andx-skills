@@ -22,7 +22,7 @@ A Parent: read-only repro (must fail)
 B Analyst: diagnosing-bugs Phases 1–3 → handoff (no worktree)
 C Parent: map handoff → steps + verification table; detect REACT_STACK
 0 Orch Step 1 worktree
-D New execute worker Phases 0–4 → orch Step 4 ship queue + concurrent-merge + cleanup → ship-queue release
+D New execute worker Phases 0–4 → orch Step 4 ship queue + concurrent-merge + cleanup → ship-queue release "$SHIP_ID" (fail: orch On fail)
 ```
 
 Do **not** resume analyst as worker. Run ledger `mode: debug` from Phase A ([orch](../andx-orchestration/SKILL.md#run-ledger-composers-execute-debug-and-fix-deploy)); analyst `fail`/`inconclusive` → `terminal: ESCALATED`. End with the orch status line.

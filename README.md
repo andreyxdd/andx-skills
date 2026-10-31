@@ -173,7 +173,7 @@ Bug instead of feature: `/andx-debug-and-fix <symptom>` (read-only analysis → 
 
 ## Parallel runs
 
-Three plans, three fresh chats, same repo: paste each plan's `Fresh chat:` line into its own chat. The runs execute (and review) in parallel, each in its own worktree. They ship one at a time, in the order they finish: a ready run waits in a background shell for the repo's ship queue, then integrates the latest branch, lands, and (deploy modes) pushes, deploys and checks health before the next run starts. A run whose final deploy fails halts the queue; the waiting chats stop and ask you. Fix HEAD, then:
+Three plans, three fresh chats, same repo: paste each plan's `Fresh chat:` line into its own chat. The runs execute (and review) in parallel, each in its own worktree. They ship one at a time, in the order they finish: a ready run waits in a background shell for the repo's ship queue, then integrates the latest branch, lands, and (deploy modes) pushes, deploys and checks health before the next run starts. A run that fails before landing releases its turn; one that fails after landing (post-merge checks or final deploy) halts the queue, and the waiting chats stop and ask you. Fix HEAD, then:
 
 ```bash
 node ~/.cursor/skills/andx-orchestration/scripts/ship-queue.mjs status --repo .   # holder, waiters, halt reason

@@ -18,7 +18,7 @@ Cursor-primary, Claude Code supported. Same skills and agents in both; spawn det
 | Parallel | several Task calls in one message | several Agent calls in one message |
 | Continue same agent | `resume=<id>` | `SendMessage` to the agent |
 | Background | always `run_in_background=false` (background ends the parent turn) | Desktop app and VS Code always background the main conversation's subagents → parent waits for the handoff before the next phase |
-| Long wait (CI, deploy, ship queue) | Shell with `block_until_ms: 0`, then `AwaitShell` (queue: `GRANTED\|HALTED\|TIMEOUT`) | `Monitor` or background Bash, then wait for the notification |
+| Long wait (CI, deploy, ship queue) | Shell with `block_until_ms: 0`, then `AwaitShell` (queue: `GRANTED\|HALTED`) | `Monitor` or background Bash, then wait for the notification |
 | Nesting | allowed (2.5+), one level deep | allowed (nested `Agent` calls) |
 | andx choice | parent spawns every worker, reviewer and refuter anyway: blind reviewers, one union, one ledger | same |
 | Fork | never `Task(resume="self")` for workers or reviewers (forks the parent conversation → breaks blind review, bloats worker context) | never `subagent_type: "fork"` for workers or reviewers (on by default; same reason) |
