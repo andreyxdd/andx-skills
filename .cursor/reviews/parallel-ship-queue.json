@@ -1,0 +1,210 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/parallel-ship-queue.plan.md",
+  "target_branch": "main",
+  "base_sha": "ace0d63261dac64e0c41d30a5b6289af94da7dee",
+  "head_sha": "356d75c2345fdbd9781d47f4ef0ce2e8f00c8592",
+  "reviewed_at": "2026-10-31T17:19:19Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "hotfix-ship-id",
+      "status": "confirmed",
+      "location": "andx-deploy/SKILL.md:58",
+      "finding": "hotfix path used per-worktree EXEC_BRANCH for queue calls; stable SHIP_ID now",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "high",
+      "resolution": "fixed"
+    },
+    {
+      "id": "fail-path-no-release",
+      "status": "confirmed",
+      "location": "andx-orchestration/SKILL.md:171",
+      "finding": "On fail left the lock held; release before landing, halt after",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "high",
+      "resolution": "fixed"
+    },
+    {
+      "id": "review-dod-release-vs-deploy",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/SKILL.md:101",
+      "finding": "DoD released the queue that deploy composers must keep",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "high",
+      "resolution": "fixed"
+    },
+    {
+      "id": "corrupt-lock-freeze",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:33",
+      "finding": "unparseable lock never reclaimed; old garbage reclaimed by mtime",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "holder-heartbeat-gap",
+      "status": "confirmed",
+      "location": "andx-orchestration/SKILL.md:124",
+      "finding": "stale default 120 and heartbeat around long waits",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "stale-vs-poll-resurrection",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:83",
+      "finding": "stale window must exceed 3x poll",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "windows-rm-crash",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:42",
+      "finding": "rm retries on EPERM/EBUSY",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "preflight-overlap-blind",
+      "status": "confirmed",
+      "location": "andx-orchestration/SKILL.md:64",
+      "finding": "announce lets status --touch see in-flight peers",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "wx-untested",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.test.mjs:36",
+      "finding": "exclusive lock test kills wx->w mutation",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "unused-cli-surface",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:59",
+      "finding": "timeout-min, release --status, waiter heartbeat removed; encodeURIComponent filenames",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "hotfix-stop-release",
+      "status": "confirmed",
+      "location": "andx-orchestration/SKILL.md:174",
+      "finding": "stop after landing always halts",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "ledger-ship-id",
+      "status": "confirmed",
+      "location": "andx-orchestration/SKILL.md:42",
+      "finding": "ledger template records ship_id",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "migration-gate-stop",
+      "status": "confirmed",
+      "location": "andx-deploy/SKILL.md:23",
+      "finding": "migration gate block after landing halts",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "queue-symlink-follow",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:92",
+      "finding": "symlinked queue dir refused",
+      "reviewers": [
+        "security"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "waiter-abort-ticket",
+      "status": "confirmed",
+      "location": "andx-orchestration/SKILL.md:174",
+      "finding": "aborting before GRANTED cannot release (holder-only); head ticket blocks until stale",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "deferred"
+    },
+    {
+      "id": "stale-reclaim-toctou",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:163",
+      "finding": "two processes both believing they are head can both remove a stale lock; generation counter would close it",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "deferred"
+    },
+    {
+      "id": "in-place-writes",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:34",
+      "finding": "tmp+rename would remove mid-write handling; Windows rename EPERM caveat",
+      "reviewers": [
+        "ponytail",
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "deferred"
+    },
+    {
+      "id": "acquire-test-redundant",
+      "status": "rejected",
+      "location": "andx-orchestration/scripts/ship-queue.test.mjs:138",
+      "finding": "delete exclusive-lock test; kept because it is the only test that kills the wx->w mutation",
+      "reviewers": [
+        "ponytail"
+      ]
+    }
+  ]
+}
