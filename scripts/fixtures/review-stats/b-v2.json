@@ -1,0 +1,17 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/b.plan.md",
+  "target_branch": "main",
+  "base_sha": "2222222222222222222222222222222222222222",
+  "head_sha": "3333333333333333333333333333333333333333",
+  "reviewed_at": "2026-10-02T00:00:00Z",
+  "verdict": "PASS",
+  "findings": [
+    { "id": "g1", "status": "confirmed", "severity": "critical", "resolution": "fixed", "location": "b.js:1", "finding": "one", "reviewers": ["bugbot", "security"] },
+    { "id": "g2", "status": "confirmed", "severity": "critical", "resolution": "fixed", "location": "b.js:2", "finding": "two", "reviewers": ["bugbot"] },
+    { "id": "g3", "status": "needs_validation", "location": "b.js:3", "finding": "three", "blockers": ["x"], "validation_plan": "y", "reviewers": ["security"] },
+    { "id": "g4", "status": "rejected", "location": "b.js:4", "finding": "four", "reviewers": ["bugbot"] },
+    { "id": "g5", "status": "confirmed", "severity": "medium", "location": "b.js:5", "finding": "five", "reviewers": ["ponytail", "spec"] }
+  ]
+}
