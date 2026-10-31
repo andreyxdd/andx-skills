@@ -5,8 +5,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { TERMINAL, readLedger, writeLedger } from "../andx-orchestration/scripts/run.mjs";
 
-const TERMINAL = ["DONE", "ABORTED", "ESCALATED", "AWAITING_USER"];
 const MAX_CONTINUES = 5;
 const STALE_MS = 24 * 3600 * 1000;
 
@@ -46,9 +46,8 @@ function decide(input, now = Date.now()) {
   const log = fs.readFileSync(transcript, "utf8");
   const dirs = [input.cwd, ...[input.workspace_roots ?? []].flat()].filter((d) => d != null);
   for (const p of ledgerPaths(dirs)) {
-    let data;
-    try { data = JSON.parse(fs.readFileSync(p, "utf8")); } catch { continue; }
-    if (!data || typeof data !== "object" || Array.isArray(data)) continue;
+    const data = readLedger(p);
+    if (!data) continue;
     const continues = Number.parseInt(data.continues ?? 0, 10) || 0;
     if (TERMINAL.includes(String(data.terminal ?? ""))) continue;
     if (continues >= MAX_CONTINUES) continue;
@@ -56,7 +55,7 @@ function decide(input, now = Date.now()) {
     const base = path.basename(p);
     if (!log.includes(`.andx-run/${base}`) && !log.includes(`.andx-run\\${base}`)) continue;
     data.continues = continues + 1;
-    fs.writeFileSync(p, JSON.stringify(data, null, 2));
+    writeLedger(p, data);
     return {
       decision: "block",
       reason: `andx run '${data.slug ?? ""}' (mode ${data.mode ?? ""}) is at phase ${data.phase ?? ""}, not terminal. ` +

@@ -69,6 +69,18 @@ test("continue: non-object ledger skipped", () => {
   assert.deepEqual(cont(), { code: 0, out: "" });
 });
 
+test("continue: ledger written by run.mjs blocks and keeps its fields", () => {
+  spawnSync("git", ["init", "-q", "-b", "main"], { cwd: dir });
+  const RUN = join(here, "..", "andx-orchestration", "scripts", "run.mjs");
+  const r = spawnSync(process.execPath, [RUN, "start", "--slug", "feat", "--mode", "execute", "--repo", dir], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  spawnSync(process.execPath, [RUN, "phase", "feat", "A", "--repo", dir]);
+  writeFileSync(transcript, ".andx-run/feat.json");
+  assert.match(JSON.parse(cont().out).reason, /'feat' \(mode execute\) is at phase A, not terminal\./);
+  const l = JSON.parse(readFileSync(join(run, "feat.json"), "utf8"));
+  assert.deepEqual([l.continues, l.phases, l.required_phases], [1, ["A"], ["A", "F"]]);
+});
+
 test("continue: malformed stdin fails open", () => {
   assert.deepEqual(hook("andx-continue.mjs", "not json {{"), { code: 0, out: "" });
 });
