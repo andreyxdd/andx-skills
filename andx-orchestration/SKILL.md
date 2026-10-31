@@ -96,8 +96,6 @@ Spawn per [HARNESS.md](./HARNESS.md) (worker / analyst / reviewer). Prompt must 
 
 Resume (`resume=<id>`) for same worktree continuation. New spawn when roles differ (debug analyst → execute worker) or prior failed / worktree torn down.
 
-**Foreground** always; parallel = several spawns in one message (HARNESS). Parent spawns every worker, reviewer and refuter (by choice, though both harnesses nest); never a fork subagent.
-
 **Worker died** (`resource_exhausted`, rate limit, timeout): read `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, then resume the **same** agent id with "continue from current worktree state" (Claude: `SendMessage` to the named agent). Max 2 resumes, then new spawn only if the worktree is gone, else report blocker.
 
 `move_agent_to_root` is only for a wrong **project** (`/andx-plan`, `/andx-init`), never for exec worktrees.
@@ -171,7 +169,7 @@ Skip `worktree remove` only when `WORKTREE_DIR="$REPO_ROOT"` (fallback). Still r
 
 Do **not** merge partial work unless the user explicitly asks. **Do not** remove the worktree — leave it for inspection. Report `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR`, conflict paths, failing commands.
 
-Any stop while holding the ship queue: before this run's own landing (unresolvable conflict, Phase 3 red on EXEC, user abort) → `release "$SHIP_ID"`; any stop after it landed, deploy hotfix stops included → `halt "$SHIP_ID" --reason <blocker>`, never `release`.
+Holding the ship queue, before this run's initial landing: unresolvable conflict → ask the user, lock still held, `release "$SHIP_ID"` only once they choose to stop; Phase 3 red on EXEC or user abort → `release`. Any stop after the initial landing (deploy hotfix stops always) → `halt "$SHIP_ID" --reason <blocker>`, never `release`.
 
 ## Guardrails
 

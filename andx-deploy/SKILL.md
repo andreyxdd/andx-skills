@@ -20,7 +20,7 @@ Entered from `/andx-execute-and-deploy` or `/andx-execute-review-and-deploy` (Ph
 1. Anchor: `git rev-parse HEAD`, branch, dirty/unpushed.
 2. Push when `origin` exists **and** deploy needs remote: `git remote get-url origin && git push -u origin HEAD`. Force-push of main/master only on explicit ask. Push failed and deploy needs remote → fix before deploying.
 3. Parent: deploy commands + health only — never edit app source.
-4. **Migration gate:** if this revision touches goose/EF migrations, `WithAllowMissing`, or `DB_MIGRATIONS_ALLOW_MISSING`, load workspace `agents/rules/goose-migration-review-gates.md` (when present). Unconditional AllowMissing or gap-ordered migrations → **block deploy** until fixed (GitOps still via workspace gitops rule). Do not fork gate text here.
+4. **Migration gate:** if this revision touches goose/EF migrations, `WithAllowMissing`, or `DB_MIGRATIONS_ALLOW_MISSING`, load workspace `agents/rules/goose-migration-review-gates.md` (when present). Unconditional AllowMissing or gap-ordered migrations → **block deploy** until fixed (GitOps still via workspace gitops rule). Do not fork gate text here. Entered from a composer (already landed, lock held), a gate block is a stop after landing: `ship-queue.mjs halt "$SHIP_ID" --repo "$REPO_ROOT" --reason "<gate>"`, ledger `terminal: AWAITING_USER`.
 
 ## Phase B — Discover (every run)
 
