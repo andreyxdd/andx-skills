@@ -1,14 +1,29 @@
 #!/usr/bin/env node
-// Validate SKILL.md files: YAML frontmatter, name == folder, description present,
-// relative links resolve (in-repo broken = error, external companion = warning).
-//   node check-skills.mjs [ROOT]            # default: this repo; exit 1 on errors
-//   node check-skills.mjs --budget          # catalog cost per harness (cursor:, claude:) across installed skill dirs
-//   node check-skills.mjs --prose [ROOT]    # line counts, duplicated clauses, unresolved links (report only)
-//   node check-skills.mjs --tokens [ROOT]   # read-chain tokens per composer/agent + catalog tokens per turn
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+const HUBS = ["andx-orchestration/SKILL.md", "andx-orchestration/HARNESS.md", "andx-orchestration/SKILL-MAP.md",
+  "andx-plan/PARSE.md", "andx-execute/WORKER.md"];
+
+const HELP = `Validate SKILL.md files: YAML frontmatter, name == folder, description present,
+relative links resolve (in-repo broken = error, external companion = warning).
+  node check-skills.mjs [ROOT]                      default: this repo; exit 1 on errors
+  node check-skills.mjs --budget                    catalog cost per harness (cursor:, claude:) across installed skill dirs
+  node check-skills.mjs --prose [ROOT]              line counts, duplicated clauses, unresolved links (report only)
+  node check-skills.mjs --tokens [ROOT] [--caps name=N,...]
+                                                    read-chain tokens per entry skill/agent + catalog tokens per turn;
+                                                    with --caps, exit 1 if a chain is over its cap or has none
+
+Read chains (--tokens), tokens = floor(bytes / 4):
+  entries  every */SKILL.md without disable-model-invocation: true, plus every andx-* skill except
+           andx-orchestration (chain name drops "andx-"); every agents/*.md (same naming)
+  direct   repo .md files the entry links ([x](path)) or names by path (../x/y.md, ~/.cursor/skills/<x>/y.md
+           mapped to ROOT/<x>/y.md); another skill's SKILL.md counts only on a line saying
+           required/read/follow; script paths (*.mjs, *.sh) and files outside ROOT are not reads
+  one hop  for each direct file, its own references to a hub; nothing deeper is followed
+  hubs     ${HUBS.join(", ")}`;
 
 const REPO = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const home = (p) => path.join(os.homedir(), p);
@@ -198,25 +213,53 @@ function budget() {
     [...cp].map(([k, v]) => `${k}=${v}`).join(" "));
 }
 
-// Chains are hand-maintained; derive them from links if they drift from what agents actually read.
-const CHAINS = {
-  execute: ["andx-execute/SKILL.md", "andx-orchestration/SKILL.md", "andx-orchestration/HARNESS.md", "andx-plan/PARSE.md"],
-  "execute-and-review": ["andx-execute-and-review/SKILL.md", "andx-execute/SKILL.md", "andx-orchestration/SKILL.md",
-    "andx-orchestration/HARNESS.md", "andx-orchestration/SKILL-MAP.md", "andx-plan/PARSE.md",
-    "andx-mr-review/FINDINGS-SCHEMA.md", "andx-security-review/VERIFIER.md"],
-  worker: ["agents/andx-worker.md", "andx-execute/WORKER.md"],
-  analyst: ["agents/andx-analyst.md", "andx-debug-and-fix/SKILL.md"],
-  plan: ["andx-plan/SKILL.md", "andx-plan/PLAN-FORMAT.md", "andx-plan/PARSE.md", "andx-orchestration/SKILL-MAP.md"],
-  "mr-review": ["andx-mr-review/SKILL.md", "andx-mr-review/HOSTS.md", "andx-mr-review/FINDINGS-SCHEMA.md",
-    "andx-mr-review/COMMENT-STYLE.md", "andx-mr-review/REPORT-FORMAT.md", "andx-mr-review/EXAMPLES.md"],
-  "mr-babysit": ["andx-mr-babysit/SKILL.md", "andx-mr-review/HOSTS.md"],
-};
+// Repo .md files a file links or names by path; another skill's SKILL.md counts only when it is a hub
+// or its line says required/read/follow (otherwise it is a routing pointer).
+function reads(root, file) {
+  const out = new Set();
+  for (const line of read(file).split("\n")) {
+    const refs = [...line.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1])
+      .concat(line.match(/(?:\.\.\/|~\/\.cursor\/skills\/)[^\s`)'"]+/g) ?? []);
+    for (const ref of refs) {
+      const t = ref.replace(/#.*$/, "").replace(/[.,;:]+$/, "");
+      if (!t.endsWith(".md") || /^[a-z]+:/.test(t) || (t.startsWith("~") && !t.startsWith("~/.cursor/skills/"))) continue;
+      const abs = t.startsWith("~") ? path.join(root, t.slice("~/.cursor/skills/".length)) : path.resolve(path.dirname(file), t);
+      const rel = path.relative(root, abs).split(path.sep).join("/");
+      if (rel.startsWith("..") || !stat(abs)?.isFile()) continue;
+      if (path.basename(rel) === "SKILL.md" && !HUBS.includes(rel) && !/\b(required|read|follow)/i.test(line)) continue;
+      out.add(rel);
+    }
+  }
+  return out;
+}
 
-function tokens(root) {
-  for (const [name, files] of Object.entries(CHAINS)) {
-    console.log(`  ${Math.floor(sum(files.map((f) => fs.statSync(path.join(root, f)).size)) / 4)}\t${name}`);
+// Entry skills: model-invocable SKILL.md plus every andx-* composer except orchestration; then every agent.
+function chains(root) {
+  const skills = glob(root, "*/SKILL.md").filter((p) => {
+    const d = path.basename(path.dirname(p));
+    return d !== "andx-orchestration" && (d.startsWith("andx-") || frontmatter(p)[0]?.["disable-model-invocation"] !== true);
+  });
+  return [...skills, ...glob(root, "agents/*.md")].map((p) => {
+    const entry = path.relative(root, p).split(path.sep).join("/");
+    const files = new Set([entry, ...reads(root, p)]);
+    for (const f of [...files].slice(1)) for (const h of reads(root, path.join(root, f))) if (HUBS.includes(h)) files.add(h);
+    const name = (entry.startsWith("agents/") ? path.basename(entry, ".md") : path.dirname(entry)).replace(/^andx-/, "");
+    return [name, [...files]];
+  });
+}
+
+function tokens(root, caps) {
+  let over = 0;
+  for (const [name, files] of chains(root)) {
+    const t = Math.floor(sum(files.map((f) => fs.statSync(path.join(root, f)).size)) / 4);
+    console.log(`  ${t}\t${name}`);
+    if (caps && !(t <= caps[name])) {
+      console.log(`over cap: ${name} ${t} > ${caps[name] ?? "none"}`);
+      over = 1;
+    }
   }
   console.log(`catalog tokens per turn (visible skills): ${catalogTokens(visibleSkills())}`);
+  process.exitCode = over;
 }
 
 // Report only: SKILL.md line counts, clauses repeated across files, unresolved links.
@@ -243,8 +286,11 @@ function prose(root) {
   console.log(`unresolved links: ${[...errors, ...warnings].filter((m) => m.includes("unresolved link")).length}`);
 }
 
-const [mode, arg] = process.argv.slice(2);
-if (mode === "--tokens") tokens(path.resolve(arg ?? REPO));
+const argv = process.argv.slice(2), ci = argv.indexOf("--caps");
+const caps = ci < 0 ? null : Object.fromEntries((argv.splice(ci, 2)[1] ?? "").split(",").map((kv) => kv.split("=")).map(([k, v]) => [k, Number(v)]));
+const [mode, arg] = argv;
+if (mode === "--help" || mode === "-h") console.log(HELP);
+else if (mode === "--tokens") tokens(path.resolve(arg ?? REPO), caps);
 else if (mode === "--prose") prose(path.resolve(arg ?? REPO));
 else if (mode === "--budget") budget();
 else {
