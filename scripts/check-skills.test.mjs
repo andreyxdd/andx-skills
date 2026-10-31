@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,11 +55,45 @@ test("unknown frontmatter keys fail", () => {
   assert.doesNotMatch(r.stdout, /'color'/);
 });
 
-test("hot read chains stay in budget", () => {
-  const got = Object.fromEntries([...run(["--tokens"]).stdout.matchAll(/^ +(\d+)\t(\S+)$/gm)].map((m) => [m[2], +m[1]]));
-  for (const [name, max] of [["worker", 1200], ["execute", 6000], ["execute-and-review", 11000]]) {
-    assert.ok(got[name] <= max, `${name} read chain over budget: ${got[name]}`);
-  }
+const chainTokens = (out) => Object.fromEntries([...out.matchAll(/^ +(\d+)\t(\S+)$/gm)].map((m) => [m[2], +m[1]]));
+const capsArg = (caps) => Object.entries(caps).map(([k, v]) => `${k}=${v}`).join(",");
+
+// One cap per read chain; a new entry skill or agent without a cap fails too.
+const CAPS = {
+  "debug-and-fix": 9000, deploy: 8500, "deploy-init": 12000, execute: 8500, "execute-and-deploy": 10000,
+  "execute-and-review": 16000, "execute-review-and-deploy": 12000, init: 9000, "listen-end": 4000,
+  "listen-start": 1500, "mr-babysit": 4000, "mr-create": 8000, "mr-review": 12500, plan: 7500, schedule: 8500,
+  "security-review": 30500, analyst: 8000, refuter: 2000, "security-reviewer": 2000, "spec-reviewer": 500, worker: 1200,
+};
+
+test("every read chain stays under its cap", () => {
+  const r = run(["--tokens", "--caps", capsArg(CAPS)]);
+  assert.equal(r.status, 0, r.stdout);
+  assert.deepEqual(Object.keys(chainTokens(r.stdout)).sort(), Object.keys(CAPS).sort());
+});
+
+test("chains derive from required links, read-by-path mentions and one hop of hub files", () => {
+  const r = run(["--tokens", join(F, "tokens")]);
+  assert.equal(r.status, 0, r.stdout);
+  // a: a + b (Required line) + orchestration hub via b; c is a routing link, b/NOTES is not a hub.
+  // b: b + orchestration + NOTES; c: composer with disable-model-invocation; w: agent + NOTES via ~ path.
+  assert.deepEqual(chainTokens(r.stdout), { a: 94, b: 60, c: 19, w: 28 });
+  assert.match(r.stdout, /^catalog tokens per turn \(visible skills\): \d+$/m);
+});
+
+test("a new read link raises the chain total and breaks its cap", () => withHome((d) => {
+  cpSync(join(F, "tokens"), d, { recursive: true });
+  appendFileSync(join(d, "andx-c", "SKILL.md"), "Read ../andx-b/NOTES.md first.\n");
+  const r = run(["--tokens", d, "--caps", capsArg({ a: 94, b: 60, c: 19, w: 28 })]);
+  assert.equal(r.status, 1, r.stdout);
+  assert.equal(chainTokens(r.stdout).c, 33);
+  assert.match(r.stdout, /^over cap: c 33 > 19$/m);
+}));
+
+test("a chain without a cap fails", () => {
+  const r = run(["--tokens", join(F, "tokens"), "--caps", "a=94,b=60,c=19"]);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^over cap: w 28 > none$/m);
 });
 
 test("budget reports each harness separately", () => withHome((d) => {
