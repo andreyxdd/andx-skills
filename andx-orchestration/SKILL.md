@@ -26,7 +26,7 @@ SLUG=<plan file slug, kebab, [a-z0-9-], max 40>
 STAMP=$(date +%Y%m%d-%H%M%S)
 EXEC_BRANCH="andx/exec-${SLUG}-${STAMP}"
 WORKTREE_DIR="$REPO_ROOT/.worktrees/exec-${SLUG}-${STAMP}"
-SHIP_ID="$EXEC_BRANCH"   # ship queue id: set once, ledger ship_id; hotfix worktrees never change it
+SHIP_ID="$EXEC_BRANCH"   # ship queue id, set once; hotfix worktrees keep it
 ```
 
 `SLUG` from `.cursor/plans/<slug>.plan.md` basename (filesystem-safe; not the human `name:`). No plan → `debug` | `hotfix` | `unnamed`.
@@ -39,7 +39,7 @@ Write `$REPO_ROOT/.worktrees/.andx-run/$SLUG.json` before Step 1 and update it a
 
 ```json
 {"slug": "<SLUG>", "mode": "execute|review|review-mr|deploy|review-deploy|debug",
- "phase": "<current phase id>", "required_phases": ["A", "C", "F"], "continues": 0, "terminal": null}
+ "ship_id": "<SHIP_ID>", "phase": "<current phase id>", "required_phases": ["A", "C", "F"], "continues": 0, "terminal": null}
 ```
 
 `terminal` stays `null` until the run ends: `DONE` (Definition of done proven), `ABORTED`, `ESCALATED`, or `AWAITING_USER` (a question only the user can answer is pending). A Stop hook re-prompts while the ledger is non-terminal ([HARNESS](./HARNESS.md#goals-and-continuation)); set `terminal` honestly.
@@ -171,7 +171,7 @@ Skip `worktree remove` only when `WORKTREE_DIR="$REPO_ROOT"` (fallback). Still r
 
 Do **not** merge partial work unless the user explicitly asks. **Do not** remove the worktree — leave it for inspection. Report `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR`, conflict paths, failing commands.
 
-Any stop while holding the ship queue: nothing landed yet (unresolvable conflict, Phase 3 red on EXEC, user abort) → `release "$SHIP_ID"`; after landing (post-merge Phase 3 red, final deploy failure) → `halt "$SHIP_ID" --reason <blocker>`.
+Any stop while holding the ship queue: before this run's own landing (unresolvable conflict, Phase 3 red on EXEC, user abort) → `release "$SHIP_ID"`; any stop after it landed, deploy hotfix stops included → `halt "$SHIP_ID" --reason <blocker>`, never `release`.
 
 ## Guardrails
 

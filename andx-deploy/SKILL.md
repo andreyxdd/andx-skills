@@ -56,7 +56,7 @@ FAIL → diagnose → (source fix?) orchestration worktree worker
      (max 3; then stop with blocker)
 ```
 
-The hotfix gets its own `EXEC_BRANCH` but keeps `SHIP_ID` and the held lock (no `announce`/`join`/`wait`). After the third failure, from a composer: `ship-queue.mjs halt "$SHIP_ID" --repo "$REPO_ROOT" --reason "<blocker>"` instead of `release`, ledger `terminal: AWAITING_USER`. Queued runs stop with `HALTED`; the user runs `ship-queue.mjs resume` once HEAD is healthy.
+The hotfix gets its own `EXEC_BRANCH` but keeps `SHIP_ID` (ledger `ship_id`) and the held lock (no `announce`/`join`/`wait`). From a composer, the run already landed, so any stop in this loop (third failure, or a hotfix that hits an unresolvable conflict, fails Phase 3, or is aborted) runs `ship-queue.mjs halt "$SHIP_ID" --repo "$REPO_ROOT" --reason "<blocker>"`, never `release`, ledger `terminal: AWAITING_USER`. Queued runs stop with `HALTED`; the user runs `ship-queue.mjs resume` once HEAD is healthy.
 
 Parent never patches source inline.
 
