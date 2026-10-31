@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Claude PreToolUse + Cursor preToolUse guard: while a non-terminal run ledger exists for a repo,
-// deny file edits in its primary checkout outside .worktrees/, .cursor/plans/ and .cursor/reviews/.
+// deny file edits in its primary checkout outside the .worktrees, .cursor/plans and .cursor/reviews folders.
 // Edits inside linked worktrees always pass. Fail-open on any error.
 import fs from "node:fs";
 import path from "node:path";
