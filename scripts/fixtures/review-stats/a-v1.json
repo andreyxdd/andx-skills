@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "source": "andx-mr-review",
+  "plan": ".cursor/plans/a.plan.md",
+  "target_branch": "main",
+  "head_sha": "1111111111111111111111111111111111111111",
+  "reviewed_at": "2026-10-01T00:00:00Z",
+  "verdict": "BLOCK",
+  "findings": [
+    { "id": "f1", "severity": "High", "location": "a.js:1", "finding": "one", "reviewers": ["ponytail-review"] },
+    { "id": "f2", "severity": "low", "location": "a.js:2", "finding": "two", "reviewers": ["Security-Review", "cursor security-review"] },
+    { "id": "f3", "severity": "medium", "location": "a.js:3", "finding": "three" }
+  ]
+}

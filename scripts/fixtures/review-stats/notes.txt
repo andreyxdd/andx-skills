@@ -1,0 +1,1 @@
+Not an artifact; the dir scan must skip non-.json files.
