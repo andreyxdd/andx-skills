@@ -1,4 +1,4 @@
-// Three runs share one temp repo and ship through the real queue: join, wait, integrate main, ff-only land, release.
+// Three runs share one temp repo and ship through the real queue: join, wait, land (integrate, test, fast-forward), release.
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "ship-queue.mjs");
 const FAST = ["--poll-ms", "20"];
 const BASE = "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n";
+// Appends one line per run of the test command, so a skipped re-test is visible.
+const TEST_CMD = "node -e \"require('fs').appendFileSync('../tested.log', 'ran\\n')\"";
 let repo, children;
 
 const git = (cwd, ...a) => {
@@ -17,8 +19,9 @@ const git = (cwd, ...a) => {
   assert.equal(r.status, 0, `git ${a.join(" ")}: ${r.stderr}`);
   return r.stdout;
 };
+const q = (...a) => spawnSync(process.execPath, [SCRIPT, ...a, "--repo", repo], { encoding: "utf8" });
 const ok = (...a) => {
-  const r = spawnSync(process.execPath, [SCRIPT, ...a, "--repo", repo], { encoding: "utf8" });
+  const r = q(...a);
   assert.equal(r.status, 0, `${a.join(" ")}: ${r.stdout}${r.stderr}`);
   return r.stdout;
 };
@@ -30,6 +33,7 @@ const branch = (id, file, content) => {
   git(wt(id), "commit", "-q", "-m", id);
 };
 const landings = () => git(repo, "log", "-g", "--format=%gs", "main").trim().split("\n").filter((s) => s.startsWith("merge")).reverse();
+const tested = () => fs.readFileSync(join(repo, ".worktrees", "tested.log"), "utf8");
 const result = async (c) => {
   const r = await c.done;
   return [r.code, r.out];
@@ -40,25 +44,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function shipRun() {
   const { spawnSync } = require("node:child_process");
   const { writeSync } = require("node:fs");
-  const { script, root, wt, id, after } = JSON.parse(process.env.SHIP_RUN);
-  const run = (cmd, args, cwd) => spawnSync(cmd, args, { cwd, encoding: "utf8" });
-  const q = (...a) => run(process.execPath, [script, ...a, "--poll-ms", "20"], wt);
+  const { script, wt, id, after, test } = JSON.parse(process.env.SHIP_RUN);
+  const q = (...a) => spawnSync(process.execPath, [script, ...a, "--poll-ms", "20"], { cwd: wt, encoding: "utf8" });
   const say = (s) => writeSync(1, s);
   process.stdin.once("data", () => {
-    q("join", id);
+    q("join", id, "--target", "main");
     say("JOINED\n");
     const w = q("wait", id);
     if (w.status !== 0) return say(w.stdout), (process.exitCode = w.status);
-    if (run("git", ["merge", "--no-edit", "main"], wt).status !== 0) return say("CONFLICT\n"), (process.exitCode = 1);
-    if (run("git", ["merge", "--ff-only", id], root).status !== 0) return say("NOT FAST-FORWARD\n"), (process.exitCode = 1);
+    const l = q("land", id, "--worktree", wt, "--target", "main", "--test", test);
+    if (l.status !== 0) return say(`EXIT ${l.status}\n${l.stdout}`), (process.exitCode = l.status);
     say("LANDED\n");
     if (after === "halt") q("halt", id, "--reason", "deploy health red");
-    else q("release", id);
+    else q("release", id, "--after-deploy");
   });
 }
 
 const startRun = (id, after) => {
-  const env = { ...process.env, SHIP_RUN: JSON.stringify({ script: SCRIPT, root: repo, wt: wt(id), id, after }) };
+  const env = { ...process.env, SHIP_RUN: JSON.stringify({ script: SCRIPT, wt: wt(id), id, after, test: TEST_CMD }) };
   const c = spawn(process.execPath, ["--input-type=commonjs", "-e", `(${shipRun})()`], { env });
   let out = "";
   const joined = new Promise((res) => c.stdout.on("data", (d) => (out += d).includes("JOINED") && res()));
@@ -92,7 +95,7 @@ afterEach(() => {
   fs.rmSync(repo, { recursive: true, force: true, maxRetries: 5 });
 });
 
-test("runs land in ready order, each a fast-forward after integrating main", { timeout: 60000 }, async () => {
+test("runs land in ready order, each a fast-forward, re-tested only when the integrate changed EXEC", { timeout: 60000 }, async () => {
   branch("a", "a.txt", "a\n");
   branch("b", "shared.txt", BASE.replace("2\n", "b\n"));
   branch("c", "shared.txt", BASE.replace("9\n", "c\n"));
@@ -101,6 +104,7 @@ test("runs land in ready order, each a fast-forward after integrating main", { t
   assert.deepEqual(landings(), ["merge b: Fast-forward", "merge c: Fast-forward", "merge a: Fast-forward"]);
   assert.equal(fs.readFileSync(join(repo, "shared.txt"), "utf8"), "1\nb\n3\n4\n5\n6\n7\n8\nc\n10\n");
   assert.equal(fs.readFileSync(join(repo, "a.txt"), "utf8"), "a\n");
+  assert.equal(tested(), "ran\nran\n");
 });
 
 test("a conflicting integrate keeps the lock and nothing lands until it is released", { timeout: 60000 }, async () => {
@@ -108,10 +112,10 @@ test("a conflicting integrate keeps the lock and nothing lands until it is relea
   branch("y", "shared.txt", BASE.replace("5\n", "y\n"));
   branch("z", "z.txt", "z\n");
   const runs = await ship(["x", "y", "z"]);
-  assert.deepEqual(await result(runs.y), [1, "JOINED\nCONFLICT\n"]);
+  assert.deepEqual(await result(runs.y), [6, "JOINED\nEXIT 6\nCONFLICT shared.txt\n"]);
   await sleep(500);
   assert.equal(runs.z.exitCode, null);
-  assert.match(ok("status"), /^holder: y held 0m\nwaiter 1: z waiting 0m$/m);
+  assert.match(ok("status"), /^holder: y gen 3 held 0m\nwaiter 1: z waiting 0m$/m);
   assert.deepEqual(landings(), ["merge x: Fast-forward"]);
   ok("release", "y");
   assert.deepEqual(await result(runs.z), [0, "JOINED\nLANDED\n"]);
@@ -126,4 +130,19 @@ test("a halt by the holder stops the remaining runs", { timeout: 60000 }, async 
   assert.deepEqual(await result(runs.p), [0, "JOINED\nLANDED\n"]);
   for (const id of ["q", "r"]) assert.deepEqual(await result(runs[id]), [3, "JOINED\nHALTED deploy health red\n"]);
   assert.deepEqual(landings(), ["merge p: Fast-forward"]);
+});
+
+test("a primary checkout on another branch: nothing lands and no branch switch happens", () => {
+  branch("d", "d.txt", "d\n");
+  git(repo, "switch", "-q", "-c", "other");
+  const main = git(repo, "rev-parse", "main");
+  ok("join", "d", "--target", "main");
+  ok("wait", "d", ...FAST);
+  const r = q("land", "d", "--worktree", wt("d"), "--target", "main", "--test", TEST_CMD);
+  assert.equal(r.status, 9, r.stdout + r.stderr);
+  assert.match(r.stderr, /is on other, not main: nothing landed/);
+  assert.equal(git(repo, "rev-parse", "main"), main);
+  assert.equal(git(repo, "branch", "--show-current").trim(), "other");
+  assert.equal(fs.existsSync(join(repo, "d.txt")), false);
+  assert.match(ok("status"), /^holder: d gen 1 held 0m$/m);
 });
