@@ -44,5 +44,13 @@ test("inherited object keys are not severities", () => {
 test("xml findings normalized", () => {
   assert.deepEqual(parse("bugbot", join(DIR, "xml-high.txt")).findings[0], {
     reviewer: "bugbot", severity: "high", location: "src/provider.ts:42", finding: "Race on provider init",
+    evidence: "Init runs twice under concurrent mount.",
   });
+});
+
+test("quoted lines under a VERDICT finding become evidence", () => {
+  const text = "## VERDICT\nstatus: BLOCK\nblockers:\n  - [HIGH] a.js:3 — unchecked index\n    > v = items[0]\n  - [LOW] a.js:9 — naming\n";
+  const [high, low] = parse("bugbot", null, text).findings;
+  assert.equal(high.evidence, "> v = items[0]");
+  assert.equal(low.evidence, undefined);
 });
