@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { JARGON } from "./jargon-gate.mjs";
+import { DIFF_JARGON, TEXT_JARGON } from "./jargon-gate.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const gate = (args, input) => spawnSync(process.execPath, [join(here, "jargon-gate.mjs"), ...args], { encoding: "utf8", input });
@@ -24,12 +24,20 @@ const W = {
   stamp: "exe" + "c-run-lifecycle-w1-step-5-20261101",
 };
 
-test("one constant catches every pattern from both former gates, case-insensitively", () => {
-  for (const [name, s] of Object.entries(W)) assert.ok(JARGON.test(`x ${s} y`), name);
-  assert.ok(JARGON.test(("Pony" + "tail") + " said so"));
-  for (const s of ["Reject if remaining balance drops below rent.", "exec-run-without-date", "worktrees are fine in prose", "shrinkage"]) {
-    assert.ok(!JARGON.test(s), s);
+const BARE = `const dir = "${TOOL}-skills";`;
+const PLAIN = ["Reject if remaining balance drops below rent.", "exec-run-without-date", "worktrees are fine in prose", "shrinkage"];
+
+test("both patterns catch every tag, path and stamp, case-insensitively", () => {
+  for (const re of [DIFF_JARGON, TEXT_JARGON]) {
+    for (const [name, s] of Object.entries(W)) assert.ok(re.test(`x ${s} y`), name);
+    assert.ok(re.test(("Pony" + "tail") + " said so"));
+    for (const s of PLAIN) assert.ok(!re.test(s), s);
   }
+});
+
+test("bare tool name is jargon in commit text but legitimate in code", () => {
+  assert.ok(TEXT_JARGON.test(BARE));
+  assert.ok(!DIFF_JARGON.test(BARE));
 });
 
 const git = (cwd, ...a) => {
@@ -54,7 +62,8 @@ function repo() {
   git(root, "commit", "-qm", "base");
   git(root, "checkout", "-qb", "feature");
   put(root, "src/old.js", `// legacy ${W.persona} note\nconst a = 1;\n++ ${W.tag} added\nconst b = 2;\n// ${W.later} later\n`);
-  put(root, "src/new.js", `const x = 1;\nconst y = 2;\n// ${W.slash} wrote this\n`);
+  put(root, "src/new.js", `${BARE}\nconst y = 2;\n// ${W.slash} wrote this\n`);
+  put(root, "src/with space.js", `// ${W.worktree}\n`);
   put(root, "skill/NOTES.md", `see ${W.slash}\n`);
   put(root, "skill/run.mjs", `// ${W.terse}\n`);
   put(root, "docs/guide.md", `ok\n${W.branch}\n`);
@@ -69,7 +78,7 @@ test("diff reports only added lines as path:line of the new file", () => {
     const r = gate(["diff", "main", "feature", "--repo", root]);
     assert.equal(r.status, 1, r.stderr);
     const hits = r.stdout.split("\n").filter(Boolean).map((l) => l.split(":").slice(0, 2).join(":")).sort();
-    assert.deepEqual(hits, ["docs/guide.md:2", "skill/NOTES.md:1", "skill/run.mjs:1", "src/new.js:3", "src/old.js:3", "src/old.js:5"]);
+    assert.deepEqual(hits, ["docs/guide.md:2", "skill/NOTES.md:1", "skill/run.mjs:1", "src/new.js:3", "src/old.js:3", "src/old.js:5", "src/with space.js:1"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -107,6 +116,7 @@ test("text scans stdin and files, reporting line numbers", () => {
   assert.equal(r.status, 1);
   assert.match(r.stdout, /^-:3:/m);
   assert.equal(gate(["text", "-"], "fix: guard empty balance\n").status, 0);
+  assert.match(gate(["text", "-"], `ok\n${BARE}\n`).stdout, /^-:2:/m);
 
   const dir = mkdtempSync(join(tmpdir(), "jargon-text-"));
   try {
