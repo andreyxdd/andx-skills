@@ -78,6 +78,20 @@ test("end DONE is refused until every required phase is recorded", () => {
   assert.equal(ledger("feat").terminal, "DONE");
 });
 
+test("end DONE on a legacy ledger uses the mode's required phases", () => {
+  const dir = join(repo, ".worktrees", ".andx-run");
+  fs.mkdirSync(dir, { recursive: true });
+  const legacy = (slug, mode) => fs.writeFileSync(join(dir, `${slug}.json`), JSON.stringify({ slug, mode, phase: "C", continues: 0, terminal: null }));
+  legacy("old", "review");
+  const r = run(["end", "old", "--terminal", "DONE"]);
+  assert.equal(r.status, 5);
+  assert.match(r.stderr, /missing required phases: A, C, D, F/);
+  legacy("odd", "custom");
+  assert.equal(run(["end", "odd", "--terminal", "DONE"]).status, 5);
+  assert.equal(ledger("odd").terminal, null);
+  assert.equal(run(["end", "odd", "--terminal", "ABORTED"]).status, 0);
+});
+
 test("end non-DONE terminals need no phases and validate statuses", () => {
   ok("start", "--slug", "feat", "--mode", "review-mr");
   assert.equal(run(["end", "feat", "--terminal", "FINISHED"]).status, 2);
