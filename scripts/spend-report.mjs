@@ -5,8 +5,6 @@
 // andx- skill (slash command, slash-prefixed skill name in user text, or Skill tool). The skill catalog
 // names every andx skill in every session, so a bare mention does not count.
 // Input = uncached + cache write + cache read.
-//   node spend-report.mjs <session.jsonl|dir>   # per-run report
-//   node spend-report.mjs --summary <dir>       # medians + totals; no project names or session ids
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -55,7 +53,7 @@ function firstAndxSkill(p) {
 
 // Assistant lines repeat the same usage once per content block; count each message id once.
 function usageOf(files) {
-  const s = { requests: 0, input: 0, output: 0, peak: 0, images: 0, tools: new Map() };
+  const s = { requests: 0, input: 0, uncached: 0, write: 0, read: 0, output: 0, peak: 0, images: 0, tools: new Map() };
   const seen = new Set(), names = new Map();
   for (const f of files) {
     for (const l of lines(f)) {
@@ -69,9 +67,13 @@ function usageOf(files) {
         const u = m.usage, key = m.id ?? j.uuid;
         if (u == null || seen.has(key)) continue;
         seen.add(key);
-        const ctx = int(u.input_tokens) + int(u.cache_creation_input_tokens) + int(u.cache_read_input_tokens);
+        const un = int(u.input_tokens), w = int(u.cache_creation_input_tokens), r = int(u.cache_read_input_tokens);
+        const ctx = un + w + r;
         s.requests += 1;
         s.input += ctx;
+        s.uncached += un;
+        s.write += w;
+        s.read += r;
         s.output += int(u.output_tokens);
         if (ctx > s.peak) s.peak = ctx;
       } else if (j.type === "user") {
@@ -130,13 +132,18 @@ function runs(arg) {
   return sessions.map((f) => { const skill = firstAndxSkill(f); return skill && runOf(f, skill); }).filter(Boolean);
 }
 
+const WEIGHTS = { uncached: 1, write: 1.25, read: 0.1, output: 5 };
+
 function metrics({ parent: p, sub: s }) {
+  const t = (k) => p[k] + s[k];
   return {
     input_total: p.input + s.input, input_parent: p.input, input_subagent: s.input,
     requests_parent: p.requests, requests_subagent: s.requests,
     output: p.output + s.output, output_parent: p.output, output_subagent: s.output,
     peak_context_parent: p.peak, peak_context_subagent: s.peak,
     image_results: p.images + s.images,
+    input_uncached: t("uncached"), cache_write: t("write"), cache_read: t("read"),
+    cost_units: Math.round(Object.entries(WEIGHTS).reduce((a, [k, w]) => a + t(k) * w, 0)),
   };
 }
 
@@ -151,6 +158,8 @@ function printRun(r) {
   console.log(`  output parent=${m.output_parent} subagent=${m.output_subagent}`);
   console.log(`  peak_context parent=${m.peak_context_parent} subagent=${m.peak_context_subagent}`);
   console.log(`  image_results ${m.image_results}`);
+  console.log(`  cache input_uncached=${m.input_uncached} cache_write=${m.cache_write} cache_read=${m.cache_read}`);
+  console.log(`  cost_units ${m.cost_units}`);
   console.log(`  top_tool_output ${top.map(([n, c]) => `${n}=${Math.floor(c / 4)}`).join(" ")}`);
 }
 
@@ -166,20 +175,33 @@ function summary(all) {
   if (!rows.length) return;
   const keys = Object.keys(rows[0]);
   console.log(`median ${keys.map((k) => `${k}=${median(rows.map((r) => r[k]))}`).join(" ")}`);
-  console.log(`total ${keys.map((k) => `${k}=${rows.reduce((a, r) => a + r[k], 0)}`).join(" ")}`);
+  const total = (k) => rows.reduce((a, r) => a + r[k], 0);
+  console.log(`total ${keys.map((k) => `${k}=${total(k)}`).join(" ")}`);
+  console.log(`cache_read_share ${total("input_total") ? (total("cache_read") / total("input_total")).toFixed(3) : 0}`);
   const bySkill = new Map();
   for (const r of all) bySkill.set(r.skill, [...(bySkill.get(r.skill) ?? []), metrics(r)]);
   for (const [skill, ms] of [...bySkill].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     console.log(`${skill} runs=${ms.length} median input_total=${median(ms.map((m) => m.input_total))} ` +
-      `output=${median(ms.map((m) => m.output))}`);
+      `output=${median(ms.map((m) => m.output))} cost_units=${median(ms.map((m) => m.cost_units))}`);
   }
 }
 
+const USAGE = `usage: spend-report.mjs <session.jsonl|dir> | --summary <dir> | --help
+  <session.jsonl|dir>  per-run report
+  --summary <dir>      medians + totals; no project names or session ids
+cost_units = uncached×${WEIGHTS.uncached} + write×${WEIGHTS.write} + read×${WEIGHTS.read} + output×${WEIGHTS.output}
+  (cache write, cache read and output tokens priced relative to the session model's uncached input price;
+  model mix is ignored, so subagents on cheaper models count at the session model's rates)`;
+
 const abs = (p) => path.resolve(p.replace(/^~(?=$|[\\/])/, os.homedir()));
 const [first, second] = process.argv.slice(2);
+if (first === "--help" || first === "-h") {
+  console.log(USAGE);
+  process.exit(0);
+}
 const isSummary = first === "--summary" && !!second;
 if (!isSummary && !(first && fs.existsSync(first))) {
-  console.error("usage: spend-report.mjs <session.jsonl|dir> | --summary <dir>");
+  console.error(USAGE);
   process.exit(1);
 }
 const all = runs(abs(isSummary ? second : first));

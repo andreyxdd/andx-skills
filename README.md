@@ -86,33 +86,38 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/` (
 
 ## Spend baseline
 
-`node scripts/spend-report.mjs --summary ~/.claude/projects` (2026-10-29, 90 Claude Code runs that invoke an andx skill; input = uncached + cache write + cache read):
+`node scripts/spend-report.mjs --summary ~/.claude/projects` (2026-11-01, 98 Claude Code runs that invoke an andx skill; input = uncached + cache write + cache read). `cost_units` = uncached×1 + cache write×1.25 + cache read×0.1 + output×5, priced relative to the session model's input price; model mix is ignored (`--help`).
 
 | Median per run (all skills) | Value |
 |-----------------------------|-------|
-| Input tokens, total | 77,809,198 |
-| Input tokens, parent | 24,218,974 |
+| Cost units | 13,730,274 |
+| Input tokens, total | 88,468,343 |
+| Input tokens, uncached | 1,070 |
+| Input tokens, cache write | 2,100,874 |
+| Input tokens, cache read | 85,161,807 |
+| Input tokens, parent | 34,601,336 |
 | Input tokens, subagents | 13,283,361 |
-| Requests, parent | 121 |
+| Requests, parent | 132 |
 | Requests, subagents | 134 |
-| Output tokens | 141,287 |
-| Peak parent context | 339,894 |
+| Output tokens | 162,948 |
+| Peak parent context | 395,665 |
 | Image tool results | 0 |
 
-Each median is taken independently per metric, so parent + subagents does not add up to total.
+Each median is taken independently per metric, so parent + subagents does not add up to total. Cache read is 96.3% of all input tokens (`cache_read_share 0.963`), so input totals mostly count cheap cached reads; compare runs by `cost_units`.
 
 Per first-invoked skill (a run is grouped by the first andx skill its parent session invokes):
 
-| Skill | Runs | Median input total | Median output |
-|-------|------|--------------------|---------------|
-| `andx-plan` | 53 | 148,150,580 | 249,269 |
-| `andx-mr-review` | 27 | 14,612,676 | 32,919 |
-| `andx-init` | 5 | 46,668,385 | 179,398 |
-| `andx-execute` | 3 | 130,779,762 | 207,083 |
-| `andx-debug-and-fix` | 1 | 25,153,371 | 74,919 |
-| `andx-execute-and-deploy` | 1 | 3,972,369 | 19,151 |
+| Skill | Runs | Median cost units | Median input total | Median output |
+|-------|------|-------------------|--------------------|---------------|
+| `andx-plan` | 60 | 19,931,609 | 150,577,547 | 252,921 |
+| `andx-mr-review` | 27 | 2,450,128 | 14,612,676 | 32,919 |
+| `andx-init` | 5 | 8,087,223 | 46,668,385 | 179,398 |
+| `andx-execute` | 3 | 18,783,564 | 130,779,762 | 207,083 |
+| `andx-debug-and-fix` | 1 | 3,608,791 | 25,153,371 | 74,919 |
+| `andx-execute-and-deploy` | 1 | 607,967 | 3,972,369 | 19,151 |
+| `andx-execute-review-and-deploy` | 1 | 20,585,528 | 112,982,358 | 527,069 |
 
-**Target:** −40% per-skill median input total over the next 10 runs of each skill, judged primarily on the `andx-execute*` skills; compare a skill only with its own baseline row. Caveat: most baseline execution ran in the planning thread (`go`), so it sits in the `andx-plan` row. After a fresh-chat handoff, add each feature's plan-run and execute-run input totals, and compare the median of those sums with the `andx-plan` baseline; a falling `andx-plan` row alone only shows execution moving out. Per-run detail: `node scripts/spend-report.mjs <session.jsonl|dir>`.
+**Target:** median `cost_units` per `andx-execute-and-review` run drops 25% against this baseline over the next 10 runs, and review rounds per run do not rise. Caveat: the baseline has no `andx-execute-and-review` row yet; the nearest reference is `andx-execute-review-and-deploy` (1 run, review included), and most past execution ran in the planning thread (`go`), so it sits in the `andx-plan` row. Compare a skill only with its own row. Per-run detail: `node scripts/spend-report.mjs <session.jsonl|dir>`.
 
 ## Companion skills
 
