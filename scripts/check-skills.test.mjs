@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, appendFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, appendFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,45 +56,50 @@ test("unknown frontmatter keys fail", () => {
 });
 
 const chainTokens = (out) => Object.fromEntries([...out.matchAll(/^ +(\d+)\t(\S+)$/gm)].map((m) => [m[2], +m[1]]));
-const capsArg = (caps) => Object.entries(caps).map(([k, v]) => `${k}=${v}`).join(",");
 
-// One cap per read chain; a new entry skill or agent without a cap fails too.
-const CAPS = {
-  "debug-and-fix": 9000, deploy: 8500, "deploy-init": 12000, execute: 8500, "execute-and-deploy": 10000,
-  "execute-and-review": 16000, "execute-review-and-deploy": 12000, init: 9000, "listen-end": 4000,
-  "listen-start": 1500, "mr-babysit": 4000, "mr-create": 8000, "mr-review": 12500, plan: 7500, schedule: 8500,
-  "security-review": 30500, analyst: 8000, refuter: 2000, "security-reviewer": 2000, "spec-reviewer": 500, worker: 1200,
-};
-
-test("every read chain stays under its cap", () => {
-  const r = run(["--tokens", "--caps", capsArg(CAPS)]);
+test("every read chain is within scripts/token-caps.json, and every chain has a cap", () => {
+  const r = run(["--tokens"]);
   assert.equal(r.status, 0, r.stdout);
-  assert.deepEqual(Object.keys(chainTokens(r.stdout)).sort(), Object.keys(CAPS).sort());
+  const caps = JSON.parse(readFileSync(join(here, "token-caps.json"), "utf8")), got = chainTokens(r.stdout);
+  assert.deepEqual(Object.keys(got).sort(), Object.keys(caps).filter((k) => k[0] !== "_").sort());
+  for (const [name, t] of Object.entries(got)) assert.ok(t <= caps[name], `${name}: ${t} > ${caps[name]}`);
 });
 
-test("chains derive from required links, read-by-path mentions and one hop of hub files", () => {
+test("chains derive from required links, read-by-path mentions and one hop of derived hubs", () => {
   const r = run(["--tokens", join(F, "tokens")]);
   assert.equal(r.status, 0, r.stdout);
-  // a: a + b (Required line) + orchestration hub via b; c is a routing link, b/NOTES is not a hub.
-  // b: b + orchestration + NOTES; c: composer with disable-model-invocation; w: agent + NOTES via ~ path.
-  assert.deepEqual(chainTokens(r.stdout), { a: 94, b: 60, c: 19, w: 28 });
+  // orchestration is a hub (linked by b, c, d); b/NOTES is not (b, d; links from other/ and the agent don't count).
+  // a: a + b (Required line) + orchestration via b; c is a routing link. c: composer with disable-model-invocation.
+  // b, d: own links + orchestration + NOTES. w: agent + NOTES via ~ path.
+  assert.deepEqual(chainTokens(r.stdout), { a: 94, b: 60, c: 56, d: 59, w: 28 });
   assert.match(r.stdout, /^catalog tokens per turn \(visible skills\): \d+$/m);
 });
 
-test("a new read link raises the chain total and breaks its cap", () => withHome((d) => {
+test("a file linked from a third entry skill becomes a hub", () => withHome((d) => {
   cpSync(join(F, "tokens"), d, { recursive: true });
-  appendFileSync(join(d, "andx-c", "SKILL.md"), "Read ../andx-b/NOTES.md first.\n");
-  const r = run(["--tokens", d, "--caps", capsArg({ a: 94, b: 60, c: 19, w: 28 })]);
-  assert.equal(r.status, 1, r.stdout);
-  assert.equal(chainTokens(r.stdout).c, 33);
-  assert.match(r.stdout, /^over cap: c 33 > 19$/m);
+  appendFileSync(join(d, "andx-c", "SKILL.md"), "Shared: [notes](../andx-b/NOTES.md).\n");
+  // a now also gets b/NOTES (24 bytes) through b: (377 + 24) / 4.
+  assert.equal(chainTokens(run(["--tokens", d, "--no-caps"]).stdout).a, 100);
 }));
 
-test("a chain without a cap fails", () => {
-  const r = run(["--tokens", join(F, "tokens"), "--caps", "a=94,b=60,c=19"]);
+test("a new read link raises the chain total and breaks its cap", () => withHome((d) => {
+  cpSync(join(F, "tokens"), d, { recursive: true });
+  writeFileSync(join(d, "andx-c", "EXTRA.md"), "extra\n");
+  appendFileSync(join(d, "andx-c", "SKILL.md"), "Read [extra](./EXTRA.md) first.\n");
+  const r = run(["--tokens", d]);
+  assert.equal(r.status, 1, r.stdout);
+  assert.equal(chainTokens(r.stdout).c, 65);
+  assert.match(r.stdout, /^over cap: c 65 > 56$/m);
+  assert.equal(run(["--tokens", d, "--no-caps"]).status, 0);
+}));
+
+test("a chain without a cap fails", () => withHome((d) => {
+  cpSync(join(F, "tokens"), d, { recursive: true });
+  writeFileSync(join(d, "scripts", "token-caps.json"), '{"a": 94, "b": 60, "c": 56, "d": 59}');
+  const r = run(["--tokens", d]);
   assert.equal(r.status, 1);
   assert.match(r.stdout, /^over cap: w 28 > none$/m);
-});
+}));
 
 test("budget reports each harness separately", () => withHome((d) => {
   const skills = {
