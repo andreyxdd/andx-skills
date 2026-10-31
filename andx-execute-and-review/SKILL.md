@@ -98,7 +98,7 @@ Replaces Phase F when the user wants a draft MR instead of a local merge (ledger
 
 ## Definition of done
 
-Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; no open High; merged + post-merge green + cleanup; ledger `terminal: DONE`; reply ends with the orch status line.
+Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; no open High; merged + post-merge green + cleanup + queue release; ledger `terminal: DONE`; reply ends with the orch status line.
 
 ## Anti-patterns
 

@@ -29,7 +29,7 @@ Do not edit application source. Follow orchestration.
 
 ## Definition of done
 
-All true: handoff **pass**; verification green on `EXEC_BRANCH`; merged to `TARGET_BRANCH`; post-merge Phase 3 green; cleanup evidence logged; run ledger `terminal: DONE`; reply ends with the orch status line ([Run ledger](../andx-orchestration/SKILL.md#run-ledger-composers-execute-debug-and-fix-deploy)).
+All true: handoff **pass**; verification green on `EXEC_BRANCH`; merged to `TARGET_BRANCH`; post-merge Phase 3 green; cleanup evidence logged; ship queue released; run ledger `terminal: DONE`; reply ends with the orch status line ([Run ledger](../andx-orchestration/SKILL.md#run-ledger-composers-execute-debug-and-fix-deploy)).
 
 ## Preflight (read-only)
 

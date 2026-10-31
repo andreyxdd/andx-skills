@@ -61,7 +61,7 @@ State `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR` in the reply b
 
 Run **before any implementation subagent spawn**, regardless of clean/dirty status. Do not edit the primary checkout.
 
-**Sweep first (dry-run):** `node ~/.cursor/skills/andx-orchestration/scripts/worktree-sweep.mjs "$REPO_ROOT"` → put the one-line summary (`removed= kept=`) in the reply. Use `--apply` only on user request. It removes clean + merged worktrees only and prints manual commands for the rest. Never force-remove without per-item confirmation.
+**Sweep first (dry-run):** `node ~/.cursor/skills/andx-orchestration/scripts/worktree-sweep.mjs "$REPO_ROOT"` → put the one-line summary (`removed= kept=`) in the reply. Use `--apply` only on user request. It removes clean + merged worktrees only and prints manual commands for the rest. Never force-remove without per-item confirmation. Then print `ship-queue.mjs status --repo "$REPO_ROOT" --touch <plan touch>` (Step 4 path; advisory overlap, never blocks).
 
 **Exception:** [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md) defers Step 1 until after readonly debug handoff (Phase C). All **implementation** subagents still require worktree before spawn.
 
@@ -110,6 +110,17 @@ Parent treats handoff as stale unless output is from the current spawn.
 ## Step 4 — Merge back (always on pass)
 
 After subagent reports pass and Phase 3 passed on `EXEC_BRANCH`. Wave merges inherit this protocol.
+
+### Ship queue
+
+Parallel runs land one at a time, in completion order. Start in one background shell (HARNESS long wait), ledger `phase: ship-wait`; skip for push-to-MR runs and deploy hotfixes (lock already held):
+
+```bash
+Q=~/.cursor/skills/andx-orchestration/scripts/ship-queue.mjs
+node "$Q" join "$EXEC_BRANCH" --repo "$REPO_ROOT" --touch <plan touch> && node "$Q" wait "$EXEC_BRANCH" --repo "$REPO_ROOT"
+```
+
+`GRANTED` → go. `HALTED`/`TIMEOUT` → stop, `AWAITING_USER`, quote `status`. Holder: `heartbeat` at each phase boundary, `ship-queue.mjs release` after cleanup (deploy composers: after fresh health); final deploy failure → `halt --reason <blocker>`. Rules: `--help`.
 
 ### Concurrent-merge
 
