@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { canonical, stats } from "./review-stats.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DIR = join(here, "fixtures", "review-stats");
@@ -32,10 +33,9 @@ test("explicit files match the dir scan", () => {
   assert.equal(r.stdout, EXPECTED);
 });
 
-test("--json carries the same counts", () => {
-  const r = run("--json", DIR);
-  assert.equal(r.status, 0, r.stderr);
-  assert.deepEqual(JSON.parse(r.stdout), {
+test("stats() returns the same counts", () => {
+  const artifacts = ["a-v1.json", "b-v2.json"].map((f) => JSON.parse(readFileSync(join(DIR, f), "utf8")));
+  assert.deepEqual(stats(artifacts), {
     files: 2,
     reviewers: {
       "bugbot": { findings: 2, unique: 1, high_unique: 1, rejected: 1 },
@@ -45,6 +45,13 @@ test("--json carries the same counts", () => {
     },
     total: { findings: 7, unique: 4, high_unique: 2, rejected: 1 },
   });
+});
+
+test("canonical() folds reviewer aliases", () => {
+  assert.deepEqual(
+    ["Ponytail-Review", "cursor security-review", "andx-spec-reviewer", "ponytail-audit", "ux-api"].map(canonical),
+    ["ponytail", "security", "spec", "audit", "ux-api"],
+  );
 });
 
 test("unreadable or non-artifact input exits 1 naming the file", () => {
