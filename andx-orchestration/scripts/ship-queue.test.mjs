@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { acquire } from "./ship-queue.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "ship-queue.mjs");
 const FAST = ["--poll-ms", "20"];
@@ -107,7 +108,7 @@ test("release and halt by a non-holder exit 5", () => {
   assert.equal(q("release", "b").status, 5);
   assert.equal(q("halt", "b", "--reason", "x").status, 5);
   assert.equal(ok("heartbeat", "a"), "HOLDER a\n");
-  assert.equal(ok("heartbeat", "b"), "WAITER b\n");
+  assert.equal(q("heartbeat", "b").status, 5);
 });
 
 test("join is idempotent and keeps the original place", () => {
@@ -127,11 +128,76 @@ test("worktrees of one repo share the queue", () => {
   assert.match(ok("status"), /^waiter 1: feat waiting 0m$/m);
 });
 
-test("wait without join exits 2 and an empty queue times out with 4", () => {
+test("usage errors exit 2: wait without join, stale window not above 3x poll", () => {
   assert.equal(q("wait", "nobody", ...FAST).status, 2);
+  assert.equal(q("status", "--stale-min", "0.001", "--poll-ms", "20").status, 2);
+  assert.equal(q("status", "--stale-min", "0.0011", "--poll-ms", "20").status, 0);
+});
+
+test("lock creation is exclusive", () => {
+  const lock = join(repo, "lock.json");
+  assert.equal(acquire(lock, "a"), true);
+  assert.equal(acquire(lock, "b"), false);
+  assert.equal(JSON.parse(fs.readFileSync(lock, "utf8")).id, "a");
+});
+
+const SHIP = () => join(repo, ".worktrees", ".andx-run", "ship");
+const corrupt = (name, ageMs) => {
+  const p = join(SHIP(), name);
+  fs.writeFileSync(p, "{\"id\":");
+  const t = new Date(Date.now() - ageMs);
+  fs.utimesSync(p, t, t);
+};
+
+test("old unparseable lock and ticket files are reclaimed, young ones are left alone", async () => {
   ok("join", "a");
-  ok("join", "b");
-  ok("wait", "a", ...FAST);
-  const r = q("wait", "b", ...FAST, "--timeout-min", "0.002");
-  assert.deepEqual([r.status, r.stdout], [4, "TIMEOUT\n"]);
+  corrupt("lock.json", 2000);
+  const kid = waitAsync("a");
+  await sleep(300);
+  assert.equal(kid.exitCode, null);
+  kid.kill();
+  await kid.done;
+  corrupt("lock.json", 60000);
+  corrupt("ticket-crashed.json", 60000);
+  assert.equal(ok("wait", "a", ...FAST), "reclaimed stale garbage ticket-crashed.json\nreclaimed stale garbage lock.json\nGRANTED a\n");
+  assert.equal(log().filter((e) => e.kind === "garbage").length, 2);
+});
+
+test("join replaces an old unparseable own ticket but never a young one", () => {
+  ok("status");
+  corrupt("ticket-a.json", 2000);
+  assert.equal(q("join", "a").status, 2);
+  assert.equal(fs.readFileSync(join(SHIP(), "ticket-a.json"), "utf8"), "{\"id\":");
+  corrupt("ticket-a.json", 60000);
+  ok("join", "a");
+  assert.equal(ok("wait", "a", ...FAST), "GRANTED a\n");
+});
+
+test("announce feeds status --touch, the caller is excluded, release clears it", () => {
+  ok("announce", "feat/one", "--touch", "src/api");
+  ok("announce", "feat/two", "--touch", "src/api/x.ts");
+  ok("join", "feat/three", "--touch", "src");
+  assert.equal(q("announce", "feat/four").status, 2);
+  const out = ok("status", "feat/two", "--touch", "src/api/x.ts");
+  assert.match(out, /^overlap: feat\/three src\noverlap: feat\/one src\/api\n$/m);
+  assert.doesNotMatch(out, /feat\/two/);
+  assert.equal(log().filter((e) => e.event === "join").length, 1);
+  ok("wait", "feat/three", ...FAST);
+  ok("release", "feat/three");
+  ok("join", "feat/one");
+  ok("wait", "feat/one", ...FAST);
+  ok("halt", "feat/one", "--reason", "x");
+  assert.doesNotMatch(ok("status", "--touch", "src"), /overlap: feat\/(one|three)/);
+});
+
+test("a queue dir that escapes the checkout through a symlink is refused", () => {
+  const outside = fs.mkdtempSync(join(tmpdir(), "shipq-out-"));
+  try {
+    fs.symlinkSync(outside, join(repo, ".worktrees"), "junction");
+    const r = q("status");
+    assert.equal(r.status, 2, r.stdout);
+    assert.match(r.stderr, /symlink/);
+  } finally {
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
 });

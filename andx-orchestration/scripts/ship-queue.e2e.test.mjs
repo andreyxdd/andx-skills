@@ -113,7 +113,7 @@ test("a conflicting integrate keeps the lock and nothing lands until it is relea
   assert.equal(runs.z.exitCode, null);
   assert.match(ok("status"), /^holder: y held 0m\nwaiter 1: z waiting 0m$/m);
   assert.deepEqual(landings(), ["merge x: Fast-forward"]);
-  ok("release", "y", "--status", "FAILED");
+  ok("release", "y");
   assert.deepEqual(await result(runs.z), [0, "JOINED\nLANDED\n"]);
   assert.deepEqual(landings(), ["merge x: Fast-forward", "merge z: Fast-forward"]);
 });
