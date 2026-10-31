@@ -10,6 +10,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, "..");
 const CONTINUE = `node "${join(ROOT, "hooks", "andx-continue.mjs")}"`;
 const GUARD = `node "${join(ROOT, "hooks", "deny-worktree-root.mjs")}"`;
+const PRIMARY = `node "${join(ROOT, "hooks", "guard-primary.mjs")}"`;
+const CLAUDE_PRIMARY = { matcher: "Edit|Write|MultiEdit|NotebookEdit", hooks: [{ type: "command", command: PRIMARY, timeout: 5 }] };
 const OTHER = { type: "command", command: "/usr/local/bin/notify" };
 
 function install(mode, home) {
@@ -29,7 +31,7 @@ function seed() {
         { hooks: [OTHER] },
         { hooks: [{ type: "command", command: "/old/andx-skills/hooks/andx_continue.rb", timeout: 10 }] },
       ],
-      PreToolUse: [{ hooks: [OTHER] }],
+      PreToolUse: [{ hooks: [OTHER] }, { matcher: "Edit", hooks: [{ type: "command", command: "node /old/andx-skills/hooks/guard-primary.mjs" }] }],
     },
   }));
   writeFileSync(join(home, ".cursor", "hooks.json"), JSON.stringify({
@@ -48,13 +50,13 @@ test("install registers node hooks, drops legacy, keeps others, backs up, is ide
     install("install", home);
     const claude = read(join(home, ".claude", "settings.json"));
     assert.equal(claude.model, "opus");
-    assert.deepEqual(claude.hooks.PreToolUse, [{ hooks: [OTHER] }]);
+    assert.deepEqual(claude.hooks.PreToolUse, [{ hooks: [OTHER] }, CLAUDE_PRIMARY]);
     assert.deepEqual(claude.hooks.Stop, [{ hooks: [OTHER] }, { hooks: [{ type: "command", command: CONTINUE, timeout: 10 }] }]);
     const cursor = read(join(home, ".cursor", "hooks.json"));
     assert.deepEqual(cursor, {
       version: 1,
       hooks: {
-        preToolUse: [{ command: "mine.sh" }, { command: GUARD, timeout: 5 }],
+        preToolUse: [{ command: "mine.sh" }, { command: GUARD, timeout: 5 }, { command: PRIMARY, timeout: 5 }],
         afterFileEdit: [{ command: "fmt.sh" }],
         beforeMCPExecution: [{ command: GUARD, timeout: 5 }],
       },
@@ -79,7 +81,9 @@ test("install into empty home creates both files", () => {
   try {
     install("install", home);
     assert.equal(read(join(home, ".claude", "settings.json")).hooks.Stop[0].hooks[0].command, CONTINUE);
+    assert.deepEqual(read(join(home, ".claude", "settings.json")).hooks.PreToolUse, [CLAUDE_PRIMARY]);
     assert.deepEqual(read(join(home, ".cursor", "hooks.json")).hooks.beforeMCPExecution, [{ command: GUARD, timeout: 5 }]);
+    assert.deepEqual(read(join(home, ".cursor", "hooks.json")).hooks.preToolUse, [{ command: GUARD, timeout: 5 }, { command: PRIMARY, timeout: 5 }]);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
