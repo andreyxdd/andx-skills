@@ -12,7 +12,7 @@ const USAGE = `review: package a diff for reviewers, union their reports, write 
   package --base B --head H --out F         commit list, --stat and a -U10 diff of B..H into F;
                                             exit 3 when B..H is empty or H does not descend from B
   union --base B --head H --reports DIR     verdict JSON on stdout from DIR/andx-review-<S>-<reviewer>.txt
-        --slug S [--refuters R.json] [--round N --prior V.json]
+        --slug S --expect r1,r2 [--refuters R.json] [--round N --prior V.json]
   artifact --verdict V.json --plan P --out F [--target main] [--source andx-execute-and-review]
                                             v2 REVIEW-ARTIFACT, validated; INVALID prints reasons, exit 1, no file
 
@@ -21,6 +21,7 @@ Common: --repo DIR (default cwd)
 union, in order:
   reviewer     the <reviewer> part, with andx- and -review/-reviewer folded, must be one of bugbot security
                ponytail spec audit react a11y ux-api refuter; other files are skipped
+  expect       --expect lists those canonical names; an expected reviewer with no report lands in unparsed
   parse        parse-review.mjs; an UNPARSED report lands in unparsed and forces BLOCK
   id           security: trailing "(fingerprint)"; others: slug of file name + first finding words
   paths        exact match with / separators; a finding's leading ./ is dropped, and a/ or b/ too when
@@ -32,7 +33,8 @@ union, in order:
                finding with that id: rejected -> rejected, needs_validation or a bad decision -> advisory,
                confirmed keeps (severity overrides); the rest of its group stays
   prior        a finding on a prior blocker's root, or a High/Critical from one of its reviewers in its
-               file, confirms it; an unconfirmed prior blocker moves to fixed only when it lists
+               file, confirms it and keeps the higher severity (refuter-decided ones excepted); an
+               unconfirmed prior blocker moves to fixed only when it lists
                reviewers and all of them reported this round, else it stays a blocker;
                advisory/deferred/fixed/rejected carry over, deduplicated by id
   wrong-base   a new finding (spec excepted) whose file is not in git diff --name-only B..H is dropped
@@ -155,12 +157,11 @@ function decide(m, d) {
   Object.assign(m, { status: "needs_validation", blockers: ok ? d.blockers ?? [] : ["refuter_unparsed"], ...(ok && d.validation_plan && { validation_plan: d.validation_plan }), reason: d.reason });
 }
 
-export function union({ reports, files, names, refuters = [], round = 1, prior }) {
-  const unparsed = [];
+export function union({ reports, files, names, expect = [], refuters = [], round = 1, prior }) {
+  const unparsed = expect.filter((r) => !reports.some((x) => x.reviewer === r));
   const reported = new Set();
   const blocking = new Set();
   let secrets;
-  const all = [];
   const groups = [];
   for (const { reviewer, text } of reports) {
     const r = parse(text, reviewer);
@@ -170,7 +171,6 @@ export function union({ reports, files, names, refuters = [], round = 1, prior }
     if (reviewer === "security") secrets = text.match(/secrets_scan:\s*(RAN|NOT_RUN)/)?.[1] ?? secrets;
     // O(n^2) grouping; fine for tens of findings per round.
     for (const f of r.findings.map((x) => normalize(x, reviewer, files, names))) {
-      all.push(f);
       const g = groups.find((x) => x.some((m) => sameRoot(m, f)) && !x.some((m) => m.fp && f.fp && m.id !== f.id));
       g ? g.push(f) : groups.push([f]);
     }
@@ -202,7 +202,11 @@ export function union({ reports, files, names, refuters = [], round = 1, prior }
     const f = merge(g);
     const p = priorBlockers.find((b) => sameRoot(b, f))
       ?? (SEV[f.severity] >= 3 ? priorBlockers.find((b) => !confirmed.has(b.id) && b.file === f.file && b.reviewers?.some((r) => f.reviewers.includes(r))) : null);
-    if (p) Object.assign(f, { id: p.id, confirms: true }), confirmed.add(p.id);
+    if (p) {
+      Object.assign(f, { id: p.id, confirms: true });
+      if (f.status === "confirmed" && !f.refuted && SEV[p.severity] > SEV[f.severity]) f.severity = p.severity;
+      confirmed.add(p.id);
+    }
     const lines = files.get(f.file);
     const reason = f.confirms ? null
       : !f.reviewers.includes("spec") && !names.has(f.file) ? "wrong-base"
@@ -224,7 +228,7 @@ export function union({ reports, files, names, refuters = [], round = 1, prior }
     else out.blockers.push(pub(p));
   }
   for (const r of blocking) {
-    const highs = all.filter((m) => m.reviewers[0] === r && m.high);
+    const highs = groups.flat().filter((m) => m.reviewers[0] === r && m.high);
     if (!highs.length || highs.some((m) => !m.settled)) unparsed.push(r);
   }
 
@@ -258,7 +262,7 @@ export function artifact(v, { plan, target = "main", source = "andx-execute-and-
 if (import.meta.main) {
   const { values: o, positionals: [cmd] } = parseArgs({
     allowPositionals: true,
-    options: Object.fromEntries(["base", "head", "out", "repo", "reports", "slug", "refuters", "round", "prior", "verdict", "plan", "target", "source"]
+    options: Object.fromEntries(["base", "head", "out", "repo", "reports", "slug", "expect", "refuters", "round", "prior", "verdict", "plan", "target", "source"]
       .map((k) => [k, { type: "string" }]).concat([["help", { type: "boolean", short: "h" }]])),
   });
   if (o.help) {
@@ -277,7 +281,9 @@ if (import.meta.main) {
     fs.writeFileSync(o.out, `base ${base}\nhead ${head}\n\n## Commits\n${commits}\n## Stat\n${diff(repo, base, head, "--stat")}\n## Diff (-U10)\n${diff(repo, base, head, "-U10")}`);
     console.log(`PACKAGE ${o.out} commits=${commits.trim().split("\n").length}`);
   } else if (cmd === "union") {
-    need("base", "head", "reports", "slug");
+    need("base", "head", "reports", "slug", "expect");
+    const expect = o.expect.split(",").map((s) => s.trim());
+    if (!expect.every((r) => REVIEWERS.includes(r))) fail(2, `union: --expect takes canonical names: ${REVIEWERS.join(",")}`);
     const round = Number(o.round ?? 1);
     if (!Number.isInteger(round) || round < 1 || (round >= 2 && !o.prior)) fail(2, "union: --round N >= 2 needs --prior");
     const [base, head] = [sha(repo, o.base), sha(repo, o.head)];
@@ -291,7 +297,7 @@ if (import.meta.main) {
     const refuters = o.refuters ? readJson(o.refuters) : [];
     if (!Array.isArray(refuters) || !refuters.every((r) => r && typeof r === "object")) fail(2, "union: --refuters must be a JSON array of objects");
     const names = new Set(diff(repo, base, head, "--name-only", "-z").split("\0").filter(Boolean));
-    const v = union({ reports, files: diffLines(diff(repo, base, head, "-U10")), names, refuters, round, prior });
+    const v = union({ reports, files: diffLines(diff(repo, base, head, "-U10")), names, expect, refuters, round, prior });
     console.log(JSON.stringify({ ...v, base_sha: prior?.base_sha ?? base, head_sha: head }, null, 2));
   } else if (cmd === "artifact") {
     need("verdict", "plan", "out");
