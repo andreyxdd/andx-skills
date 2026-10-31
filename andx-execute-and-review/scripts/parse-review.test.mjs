@@ -35,16 +35,33 @@ test("security needs_validation is kept but not blocking (stdin)", () => {
   assert.equal(r.findings[0].severity, "needs_validation");
 });
 
-test("inherited object keys are not severities", () => {
-  const bug = (sev) => `<bug><severity>${sev}</severity><file>a.js</file><start_line>1</start_line><title>t</title></bug>`;
-  assert.equal(parse("bugbot", null, `<answer>${bug("critical")}${bug("constructor")}</answer>`).status, "BLOCK");
-  assert.equal(parse("bugbot", null, `<answer>${bug("__proto__")}${bug("toString")}</answer>`).status, "PASS");
+const bug = (sev) => `<bug><severity>${sev}</severity><file>a.js</file><start_line>1</start_line><title>t</title></bug>`;
+
+test("inherited object keys and unknown severities fail closed", () => {
+  assert.equal(parse("bugbot", null, `<answer>${bug("critical")}${bug("constructor")}</answer>`).status, "UNPARSED");
+  assert.equal(parse("bugbot", null, `<answer>${bug("__proto__")}${bug("toString")}</answer>`).status, "UNPARSED");
+  assert.equal(parse("bugbot", null, `<answer>${bug("info")}</answer>`).status, "UNPARSED");
+});
+
+test("truncated or repeated bugbot XML fails closed", () => {
+  assert.equal(parse("bugbot", null, `<answer>${bug("low")}<bug><title>cut off</answer>`).status, "UNPARSED");
+  assert.equal(parse("bugbot", null, `<answer></answer><answer>${bug("high")}</answer>`).status, "UNPARSED");
+  assert.equal(parse("bugbot", null, `<answer>${bug("high")}`).status, "UNPARSED");
+});
+
+test("a Critical/High line without a verdict is UNPARSED, never prose PASS", () => {
+  assert.equal(parse("spec", null, "I looked.\n- [HIGH] a.js:1 — bug\nno bugs found\n").status, "UNPARSED");
+});
+
+test("status wrapped in backticks or underscores still counts", () => {
+  assert.equal(parse("spec", null, "## VERDICT\nstatus: `BLOCK`\nblockers:\n  - [MEDIUM] a.js:1 — x\n").status, "BLOCK");
+  assert.equal(parse("spec", null, "## VERDICT\nstatus: _PASS_\n").status, "PASS");
 });
 
 test("xml findings normalized", () => {
   assert.deepEqual(parse("bugbot", join(DIR, "xml-high.txt")).findings[0], {
     reviewer: "bugbot", severity: "high", location: "src/provider.ts:42", finding: "Race on provider init",
-    end_line: 48, evidence: "Init runs twice under concurrent mount.",
+    evidence: "Init runs twice under concurrent mount.",
   });
 });
 
