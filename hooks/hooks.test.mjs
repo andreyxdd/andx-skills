@@ -1,7 +1,7 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -79,6 +79,30 @@ test("continue: ledger written by run.mjs blocks and keeps its fields", () => {
   assert.match(JSON.parse(cont().out).reason, /'feat' \(mode execute\) is at phase A, not terminal\./);
   const l = JSON.parse(readFileSync(join(run, "feat.json"), "utf8"));
   assert.deepEqual([l.continues, l.phases, l.required_phases], [1, ["A"], ["A", "F"]]);
+});
+
+test("continue: ledger module that fails to load fails open", () => {
+  const lone = join(dir, "lone");
+  mkdirSync(join(lone, "hooks"), { recursive: true });
+  copyFileSync(join(here, "andx-continue.mjs"), join(lone, "hooks", "andx-continue.mjs"));
+  ledger("feat");
+  writeFileSync(transcript, ".andx-run/feat.json");
+  const r = spawnSync(process.execPath, [join(lone, "hooks", "andx-continue.mjs")], { encoding: "utf8", input: JSON.stringify({ cwd: dir, transcript_path: transcript }) });
+  assert.deepEqual([r.status, r.stdout], [0, ""]);
+});
+
+test("continue: ledger write failure fails open with one stderr line", { skip: process.platform === "win32" || process.getuid?.() === 0 }, () => {
+  ledger("feat");
+  writeFileSync(transcript, ".andx-run/feat.json");
+  chmodSync(run, 0o555);
+  try {
+    const r = spawnSync(process.execPath, [join(here, "andx-continue.mjs")], { encoding: "utf8", input: JSON.stringify({ cwd: dir, transcript_path: transcript }) });
+    assert.deepEqual([r.status, r.stdout], [0, ""]);
+    assert.equal(r.stderr.trim().split("\n").length, 1);
+    assert.match(r.stderr, /feat\.json/);
+  } finally {
+    chmodSync(run, 0o755);
+  }
 });
 
 test("continue: malformed stdin fails open", () => {

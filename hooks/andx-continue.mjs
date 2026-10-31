@@ -5,7 +5,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { TERMINAL, readLedger, writeLedger } from "../andx-orchestration/scripts/run.mjs";
 
 const MAX_CONTINUES = 5;
 const STALE_MS = 24 * 3600 * 1000;
@@ -40,7 +39,7 @@ function ledgerPaths(dirs) {
   return [...found];
 }
 
-function decide(input, now = Date.now()) {
+function decide({ TERMINAL, readLedger, writeLedger }, input, now = Date.now()) {
   const transcript = String(input.transcript_path ?? "");
   if (!transcript || !fs.statSync(transcript, { throwIfNoEntry: false })?.isFile()) return null;
   const log = fs.readFileSync(transcript, "utf8");
@@ -55,7 +54,12 @@ function decide(input, now = Date.now()) {
     const base = path.basename(p);
     if (!log.includes(`.andx-run/${base}`) && !log.includes(`.andx-run\\${base}`)) continue;
     data.continues = continues + 1;
-    writeLedger(p, data);
+    try {
+      writeLedger(p, data);
+    } catch (e) {
+      console.error(`andx-continue: could not update ${p}: ${e.message}`);
+      return null;
+    }
     return {
       decision: "block",
       reason: `andx run '${data.slug ?? ""}' (mode ${data.mode ?? ""}) is at phase ${data.phase ?? ""}, not terminal. ` +
@@ -67,7 +71,8 @@ function decide(input, now = Date.now()) {
 }
 
 try {
-  const out = decide(JSON.parse(fs.readFileSync(0, "utf8")));
+  const run = await import("../andx-orchestration/scripts/run.mjs");
+  const out = decide(run, JSON.parse(fs.readFileSync(0, "utf8")));
   if (out) console.log(JSON.stringify(out));
 } catch {
   // fail-open

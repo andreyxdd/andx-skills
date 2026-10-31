@@ -37,7 +37,6 @@ const fail = (code, msg) => {
   console.error(msg);
   process.exit(code);
 };
-const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const git = (cwd, ...args) => spawnSync("git", args, { cwd, encoding: "utf8" });
 
 export function readLedger(p) {
@@ -62,7 +61,7 @@ export function writeLedger(p, data) {
         fs.rmSync(tmp, { force: true });
         throw e;
       }
-      sleep(50);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
     }
   }
 }
@@ -131,8 +130,12 @@ function main(args) {
     if (!TERMINAL.includes(o.terminal)) fail(2, `--terminal must be one of ${TERMINAL.join("|")}`);
     const s = { merged: o.merged ?? "NOT_REQUESTED", pushed: o.pushed ?? "NOT_REQUESTED", mr: o.mr || "-", deployed: o.deployed ?? "NOT_REQUESTED" };
     for (const k of ["merged", "pushed", "deployed"]) if (!STATUS.includes(s[k])) fail(2, `--${k} must be one of ${STATUS.join("|")}`);
-    const missing = (data.required_phases ?? []).filter((p) => !(data.phases ?? []).includes(p));
-    if (o.terminal === "DONE" && missing.length) fail(5, `DONE refused for ${slug}: missing required phases: ${missing.join(", ")}`);
+    if (o.terminal === "DONE") {
+      const req = Array.isArray(data.required_phases) ? data.required_phases : Object.hasOwn(REQUIRED, data.mode ?? "") ? REQUIRED[data.mode] : null;
+      if (!req) fail(5, `DONE refused for ${slug}: no required phases for mode ${data.mode ?? ""}`);
+      const missing = req.filter((p) => !(data.phases ?? []).includes(p));
+      if (missing.length) fail(5, `DONE refused for ${slug}: missing required phases: ${missing.join(", ")}`);
+    }
     data.terminal = o.terminal;
     data.status = s;
     writeLedger(file, data);
