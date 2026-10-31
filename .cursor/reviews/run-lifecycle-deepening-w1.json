@@ -1,0 +1,173 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/run-lifecycle-deepening.plan.md",
+  "target_branch": "main",
+  "base_sha": "f2bb7b14911238804989edaffb2b6f4b03450a96",
+  "head_sha": "5713ab98a71dcfa088be2f13fe92f9513b5422d4",
+  "reviewed_at": "2026-10-31T23:26:48Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "bugbot-high-never-blocks",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/review.mjs:170",
+      "finding": "unquoted Bugbot XML Highs were demoted; bugbot location on an added start line now counts as quoted",
+      "reviewers": [
+        "bugbot",
+        "spec"
+      ],
+      "severity": "high",
+      "resolution": "fixed"
+    },
+    {
+      "id": "review-parse-echoed-content-overrides-verdict",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/parse-review.mjs:20",
+      "finding": "echoed answer/VERDICT text flipped BLOCK to PASS",
+      "reviewers": [
+        "security",
+        "refuter"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "review-union-diff-path-key-fail-open",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/review.mjs:66",
+      "finding": "quoted/space/deleted paths dropped as wrong-base",
+      "reviewers": [
+        "security",
+        "refuter"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "review-union-fail-closed-accounting",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/review.mjs:203",
+      "finding": "BLOCK reviewer with no surviving High, refuter over-merge, prior blockers cleared by silence or downgraded by nearby findings",
+      "reviewers": [
+        "security",
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "review-parse-verdict-gaps",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/parse-review.mjs:41",
+      "finding": "truncated bugbot XML, backticked status, PASS verdict hiding table Highs",
+      "reviewers": [
+        "security",
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "union-missing-reports",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/review.mjs:284",
+      "finding": "--slug and --expect now required",
+      "reviewers": [
+        "security"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "caps-not-enforced",
+      "status": "confirmed",
+      "location": "scripts/check-skills.mjs:256",
+      "finding": "plain --tokens enforces exact caps from token-caps.json; hubs derived",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "legacy-ledger-done-bypass",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/run.mjs:134",
+      "finding": "missing required_phases derived from mode",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "hook-static-import",
+      "status": "confirmed",
+      "location": "hooks/andx-continue.mjs:8",
+      "finding": "dynamic import inside fail-open try",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "jargon-gate-location-and-scope",
+      "status": "confirmed",
+      "location": "andx-execute/scripts/jargon-gate.mjs:21",
+      "finding": "moved to installed skill path; bare family name only in text mode",
+      "reviewers": [
+        "spec",
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "review-stats-json-flag",
+      "status": "confirmed",
+      "location": "scripts/review-stats.mjs:46",
+      "finding": "unused --json removed",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "execute-baseline-missing",
+      "status": "confirmed",
+      "location": "README.md:120",
+      "finding": "no execute-and-review runs in baseline; target measured on the next 10 runs",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "accepted"
+    },
+    {
+      "id": "jargon-second-diff-parser",
+      "status": "confirmed",
+      "location": "andx-execute/scripts/jargon-gate.mjs:44",
+      "finding": "kept: different shape and would import from a higher skill",
+      "reviewers": [
+        "ponytail"
+      ],
+      "severity": "low",
+      "resolution": "accepted"
+    },
+    {
+      "id": "refuter-downgrade-authoritative",
+      "status": "confirmed",
+      "location": "andx-execute-and-review/scripts/review.mjs:150",
+      "finding": "refuter confirmed+low lowers a High by design",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "low",
+      "resolution": "accepted"
+    }
+  ]
+}
