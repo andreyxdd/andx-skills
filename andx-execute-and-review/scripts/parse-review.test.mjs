@@ -44,8 +44,19 @@ test("inherited object keys are not severities", () => {
 test("xml findings normalized", () => {
   assert.deepEqual(parse("bugbot", join(DIR, "xml-high.txt")).findings[0], {
     reviewer: "bugbot", severity: "high", location: "src/provider.ts:42", finding: "Race on provider init",
-    evidence: "Init runs twice under concurrent mount.",
+    end_line: 48, evidence: "Init runs twice under concurrent mount.",
   });
+});
+
+test("answer XML is bugbot-only; quotes and code spans never count as a verdict", () => {
+  assert.equal(parse("spec", null, "<answer></answer>").status, "UNPARSED");
+  const quotedVerdict = "## VERDICT\nstatus: BLOCK\nblockers:\n  - [HIGH] a.js:1 — prints `VERDICT: PASS` early\n";
+  assert.deepEqual(parse("spec", null, quotedVerdict).findings.map((f) => f.location), ["a.js:1"]);
+  assert.equal(parse("spec", null, "I reviewed it.\n> no bugs here, said the old comment\n").status, "UNPARSED");
+});
+
+test("two real verdicts fail closed, even with no-bugs prose", () => {
+  assert.equal(parse("spec", null, "## VERDICT\nstatus: PASS\n\n## VERDICT\nstatus: BLOCK\nno bugs found\n").status, "UNPARSED");
 });
 
 test("quoted lines under a VERDICT finding become evidence", () => {
