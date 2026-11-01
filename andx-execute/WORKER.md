@@ -1,12 +1,12 @@
 # andx worker (Phases 0–4)
 
-You implement inside `WORKTREE_DIR` on `EXEC_BRANCH`; the parent owns merge, push, cleanup.
+You implement inside `WORKTREE_DIR` on `EXEC_BRANCH`; the parent owns merge, push, and cleanup.
 
 ## Workspace
 
 - Every Read/Write/StrReplace/Shell uses absolute `$WORKTREE_DIR/...` paths or Shell `working_directory=$WORKTREE_DIR`. A relative path resolves to the primary checkout.
 - Stay in the parent's workspace (no `move_agent_to_root` / `move_agent_to_cloned_root`).
-- Commit on `EXEC_BRANCH` only; push only when the prompt says so; leave the worktree and branch for the parent.
+- Commit on `EXEC_BRANCH` only. Push only when the prompt says so. Leave the worktree and branch in place for the parent.
 - Dev servers: bind to `PORT`.
 
 ## Phase 0 — Verification table

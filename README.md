@@ -80,9 +80,11 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/` (
 
 ```gitignore
 # .worktreeinclude
-node_modules/
 .env.local
+# node_modules/   # optional: rarely faster than a warm-cache install (below)
 ```
+
+Seeding is for files an install cannot recreate, not for speed. Measured on APFS with a 96 MB / 3681-file `node_modules`, against a warm-cache `npm install` setup: the native copy made worktree creation 26% slower, and worktrunk's `wt step copy-ignored` made it 11.5% faster.
 
 **worktrunk as a companion** (`brew install worktrunk`, optional): `wt list` shows every run worktree with a marker per run state (🤖 running, 💬 waiting for you, ❌ aborted or escalated; set by `run.mjs`, so it works with the native backend too). `wt list statusline --format=claude-code` feeds the Claude Code statusline (`wt config plugins claude install-statusline`), and `wt config plugins claude install` adds the Claude Code plugin.
 

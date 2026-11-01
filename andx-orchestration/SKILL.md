@@ -29,9 +29,9 @@ After the handoff: `MERGE_BASE_SHA=$(git merge-base "$TARGET_BRANCH" "$EXEC_BRAN
 
 First `node "$S/run.mjs" start --slug "$SLUG" --mode <composer's mode>`. Then, before any implementation spawn, clean tree or not ([/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md) defers these to its Phase C):
 
-1. Stale worktrees: `node "$S/worktree.mjs" sweep`; quote its `removed= kept=`. `--apply` only on user request.
+1. Stale worktrees: `node "$S/worktree.mjs" sweep`; quote `removed= kept=`. `--apply` only on user request.
 2. Overlap warning (advisory): `node "$S/ship-queue.mjs" announce "$SHIP_ID" --touch <plan touch>`, then `node "$S/ship-queue.mjs" status "$SHIP_ID" --touch <plan touch>`.
-3. `node "$S/worktree.mjs" create --slug "$SLUG"` (wave worktrees: [/andx-schedule](../andx-schedule/SKILL.md)); quote `BACKEND=` and each setup exit code. Non-zero → report, stop.
+3. `node "$S/worktree.mjs" create --slug "$SLUG"` (wave worktrees: [/andx-schedule](../andx-schedule/SKILL.md)); quote each setup exit code. Non-zero → report, stop.
 
 ## Step 2 — Spawn subagent
 
@@ -50,7 +50,7 @@ After a pass handoff with Phase 3 green on `EXEC_BRANCH`. Queue, landing, releas
 1. **Queue** (not for push-to-MR runs), one background shell (HARNESS long wait): `node "$S/ship-queue.mjs" join "$SHIP_ID" --touch <plan touch> && node "$S/ship-queue.mjs" wait "$SHIP_ID"`. `GRANTED` → go; `HALTED` → stop, `node "$S/run.mjs" end "$SLUG" --terminal AWAITING_USER`, quote `node "$S/ship-queue.mjs" status "$SHIP_ID"`. Holder: `node "$S/ship-queue.mjs" heartbeat "$SHIP_ID"` at phase boundaries and around long waits (CI, deploy, health).
 2. **Land:** `node "$S/ship-queue.mjs" land "$SHIP_ID" --worktree "$WORKTREE_DIR" --test "<plan verification + regression>"`. `CONFLICT` (exit 6, also from `join`) → item 3. Exit 9 → follow its message; dirty primary → wait 2 min, retry ≤ 3, then report overlapping files + the user's recovery `git -C "$REPO_ROOT" merge --ff-only "$EXEC_BRANCH"`.
 3. **Conflicts:** the worker (never the parent) resolves them on `EXEC_BRANCH`, keeping both sides when compatible (irreconcilable → abort the merge, ask the user). Then Phase 3 on EXEC; review-gated parents run Bugbot on the resolution delta when product source changed.
-4. **Post-merge Phase 3** on `TARGET_BRANCH`, run by the parent: regression + lint (even docs-only) + every verification row. A fix after landing (lint red, deploy hotfix) can't use `land` (it takes only the run worktree): a worker in `node "$S/worktree.mjs" create --slug hotfix` (its `EXEC_BRANCH=` is `HOTFIX_BRANCH`) integrates `TARGET_BRANCH`, goes green, then `git -C "$REPO_ROOT" merge --ff-only "$HOTFIX_BRANCH"` (primary not on TARGET → stop) and `node "$S/worktree.mjs" remove hotfix`.
+4. **Post-merge Phase 3** on `TARGET_BRANCH`, run by the parent: regression + lint (even docs-only) + every verification row. A fix after landing (lint red, deploy hotfix) can't use `land` (lock already landed; it takes only the run worktree): a worker in `node "$S/worktree.mjs" create --slug hotfix` (its `EXEC_BRANCH=` is `HOTFIX_BRANCH`) integrates `TARGET_BRANCH`, goes green, then `git -C "$REPO_ROOT" merge --ff-only "$HOTFIX_BRANCH"` (primary not on TARGET → stop) and `node "$S/worktree.mjs" remove hotfix`.
 5. **Cleanup:** `node "$S/worktree.mjs" remove "$SLUG"`; quote its before/after `git worktree list`. Push-to-MR runs: remove after the push, then `node "$S/worktree.mjs" sweep`.
 6. **Release:** `node "$S/ship-queue.mjs" release "$SHIP_ID" --after-deploy` (`--deploy` runs: andx-deploy releases after fresh health).
 
