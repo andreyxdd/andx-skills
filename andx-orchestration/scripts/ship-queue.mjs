@@ -51,7 +51,7 @@ a JSON blob; every write is a compare-and-swap through git update-ref. In ref na
 UTF-8 bytes, which keeps any id a valid ref name and distinct on case-insensitive filesystems.
 Needs git ${GIT_MIN}.
 Exit: 0 ok, 1 git error, 2 usage or not joined, 3 halted, 5 not holder or stale generation, 6 conflict,
-7 release after land, 8 test failed, 9 cannot land without a branch switch.`;
+7 release or land after land, 8 test failed, 9 cannot land without a branch switch.`;
 
 const stamp = () => new Date().toISOString();
 const age = (iso) => (Date.now() - Date.parse(iso)) / 60000;

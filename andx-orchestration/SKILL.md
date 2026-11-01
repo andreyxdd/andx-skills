@@ -15,13 +15,13 @@ S=~/.cursor/skills/andx-orchestration/scripts   # run.mjs, worktree.mjs, ship-qu
 
 ## Variables
 
-`run.mjs start` (Step 1) writes the ledger and prints `REPO_ROOT`, `TARGET_BRANCH`, `STAMP`, `EXEC_BRANCH`, `WORKTREE_DIR`, `SHIP_ID`; state them in the reply before spawning. `SLUG` = plan basename (`<slug>.plan.md`); no plan → `debug` | `hotfix` | `unnamed`.
+`run.mjs start` (Step 1) writes the ledger and prints `REPO_ROOT`, `TARGET_BRANCH`, `STAMP`, `EXEC_BRANCH`, `WORKTREE_DIR`, `SHIP_ID`; state them before spawning. `SLUG` = plan basename (`<slug>.plan.md`); no plan → `debug` | `hotfix` | `unnamed`.
 
 After the handoff: `MERGE_BASE_SHA=$(git merge-base "$TARGET_BRANCH" "$EXEC_BRANCH")`, `EXEC_HEAD=$(git rev-parse "$EXEC_BRANCH")`. Reviewers judge only `git diff $MERGE_BASE_SHA..$EXEC_HEAD`.
 
 ## Run ledger (composers: execute*, debug-and-fix, deploy)
 
-- Record each phase id the composer names when it is reached: `node "$S/run.mjs" phase "$SLUG" <id>` (required ids: `node "$S/run.mjs" --help`).
+- Record each composer phase id when reached: `node "$S/run.mjs" phase "$SLUG" <id>` (required ids: `node "$S/run.mjs" --help`).
 - End: `node "$S/run.mjs" end "$SLUG" --terminal DONE|ABORTED|ESCALATED|AWAITING_USER --merged … --pushed … --mr … --deployed …` (DONE needs every required phase; `AWAITING_USER` = a question only the user can answer). The reply ends with the status line it prints, plus `Next: /retro (review this run for environment fixes)` when the run escalated, needed ≥ 2 review rounds, or a worker died.
 - While it is non-terminal, hooks re-prompt the parent and lock the primary checkout ([HARNESS](./HARNESS.md#goals-and-continuation)); never end DONE to silence them.
 
@@ -41,16 +41,16 @@ Resume (`resume=<id>`) in the same worktree; new spawn when the role changes (an
 
 ## Step 3 — Subagent handoff schema
 
-Worker: `## Handoff` in [WORKER.md](../andx-execute/WORKER.md#phase-4--commit-and-hand-off); analyst: the block in [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md#phase-b--analyst). A handoff not from the current spawn is stale.
+Worker: `## Handoff` in [WORKER.md](../andx-execute/WORKER.md#phase-4--commit-and-hand-off); analyst: the block in [/andx-debug-and-fix](../andx-debug-and-fix/SKILL.md#phase-b--analyst). Older handoffs are stale.
 
 ## Step 4 — Land (always on pass)
 
 After a pass handoff with Phase 3 green on `EXEC_BRANCH`. Queue, landing, release and halt rules: `node "$S/ship-queue.mjs" --help`.
 
-1. **Queue** (not for push-to-MR runs), one background shell (HARNESS long wait): `node "$S/ship-queue.mjs" join "$SHIP_ID" --touch <plan touch> && node "$S/ship-queue.mjs" wait "$SHIP_ID"`. `GRANTED` → go; `HALTED` → stop, end `AWAITING_USER`, quote `node "$S/ship-queue.mjs" status "$SHIP_ID"`. Holder: `node "$S/ship-queue.mjs" heartbeat "$SHIP_ID"` at phase boundaries and around long waits (CI, deploy, health).
+1. **Queue** (not for push-to-MR runs), one background shell (HARNESS long wait): `node "$S/ship-queue.mjs" join "$SHIP_ID" --touch <plan touch> && node "$S/ship-queue.mjs" wait "$SHIP_ID"`. `GRANTED` → go; `HALTED` → stop, `node "$S/run.mjs" end "$SLUG" --terminal AWAITING_USER`, quote `node "$S/ship-queue.mjs" status "$SHIP_ID"`. Holder: `node "$S/ship-queue.mjs" heartbeat "$SHIP_ID"` at phase boundaries and around long waits (CI, deploy, health).
 2. **Land:** `node "$S/ship-queue.mjs" land "$SHIP_ID" --worktree "$WORKTREE_DIR" --test "<plan verification + regression>"`. `CONFLICT` (exit 6, also from `join`) → item 3. Exit 9 → follow its message; dirty primary → wait 2 min, retry ≤ 3, then report overlapping files + the user's recovery `git -C "$REPO_ROOT" merge --ff-only "$EXEC_BRANCH"`.
-3. **Conflicts:** the parent never edits conflict markers; the worker resolves on `EXEC_BRANCH`, keeping both sides when compatible (irreconcilable → abort the merge, ask the user). Then Phase 3 on EXEC; review-gated parents run Bugbot on the resolution delta when product source changed.
-4. **Post-merge Phase 3** on `TARGET_BRANCH`, run by the parent: full regression + lint (even docs-only) + every verification-table row. A fix after landing (lint red, deploy hotfix) can't use `land` (lock already landed; it takes only the run worktree): a worker in `node "$S/worktree.mjs" create --slug hotfix` integrates `TARGET_BRANCH`, goes green, then `git -C "$REPO_ROOT" merge --ff-only "$EXEC_BRANCH"` (primary not on TARGET → stop) and `node "$S/worktree.mjs" remove hotfix`.
+3. **Conflicts:** the worker (never the parent) resolves them on `EXEC_BRANCH`, keeping both sides when compatible (irreconcilable → abort the merge, ask the user). Then Phase 3 on EXEC; review-gated parents run Bugbot on the resolution delta when product source changed.
+4. **Post-merge Phase 3** on `TARGET_BRANCH`, run by the parent: regression + lint (even docs-only) + every verification row. A fix after landing (lint red, deploy hotfix) can't use `land` (lock already landed; it takes only the run worktree): a worker in `node "$S/worktree.mjs" create --slug hotfix` (its `EXEC_BRANCH=` is `HOTFIX_BRANCH`) integrates `TARGET_BRANCH`, goes green, then `git -C "$REPO_ROOT" merge --ff-only "$HOTFIX_BRANCH"` (primary not on TARGET → stop) and `node "$S/worktree.mjs" remove hotfix`.
 5. **Cleanup:** `node "$S/worktree.mjs" remove "$SLUG"`; quote its before/after `git worktree list`. Push-to-MR runs: remove after the push, then `node "$S/worktree.mjs" sweep`.
 6. **Release:** `node "$S/ship-queue.mjs" release "$SHIP_ID" --after-deploy` (deploy composers: andx-deploy, after fresh health).
 
@@ -63,7 +63,7 @@ No partial merge unless asked; keep the worktree; report branches, `WORKTREE_DIR
 - The parent never edits source, even a one-line lint fix (a worker does, in `.worktrees/`); it reads anything, runs read-only and deploy commands, writes plans, ledgers and chat.
 - The parent stays at `REPO_ROOT` (`move_agent_to_root(REPO_ROOT)` fixes drift); workers use absolute `$WORKTREE_DIR` paths.
 - The primary checkout changes only by `land` or item 4's `merge --ff-only`; never `git stash`, `reset`, `checkout` or `clean` there.
-- "Done" = landed + post-merge Phase 3 + quoted cleanup, fresh from this run. Push and deploy start after cleanup.
+- "Done" = landed + post-merge Phase 3 + quoted cleanup, all fresh. Push and deploy start after cleanup.
 
 ## Workspace rules
 
