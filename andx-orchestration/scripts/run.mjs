@@ -139,7 +139,7 @@ function main(args) {
     data.phase = id;
     data.phases = [...new Set([...(data.phases ?? []), id])];
     writeLedger(file, data);
-    console.log(`PHASE ${slug} ${arg}`);
+    console.log(`PHASE ${slug} ${id}`);
   } else if (cmd === "landed") {
     if (!/^[0-9a-f]{7,64}$/i.test(arg ?? "")) fail(2, `landed needs a commit sha, got: ${arg ?? ""}`);
     data.landed = arg;

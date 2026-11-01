@@ -101,7 +101,7 @@ test("end DONE is refused until every required phase is recorded", () => {
 
 test("phase records an ASCII apostrophe as the prime in A′", () => {
   ok("start", "--slug", "feat", "--mode", "deploy");
-  ok("phase", "feat", "A'");
+  assert.equal(ok("phase", "feat", "A'"), "PHASE feat A′\n");
   assert.deepEqual(ledger("feat").phases, ["A′"]);
   assert.equal(ledger("feat").phase, "A′");
 });
