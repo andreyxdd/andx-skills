@@ -11,8 +11,9 @@ export const REQUIRED = {
   execute: ["A", "F"],
   review: ["A", "C", "D", "F"],
   "review-mr": ["A", "C", "D", "MR"],
-  deploy: ["A", "A′", "B", "C", "D"],
-  "review-deploy": ["A", "A′", "B", "C", "D"],
+  deploy: ["A", "F", "A′", "B", "C", "D"],
+  // R: final review PASS; C and D here are andx-deploy's, so review's own C and D cannot satisfy them.
+  "review-deploy": ["A", "R", "F", "A′", "B", "C", "D"],
   debug: ["A", "B", "C", "D"],
 };
 // A non-terminal ledger untouched this long belongs to a crashed run: hooks stop acting on it.
