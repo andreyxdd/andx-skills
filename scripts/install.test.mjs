@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { addReactPaths, installTarget } from "../install-companions.mjs";
+import { link } from "../install.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, "..");
@@ -31,13 +32,41 @@ test("install links skills into three harnesses, agents, drops retired, writes h
       for (const s of SKILLS) assert.equal(real(join(home, h, "skills", s)), real(join(ROOT, s)), `${h}/${s}`);
       assert.equal(fs.existsSync(join(home, h, "skills", "andx-pr-review")), false);
     }
-    for (const a of fs.readdirSync(join(ROOT, "agents"))) {
+    for (const a of fs.readdirSync(join(ROOT, "agents")).filter((a) => a !== "andx-spec-reviewer.md")) {
       assert.equal(fs.readFileSync(join(home, ".claude", "agents", a), "utf8"), fs.readFileSync(join(ROOT, "agents", a), "utf8"));
     }
     assert.match(r.stdout, /^linked .*andx-plan -> /m);
     assert.match(fs.readFileSync(join(home, ".claude", "settings.json"), "utf8"), /andx-continue\.mjs/);
     assert.match(fs.readFileSync(join(home, ".cursor", "hooks.json"), "utf8"), /deny-worktree-root\.mjs/);
     assert.equal(install(home).status, 0, "re-run over existing links");
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("spec reviewer gets a per-harness model copy; other agents stay linked and inherit", () => {
+  const home = tmp("install-home-");
+  const src = join(ROOT, "agents", "andx-spec-reviewer.md");
+  const before = fs.readFileSync(src, "utf8");
+  try {
+    fs.mkdirSync(join(home, ".claude", "agents"), { recursive: true });
+    link(src, join(home, ".claude", "agents", "andx-spec-reviewer.md"));
+    for (let run = 0; run < 2; run++) {
+      const r = install(home);
+      assert.equal(r.status, 0, r.stdout + r.stderr);
+      assert.equal(fs.readFileSync(src, "utf8"), before, "source untouched through an old symlink");
+      for (const [h, model] of [[".claude", "sonnet"], [".cursor", "claude-sonnet-5-5"]]) {
+        const f = join(home, h, "agents", "andx-spec-reviewer.md");
+        assert.equal(fs.lstatSync(f).isSymbolicLink(), false, f);
+        assert.equal(fs.readFileSync(f, "utf8"), before.replace("\nmodel: inherit\n", `\nmodel: ${model}\n`), f);
+      }
+      assert.deepEqual(fs.readdirSync(join(home, ".cursor", "agents")), ["andx-spec-reviewer.md"]);
+      for (const a of ["andx-worker.md", "andx-analyst.md", "andx-security-reviewer.md", "andx-refuter.md"]) {
+        const f = join(home, ".claude", "agents", a);
+        if (process.platform !== "win32") assert.equal(fs.lstatSync(f).isSymbolicLink(), true, f);
+        assert.match(fs.readFileSync(f, "utf8"), /^model: inherit$/m, f);
+      }
+    }
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
