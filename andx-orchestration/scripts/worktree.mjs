@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import { ledgerDir, newStamp, readLedger, runNames, writeLedger } from "./run.mjs";
+import { STALE_MS, TERMINAL, ledgerDir, newStamp, readLedger, runNames, writeLedger } from "./run.mjs";
 
 const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
 
@@ -15,15 +15,17 @@ const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
       Makes sure .worktrees/ is git-ignored (adds it to info/exclude and says so), runs the primary checkout's
       .cursor/worktrees.json setup in the new worktree, then --baseline, and records both in the run ledger.
       Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH= lines. A failed git worktree add stops the run:
-      there is no checkout fallback.
+      there is no checkout fallback. The worktree is locked (reason "andx S <branch>") until remove, so no
+      sweep or other tool deletes it mid-run. A symlinked .worktrees is refused (exit 2).
   remove <slug> [--wave N [--step ID]] [--target BRANCH]
-      Removes the slug's worktrees (git refuses dirty ones) and deletes each branch already merged into
-      TARGET_BRANCH; prints git worktree list before and after.
+      Unlocks the slug's own locks, removes its worktrees (git refuses dirty ones) and deletes each branch
+      merged into TARGET_BRANCH; prints git worktree list before and after.
   sweep [--apply] [--target BRANCH] [REPO]
-      Lists agent worktrees. Safe = clean tree and branch tip merged into TARGET (default: current branch)
-      or origin's default. Dry run by default; --apply removes the safe ones. Dirty or unmerged worktrees
-      are never removed; the exact manual command is printed. Ancestry check only, so squash/rebase-merged
-      MRs show as unmerged (kept).
+      Lists agent worktrees. Safe = clean tree and branch merged into TARGET (default: current branch) or
+      origin's default: an ancestor, or integrated (squash/rebase: merging it changes nothing). Dry run by
+      default; --apply removes the safe ones. Dirty, unmerged or locked worktrees are never removed; the
+      exact manual command is printed. Exception: an andx lock whose run ledger is terminal or untouched
+      for 24h is a dead run (unlock dead-run); --apply unlocks it, then judges it like the rest.
 
 Common: --repo DIR (default cwd; any worktree of the repo). Slug: [a-z0-9-], max 40.
 Exit: 0 ok, 1 remove refused or nothing to remove, 2 usage, 3 git worktree add failed, 4 setup failed.`;
@@ -47,10 +49,22 @@ export function agentPath(p, repo, P = path) {
 
 const worktrees = (root) => git(root, "worktree", "list", "--porcelain").stdout.split(/\n\n+/).map((rec) => {
   const field = (k) => rec.split("\n").find((l) => l.startsWith(`${k} `))?.slice(k.length + 1) ?? "";
-  return { p: field("worktree"), head: field("HEAD"), branch: field("branch").replace(/^refs\/heads\//, "") };
+  const lock = /^locked( |$)/m.test(rec) ? field("locked") : null;
+  return { p: field("worktree"), head: field("HEAD"), branch: field("branch").replace(/^refs\/heads\//, ""), lock };
 }).filter((w) => w.p);
 
+// "merged" (ancestor), "integrated" (squash/rebase: merging changes nothing) or "".
+function mergedInto(cwd, head, ref) {
+  if (git(cwd, "merge-base", "--is-ancestor", head, ref).status === 0) return "merged";
+  const m = git(cwd, "merge-tree", "--write-tree", ref, head);
+  return m.status === 0 && m.stdout.split("\n")[0] === git(cwd, "rev-parse", `${ref}^{tree}`).stdout.trim() ? "integrated" : "";
+}
+
 function create(root, o) {
+  const wtRoot = path.join(root, ".worktrees");
+  if (fs.lstatSync(wtRoot, { throwIfNoEntry: false })?.isSymbolicLink()) {
+    fail(2, `${wtRoot} is a symlink: worktrees would live outside this checkout; replace it with a real directory`);
+  }
   const file = path.join(ledgerDir(root), `${o.slug}.json`);
   const ledger = readLedger(file);
   const target = o.target ?? ledger?.vars?.TARGET_BRANCH ?? git(root, "branch", "--show-current").stdout.trim();
@@ -69,7 +83,7 @@ function create(root, o) {
   }
 
   fs.mkdirSync(path.dirname(dir), { recursive: true });
-  const add = git(root, "worktree", "add", "-b", branch, dir, target);
+  const add = git(root, "worktree", "add", "--lock", "--reason", `andx ${o.slug} ${branch}`, "-b", branch, dir, target);
   if (add.status !== 0) fail(3, `${add.stderr}git worktree add failed: no checkout fallback; stop and report.`);
   console.log(`EXEC_BRANCH=${branch}\nWORKTREE_DIR=${dir}\nTARGET_BRANCH=${target}`);
 
@@ -120,16 +134,19 @@ function remove(root, slug, o) {
   const hits = worktrees(root).filter((w) => key(path.dirname(w.p)) === key(path.join(root, ".worktrees")) && re.test(path.basename(w.p)));
   let refused = hits.length ? 0 : 1;
   if (!hits.length) console.log(`no worktree for ${slug} under ${path.join(root, ".worktrees")}`);
-  for (const { p, branch } of hits) {
+  for (const { p, branch, lock } of hits) {
+    const own = lock?.startsWith(`andx ${slug} `);
+    if (own) git(root, "worktree", "unlock", p);
     const r = git(root, "worktree", "remove", p);
     if (r.status !== 0) {
+      if (own) git(root, "worktree", "lock", "--reason", lock, p);
       refused = 1;
       console.log(`KEEP ${p}: ${r.stderr.trim()}\n        manual: git worktree remove --force '${p}'  # only after you confirm`);
       continue;
     }
     console.log(`REMOVED ${p}`);
     if (!branch) continue;
-    if (target && git(root, "merge-base", "--is-ancestor", branch, target).status === 0 && git(root, "branch", "-D", branch).status === 0) {
+    if (target && mergedInto(root, branch, target) && git(root, "branch", "-D", branch).status === 0) {
       console.log(`DELETED branch ${branch}`);
     } else {
       refused = 1;
@@ -148,22 +165,38 @@ function sweep(apply, target, repo) {
   };
 
   repo = must(repo, "rev-parse", "--show-toplevel");
+  const root = path.resolve(path.dirname(must(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")));
   must(repo, "worktree", "prune");
   target ||= must(repo, "branch", "--show-current");
   const remoteDefault = (git(repo, "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD").stdout ?? "").trim();
-  const ancestor = (head, ref) => git(repo, "merge-base", "--is-ancestor", head, ref).status === 0;
-  const merged = (head) => ancestor(head, target) || (!!remoteDefault && ancestor(head, remoteDefault));
+  const merged = (head) => mergedInto(repo, head, target) || (remoteDefault && mergedInto(repo, head, remoteDefault)) || "unmerged";
+  // A lock without a readable ledger (hotfix, MR worktrees) stays: only a recorded end or 24h silence proves a run dead.
+  const dead = (lock) => {
+    const slug = /^andx ([a-z0-9-]+) /.exec(lock)?.[1];
+    const f = slug && path.join(ledgerDir(root), `${slug}.json`);
+    const l = f && readLedger(f);
+    return !!l && (TERMINAL.includes(l.terminal) || Date.now() - fs.statSync(f).mtimeMs > STALE_MS);
+  };
 
   let removed = 0, kept = 0;
-  for (const { p, head, branch } of worktrees(repo)) {
+  for (const { p, head, branch, lock } of worktrees(repo)) {
     if (key(p) === key(repo) || !agentPath(p, repo)) continue;
+    if (lock !== null && !dead(lock)) {
+      kept++;
+      console.log(`keep    locked ${lock} ${branch || "detached"} ${p}\n        manual: git worktree unlock '${p}'  # only after you confirm the run is over`);
+      continue;
+    }
+    if (lock !== null) {
+      console.log(`unlock  dead-run ${lock} ${p}`);
+      if (apply) must(repo, "worktree", "unlock", p);
+    }
     const state = fs.existsSync(p) && git(p, "status", "--porcelain").stdout?.trim() ? "dirty" : "clean";
-    const merge = merged(head) ? "merged" : "unmerged";
-    const action = state === "clean" && merge === "merged" ? "remove" : "keep";
+    const merge = merged(head);
+    const action = state === "clean" && merge !== "unmerged" ? "remove" : "keep";
     console.log(`${action.padEnd(7)} ${state.padEnd(6)} ${merge.padEnd(8)} ${branch || "detached"} ${p}`);
     if (action === "remove" && apply) {
       must(repo, "worktree", "remove", p);
-      if (branch) git(repo, "branch", "-d", branch);
+      if (branch) git(repo, "branch", "-D", branch);
       removed++;
     } else if (action === "keep") {
       kept++;

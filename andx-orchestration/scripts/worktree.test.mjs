@@ -10,6 +10,10 @@ import { agentPath } from "./worktree.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(here, "worktree.mjs");
 const RUN = join(here, "run.mjs");
+// The developer's global andx.worktreeBackend must not pick the backend under test.
+process.env.GIT_CONFIG_GLOBAL = join(fs.mkdtempSync(join(tmpdir(), "worktree-home-")), "gitconfig");
+fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "");
+process.env.GIT_CONFIG_NOSYSTEM = "1";
 let repo;
 
 function run(cmd, args, cwd = repo) {
@@ -19,6 +23,12 @@ function run(cmd, args, cwd = repo) {
 }
 const git = (...a) => run("git", a);
 const commit = (cwd, m) => run("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", m], cwd);
+// An empty commit counts as integrated, so unmerged work needs content.
+const change = (cwd, m, file = `${m}.txt`, body = m) => {
+  fs.writeFileSync(join(cwd, file), body);
+  run("git", ["add", file], cwd);
+  commit(cwd, m);
+};
 const wt = (...a) => spawnSync(process.execPath, [SCRIPT, ...a], { cwd: repo, encoding: "utf8" });
 const sweep = (...a) => run(process.execPath, [SCRIPT, "sweep", ...a]);
 const vars = (out) => Object.fromEntries(out.split("\n").filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]));
@@ -113,7 +123,7 @@ test("remove keeps a dirty worktree and an unmerged branch", () => {
   assert.equal(r.status, 1);
   assert.ok(fs.existsSync(v.WORKTREE_DIR));
   fs.rmSync(join(v.WORKTREE_DIR, "x.txt"));
-  commit(v.WORKTREE_DIR, "wip");
+  change(v.WORKTREE_DIR, "wip");
   r = wt("remove", "feat");
   assert.equal(r.status, 1);
   assert.match(r.stdout, /manual: git branch -D/);
@@ -134,7 +144,7 @@ test("help prints usage, including after sweep", () => {
 
 function sweepRepo() {
   for (const n of ["merged", "dirty", "unmerged"]) git("worktree", "add", "-q", "-b", `wt/exec-${n}`, `.worktrees/exec-${n}`, "main");
-  commit(join(repo, ".worktrees", "exec-unmerged"), "wip");
+  change(join(repo, ".worktrees", "exec-unmerged"), "wip");
   fs.writeFileSync(join(repo, ".worktrees", "exec-dirty", "x.txt"), "x");
 }
 
@@ -179,4 +189,66 @@ test("sweep --target selects the merge base branch", () => {
   const out = sweep("--target", "other", repo);
   assert.match(out, /^remove {2}clean {2}merged {3}wt\/exec-unmerged /m);
   assert.match(out, /^target=other removed=0 kept=1 apply=0$/m);
+});
+
+const porcelain = () => git("worktree", "list", "--porcelain");
+
+test("create locks the worktree so git itself refuses to remove it; remove unlocks and removes", () => {
+  const v = vars(wt("create", "--slug", "feat", "--stamp", "20261101-062708").stdout);
+  assert.ok(porcelain().includes(`locked andx feat andx/exec-feat-20261101-062708`), porcelain());
+  assert.notEqual(spawnSync("git", ["worktree", "remove", v.WORKTREE_DIR], { cwd: repo }).status, 0);
+  assert.equal(wt("remove", "feat").status, 0);
+  assert.ok(!fs.existsSync(v.WORKTREE_DIR));
+});
+
+test("remove leaves a lock it does not own: git refuses, worktree kept", () => {
+  const v = vars(wt("create", "--slug", "feat").stdout);
+  git("worktree", "unlock", v.WORKTREE_DIR);
+  git("worktree", "lock", "--reason", "andx feature other", v.WORKTREE_DIR);
+  const r = wt("remove", "feat");
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^KEEP .*exec-feat-/m);
+  assert.ok(porcelain().includes("locked andx feature other"));
+});
+
+test("sweep keeps a live run's locked worktree and unlocks it once the run is terminal or stale", () => {
+  run(process.execPath, [RUN, "start", "--slug", "feat", "--mode", "execute"]);
+  const v = vars(wt("create", "--slug", "feat").stdout);
+  let out = sweep("--apply", repo);
+  assert.match(out, new RegExp(`^keep {4}locked andx feat ${v.EXEC_BRANCH} ${v.EXEC_BRANCH} \\S`, "m"));
+  assert.match(out, /^target=main removed=0 kept=1 apply=1$/m);
+  assert.ok(fs.existsSync(v.WORKTREE_DIR));
+
+  const old = new Date(Date.now() - 25 * 3600 * 1000);
+  fs.utimesSync(join(repo, ".worktrees", ".andx-run", "feat.json"), old, old);
+  out = sweep(repo);
+  assert.match(out, /^unlock {2}dead-run andx feat /m);
+  assert.match(out, /^remove {2}clean {2}merged /m);
+  assert.ok(porcelain().includes("locked andx feat"), "dry run keeps the lock");
+
+  run(process.execPath, [RUN, "end", "feat", "--terminal", "ABORTED"]);
+  out = sweep("--apply", repo);
+  assert.match(out, /^target=main removed=1 kept=0 apply=1$/m);
+  assert.ok(!fs.existsSync(v.WORKTREE_DIR));
+});
+
+test("a squash-merged branch counts as integrated: sweep removes it, remove deletes the branch", () => {
+  const v = vars(wt("create", "--slug", "feat").stdout);
+  change(v.WORKTREE_DIR, "feature", "a.txt", "same change\n");
+  change(repo, "squash of feature", "a.txt", "same change\n");
+  git("worktree", "add", "-q", "-b", "wt/exec-squash", ".worktrees/exec-squash", v.EXEC_BRANCH);
+  assert.match(sweep(repo), /^remove {2}clean {2}integrated wt\/exec-squash /m);
+  const r = wt("remove", "feat");
+  assert.equal(r.status, 0, r.stdout);
+  assert.match(r.stdout, new RegExp(`^DELETED branch ${v.EXEC_BRANCH}$`, "m"));
+});
+
+test("create refuses a symlinked .worktrees", () => {
+  const elsewhere = fs.mkdtempSync(join(tmpdir(), "worktree-elsewhere-"));
+  fs.symlinkSync(elsewhere, join(repo, ".worktrees"), process.platform === "win32" ? "junction" : "dir");
+  const r = wt("create", "--slug", "feat");
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /symlink/);
+  assert.deepEqual(fs.readdirSync(elsewhere), []);
+  fs.rmSync(elsewhere, { recursive: true, force: true });
 });
