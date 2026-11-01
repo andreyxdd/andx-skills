@@ -28,6 +28,8 @@ const SKILLS = [
   "andx-listen-end",
 ];
 const RETIRED = ["andx-pr-review"];
+// Agents that run a mid-tier model instead of inheriting the parent's: home dir -> model id for that harness.
+const MODELS = { "andx-spec-reviewer.md": { ".claude": "sonnet", ".cursor": "claude-sonnet-5-5" } };
 
 // Replace `dest` with a link to `target`. Windows: directory junctions (no admin); a file symlink
 // may need Developer Mode, so fall back to a copy. Returns "linked" or "copied".
@@ -73,12 +75,24 @@ function main(args) {
     for (const skill of RETIRED) fs.rmSync(path.join(target, skill), { recursive: true, force: true });
   }
 
-  // Agents: ~/.claude/agents only; Cursor reads it too (a same-name ~/.cursor/agents file would shadow).
+  // Agents link into ~/.claude/agents, which Cursor reads too. MODELS agents are written as copies with a
+  // per-harness model instead; Cursor prefers the ~/.cursor/agents copy over the same-name Claude one.
   const agents = path.join(home, ".claude", "agents");
   fs.mkdirSync(agents, { recursive: true });
   for (const name of fs.readdirSync(path.join(ROOT, "agents")).filter((f) => f.endsWith(".md")).sort()) {
-    const how = link(path.join(ROOT, "agents", name), path.join(agents, name));
-    console.log(`${how} ${path.join(agents, name)}${how === "copied" ? " (symlink not permitted; re-run after edits)" : ""}`);
+    const src = path.join(ROOT, "agents", name);
+    if (!MODELS[name]) {
+      const how = link(src, path.join(agents, name));
+      console.log(`${how} ${path.join(agents, name)}${how === "copied" ? " (symlink not permitted; re-run after edits)" : ""}`);
+      continue;
+    }
+    for (const [h, model] of Object.entries(MODELS[name])) {
+      const dest = path.join(home, h, "agents", name);
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.rmSync(dest, { force: true }); // an old symlink would route the write into the repo source
+      fs.writeFileSync(dest, fs.readFileSync(src, "utf8").replace(/^model: inherit$/m, `model: ${model}`));
+      console.log(`wrote ${dest} (model: ${model}; re-run after edits)`);
+    }
   }
 
   const status = script("install-hooks.mjs", "install", "--home", home);
