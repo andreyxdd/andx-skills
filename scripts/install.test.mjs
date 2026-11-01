@@ -15,6 +15,7 @@ const SKILLS = `andx-init andx-plan andx-schedule andx-execute andx-orchestratio
   andx-mr-babysit andx-mr-create andx-security-review andx-listen-start andx-listen-end`.split(/\s+/);
 const tmp = (p) => fs.mkdtempSync(join(tmpdir(), p));
 const real = (p) => fs.realpathSync(p);
+const LINKED_AGENTS = fs.readdirSync(join(ROOT, "agents")).filter((a) => a !== "andx-spec-reviewer.md");
 
 function install(home, ...args) {
   return spawnSync(process.execPath, [join(ROOT, "install.mjs"), "--home", home, ...args], { encoding: "utf8" });
@@ -32,7 +33,7 @@ test("install links skills into three harnesses, agents, drops retired, writes h
       for (const s of SKILLS) assert.equal(real(join(home, h, "skills", s)), real(join(ROOT, s)), `${h}/${s}`);
       assert.equal(fs.existsSync(join(home, h, "skills", "andx-pr-review")), false);
     }
-    for (const a of fs.readdirSync(join(ROOT, "agents")).filter((a) => a !== "andx-spec-reviewer.md")) {
+    for (const a of LINKED_AGENTS) {
       assert.equal(fs.readFileSync(join(home, ".claude", "agents", a), "utf8"), fs.readFileSync(join(ROOT, "agents", a), "utf8"));
     }
     assert.match(r.stdout, /^linked .*andx-plan -> /m);
@@ -61,7 +62,8 @@ test("spec reviewer gets a per-harness model copy; other agents stay linked and 
         assert.equal(fs.readFileSync(f, "utf8"), before.replace("\nmodel: inherit\n", `\nmodel: ${model}\n`), f);
       }
       assert.deepEqual(fs.readdirSync(join(home, ".cursor", "agents")), ["andx-spec-reviewer.md"]);
-      for (const a of ["andx-worker.md", "andx-analyst.md", "andx-security-reviewer.md", "andx-refuter.md"]) {
+      assert.ok(LINKED_AGENTS.length >= 4, "other agents found");
+      for (const a of LINKED_AGENTS) {
         const f = join(home, ".claude", "agents", a);
         if (process.platform !== "win32") assert.equal(fs.lstatSync(f).isSymbolicLink(), true, f);
         assert.match(fs.readFileSync(f, "utf8"), /^model: inherit$/m, f);
