@@ -47,7 +47,7 @@ const USAGE = `run: one ledger per run at <primary checkout>/.worktrees/.andx-ru
 
   start --slug S --mode M    write a fresh ledger and print REPO_ROOT, TARGET_BRANCH, STAMP,
                              EXEC_BRANCH, WORKTREE_DIR, SHIP_ID as KEY=value lines
-  phase <slug> <id>          set the current phase and add it to the recorded phases
+  phase <slug> <id>          set the current phase and add it to the recorded phases (' is read as ′)
   landed <slug> <sha>        record the commit that landed on TARGET_BRANCH
   end <slug> --terminal T [--merged S] [--pushed S] [--mr URL] [--deployed S]
                              T: ${TERMINAL.join("|")}; S: ${STATUS.join("|")} (default NOT_REQUESTED, --mr default -)
@@ -134,8 +134,10 @@ function main(args) {
   if (!data) fail(2, `no ledger: ${file}`);
   if (cmd === "phase") {
     if (!arg) fail(2, "phase needs <id>");
-    data.phase = arg;
-    data.phases = [...new Set([...(data.phases ?? []), arg])];
+    // A typed ASCII apostrophe means the prime in ids like A′.
+    const id = arg.replaceAll("'", "′");
+    data.phase = id;
+    data.phases = [...new Set([...(data.phases ?? []), id])];
     writeLedger(file, data);
     console.log(`PHASE ${slug} ${arg}`);
   } else if (cmd === "landed") {

@@ -99,6 +99,13 @@ test("end DONE is refused until every required phase is recorded", () => {
   assert.equal(ledger("feat").terminal, "DONE");
 });
 
+test("phase records an ASCII apostrophe as the prime in A′", () => {
+  ok("start", "--slug", "feat", "--mode", "deploy");
+  ok("phase", "feat", "A'");
+  assert.deepEqual(ledger("feat").phases, ["A′"]);
+  assert.equal(ledger("feat").phase, "A′");
+});
+
 test("end DONE on a legacy ledger uses the mode's required phases", () => {
   const dir = join(repo, ".worktrees", ".andx-run");
   fs.mkdirSync(dir, { recursive: true });
