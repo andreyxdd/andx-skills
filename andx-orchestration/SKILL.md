@@ -52,7 +52,7 @@ After a pass handoff with Phase 3 green on `EXEC_BRANCH`. Queue, landing, releas
 3. **Conflicts:** the worker (never the parent) resolves them on `EXEC_BRANCH`, keeping both sides when compatible (irreconcilable → abort the merge, ask the user). Then Phase 3 on EXEC; review-gated parents run Bugbot on the resolution delta when product source changed.
 4. **Post-merge Phase 3** on `TARGET_BRANCH`, run by the parent: regression + lint (even docs-only) + every verification row. A fix after landing (lint red, deploy hotfix) can't use `land` (lock already landed; it takes only the run worktree): a worker in `node "$S/worktree.mjs" create --slug hotfix` (its `EXEC_BRANCH=` is `HOTFIX_BRANCH`) integrates `TARGET_BRANCH`, goes green, then `git -C "$REPO_ROOT" merge --ff-only "$HOTFIX_BRANCH"` (primary not on TARGET → stop) and `node "$S/worktree.mjs" remove hotfix`.
 5. **Cleanup:** `node "$S/worktree.mjs" remove "$SLUG"`; quote its before/after `git worktree list`. Push-to-MR runs: remove after the push, then `node "$S/worktree.mjs" sweep`.
-6. **Release:** `node "$S/ship-queue.mjs" release "$SHIP_ID" --after-deploy` (deploy composers: andx-deploy, after fresh health).
+6. **Release:** `node "$S/ship-queue.mjs" release "$SHIP_ID" --after-deploy` (`--deploy` runs: andx-deploy releases after fresh health).
 
 ### On fail
 
