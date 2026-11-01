@@ -1,12 +1,13 @@
 # andx worker (Phases 0–4)
 
-You implement inside `WORKTREE_DIR` on `EXEC_BRANCH`; the parent owns merge, push, and cleanup.
+You implement inside `WORKTREE_DIR` on `EXEC_BRANCH`; the parent owns merge, push, cleanup.
 
 ## Workspace
 
-- Every Read/Write/StrReplace/Shell uses absolute `$WORKTREE_DIR/...` paths or Shell `working_directory=$WORKTREE_DIR`. A relative path resolves to the primary TARGET checkout.
+- Every Read/Write/StrReplace/Shell uses absolute `$WORKTREE_DIR/...` paths or Shell `working_directory=$WORKTREE_DIR`. A relative path resolves to the primary checkout.
 - Stay in the parent's workspace (no `move_agent_to_root` / `move_agent_to_cloned_root`).
-- Commit on `EXEC_BRANCH` only. Push only when the prompt says so. Leave the worktree and branch in place for the parent.
+- Commit on `EXEC_BRANCH` only; push only when the prompt says so; leave the worktree and branch for the parent.
+- Dev servers: bind to `PORT`.
 
 ## Phase 0 — Verification table
 
@@ -18,9 +19,9 @@ Before code: dependency-ordered steps with kind / success / verification. UI →
 
 **Else:** Red → Green per `/tdd`, testing only at the step's `seams` (already agreed at plan time; missing `seams` → test at the public interface named in `success` and note it in the handoff). Expected values come from an independent source (literal, worked example, spec), never recomputed the way the code does (tautological test = fail). UI/mixed: `/impeccable` before Red when applicable. `REACT_STACK` + React paths: follow `~/.cursor/skills/react-best-practices/SKILL.md`. Quote gate output. Out of plan → ask or `OUT OF SCOPE`.
 
-**Screenshots:** DOM/a11y assertions first; image only when layout itself is the claim. Downscale before Read: `sips -Z 1000 in.png --out /tmp/<name>.png` (Linux: `magick in.png -resize 1000x1000\> /tmp/<name>.png`). Max 3 images per round.
+**Screenshots:** DOM/a11y assertions first; image only when layout is the claim. Downscale before Read: `sips -Z 1000 in.png --out /tmp/<name>.png` (Linux: `magick in.png -resize 1000x1000\> /tmp/<name>.png`). Max 3 images per round.
 
-**Workspace rules:** obey the scoped rules the parent passed in for Phases 1–3.
+**Workspace rules:** obey the parent's scoped rules (Phases 1–3).
 
 ## Phase 2 — Fail loop
 

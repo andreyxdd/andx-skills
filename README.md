@@ -64,6 +64,28 @@ node install-companions.mjs   # optional; React/Next companions
 
 Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/` (Windows: directory junctions, no admin needed) and registers the hooks in both harnesses, including `guard-primary.mjs`, which denies the parent's file edits in the primary checkout (outside `.worktrees/`, `.cursor/plans/`, `.cursor/reviews/`) while a run is active. `node install.mjs --uninstall-hooks` removes only the hooks.
 
+### Worktree backend
+
+`worktree.mjs` creates and removes run worktrees through one of two backends, picked by `git config andx.worktreeBackend` (repo config overrides global; `node install.mjs --worktree-backend wt` sets the global value). Names, locks, ledger entries and the `EXEC_BRANCH=` / `WORKTREE_DIR=` / `TARGET_BRANCH=` / `PORT=` output are the same in every mode; `node andx-orchestration/scripts/worktree.mjs --help` has the full rules.
+
+| Value | Creates / removes with | When worktrunk is missing |
+|-------|------------------------|---------------------------|
+| `native` (default) | `git worktree add --lock` / `git worktree remove` | not needed |
+| `auto` | `wt` when found, else native | prints `BACKEND=native (wt not found)` |
+| `wt` | `wt switch --create` + lock / `wt remove` | exit 3 with an install hint, no fallback |
+
+`wt` never gets `--yes`: project hooks in `.config/wt.toml` that you have not approved stop the run until you run `wt config approvals add`. Landing always goes through `ship-queue.mjs land`, never `wt merge` ([ADR 0001](./docs/adr/0001-landing-stays-on-ship-queue.md)).
+
+**Seeding.** A `.worktreeinclude` in the primary checkout (gitignore syntax, the same file Claude Code and worktrunk read) lists git-ignored files to copy into each new worktree before `.cursor/worktrees.json` setup runs. Only entries that match it **and** are git-ignored are copied, as copy-on-write clones with relative symlinks and timestamps kept; existing files are never overwritten. No file, no copy (worktrunk alone would copy every ignored file).
+
+```gitignore
+# .worktreeinclude
+node_modules/
+.env.local
+```
+
+**worktrunk as a companion** (`brew install worktrunk`, optional): `wt list` shows every run worktree with a marker per run state (🤖 running, 💬 waiting for you, ❌ aborted or escalated; set by `run.mjs`, so it works with the native backend too). `wt list statusline --format=claude-code` feeds the Claude Code statusline (`wt config plugins claude install-statusline`), and `wt config plugins claude install` adds the Claude Code plugin.
+
 ## Edit workflow
 
 1. Edit only this repo (`~/Dev/tools/andx-skills/`).
