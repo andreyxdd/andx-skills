@@ -1,0 +1,148 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/run-lifecycle-deepening.plan.md",
+  "target_branch": "main",
+  "base_sha": "0728e09b91fe5f401481def90921035a451a4cc7",
+  "head_sha": "fd05796afee475856b4656c095abe9fbfdc6eb61",
+  "reviewed_at": "2026-11-01T00:51:13Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "land-integrates-before-mode-check",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:252",
+      "finding": "land merged into the worktree before validating the worktree and landing mode",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "high",
+      "resolution": "fixed"
+    },
+    {
+      "id": "halt-resume-lock-leak",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:226",
+      "finding": "halt seen after takeLock could strand the lock after resume",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "high",
+      "resolution": "fixed"
+    },
+    {
+      "id": "grant-halt-exit-with-lock",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:212",
+      "finding": "halted wait could exit while holding the lock",
+      "reviewers": [
+        "bugbot"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "guard-symlink-and-dotdot",
+      "status": "confirmed",
+      "location": "hooks/guard-primary.mjs:24",
+      "finding": "symlinked leaves, dangling links and dot-dot steps resolved like the OS; .git and ..-names denied; string tool_input parsed",
+      "reviewers": [
+        "security"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "land-fence-and-head",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.mjs:297",
+      "finding": "fence re-checked after test; ff lands the tested sha; worktree validated",
+      "reviewers": [
+        "security"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "naming-and-ledger-dup",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/run.mjs:35",
+      "finding": "naming, STALE_MS and ledgers() shared from run.mjs",
+      "reviewers": [
+        "ponytail",
+        "spec"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "mr-review-report-dir",
+      "status": "confirmed",
+      "location": "andx-mr-review/SKILL.md:96",
+      "finding": "per-head, cleared, absolute reports dir; git-path exclude",
+      "reviewers": [
+        "spec",
+        "bugbot"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "reviewer-agents-readonly-write",
+      "status": "confirmed",
+      "location": "agents/andx-spec-reviewer.md:23",
+      "finding": "read-only reviewers reply inline",
+      "reviewers": [
+        "spec"
+      ],
+      "severity": "low",
+      "resolution": "fixed"
+    },
+    {
+      "id": "windows-ci-cleanup-and-paths",
+      "status": "confirmed",
+      "location": "andx-orchestration/scripts/ship-queue.test.mjs:59",
+      "finding": "EBUSY on temp cleanup and slash-normalized path asserts on windows-latest",
+      "reviewers": [
+        "ci"
+      ],
+      "severity": "medium",
+      "resolution": "fixed"
+    },
+    {
+      "id": "orchestration-docs-stale",
+      "status": "confirmed",
+      "location": "andx-orchestration/SKILL.md:65",
+      "finding": "orchestration and deploy docs still describe manual landing and worktree-sweep; rewired in step-9 (wave 3)",
+      "reviewers": [
+        "bugbot",
+        "ponytail"
+      ],
+      "severity": "medium",
+      "resolution": "deferred"
+    },
+    {
+      "id": "cursor-pretooluse-shape",
+      "status": "needs_validation",
+      "location": "hooks/guard-primary.mjs:38",
+      "finding": "Cursor preToolUse edit payload not yet observed; verify after install",
+      "reviewers": [
+        "security"
+      ],
+      "blockers": [
+        "real Cursor preToolUse payload not captured"
+      ],
+      "validation_plan": "log a Cursor preToolUse payload for Write/StrReplace after install"
+    },
+    {
+      "id": "claude-matcher-delete-strreplace",
+      "status": "rejected",
+      "location": "scripts/install-hooks.mjs:54",
+      "finding": "Claude Code has no Delete/StrReplace tools; Cursor registration covers them",
+      "reviewers": [
+        "bugbot"
+      ]
+    }
+  ]
+}
