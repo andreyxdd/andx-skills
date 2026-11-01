@@ -19,7 +19,7 @@ const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
       prints SEED <n> entries <ms>ms), runs the primary checkout's .cursor/worktrees.json setup in the new
       worktree, then --baseline, and records seed, setup and baseline in the run ledger.
       Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH=, PORT= lines; PORT (10000-19999, stable per branch,
-      recorded in the ledger) is the port dev servers in this worktree bind to. A failed git worktree add stops the run:
+      in the ledger) is what dev servers in this worktree bind to. A failed worktree add stops the run:
       there is no checkout fallback. The worktree is locked (reason "andx S <branch>") until remove, so no
       sweep or other tool deletes it mid-run. A symlinked .worktrees is refused (exit 2).
   create --slug S --branch B [--name N] [--track REMOTE/B]
