@@ -5,15 +5,15 @@ effort: medium
 ---
 # Andx Execute and Review
 
-Worker implements in worktree; **blind reviewers** gate merge to `TARGET_BRANCH`.
+**Blind reviewers** gate the worker's merge to `TARGET_BRANCH`.
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Spawn: [HARNESS.md](../andx-orchestration/HARNESS.md)
 
-**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), [/andx-execute](../andx-execute/SKILL.md). Reviewer roster + severity → SKILL-MAP. Review module (package, union, artifact; the union rules live in its help): `node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs --help`.
+**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), [/andx-execute](../andx-execute/SKILL.md). Reviewer roster + severity → SKILL-MAP. Review module (package, union, artifact; union rules in its help): `node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs --help`.
 
 ## When
 
-Plan ready; need second pass before land. Review + ship → `/andx-execute-review-and-deploy`. Deploy-only → `/andx-execute-and-deploy`. No gate → `/andx-execute`.
+Second pass before land; no gate → `/andx-execute`. `--deploy` (= `/andx-execute-review-and-deploy`): push + deploy after the DoD. `--mr`: draft MR, no merge.
 
 ## Workflow
 
@@ -22,12 +22,12 @@ A–B Worker Phases 0–4 on EXEC_BRANCH (no merge)
 C   review.mjs package → parallel fresh reviewers → one report file each
 D   review.mjs union → verdict.json; BLOCK on any Critical/High or unparsed report
 E   Resume worker ≤3 rounds → re-review the fix delta
-F   PASS → review.mjs artifact → orch Step 4 concurrent-merge + cleanup
+F   PASS → review.mjs artifact → orch Step 4 (ship-queue land) + cleanup
 ```
 
 ## Phase A–B — Execute
 
-[/andx-execute](../andx-execute/SKILL.md) § Orchestrator preflight + spawn. Worker Phases 0–4 → handoff. **Do not merge.** Worker fail → stop (no review).
+[/andx-execute](../andx-execute/SKILL.md) Preflight + Phase A, but `node "$S/run.mjs" start --slug "$SLUG" --mode review` (`--mr`: `review-mr`; `--deploy`: `review-deploy`). **Do not merge.** Worker fail → stop (no review).
 
 ## Phase C — Review (parallel, blind)
 
@@ -66,7 +66,7 @@ node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs union --repo "$
 # round 2+: --expect <reviewers spawned this round> --round "$ROUND" --prior <previous RUN_DIR>/verdict.json
 ```
 
-Route from `verdict.json` only, never raw reports. A reviewer in `unparsed`: Bugbot → read its report and classify by hand (never re-request); others → re-request the VERDICT once and re-run union; still unparsed → BLOCK. `dropped` is not routed.
+Route from `verdict.json` only, never raw reports. Final `PASS` (after any fix loop) → ledger phases `C`, `D` (`--deploy`: skip; andx-deploy records them). A reviewer in `unparsed`: Bugbot → read its report and classify by hand (never re-request); others → re-request the VERDICT once and re-run union; still unparsed → BLOCK. `dropped` is not routed.
 
 ## Phase E — Fix loop
 
@@ -74,7 +74,7 @@ Route from `verdict.json` only, never raw reports. A reviewer in `unparsed`: Bug
 
 Resume worker (`resume=<id>`) with `blockers` + in-scope `advisory` + jargon hits; Phase 3 on EXEC_BRANCH; next round re-reviews only the fix delta with Bugbot plus the reviewers whose blockers or MEDIUMs this round fixed. Add Spec only when the delta touches paths outside the plan `touch`. A reviewer whose findings were all PASS/advisory is not re-spawned.
 
-**Round cap:** after round 3 still BLOCK → AskQuestion with exactly: "one more round" / "merge, deferring only MEDIUM/LOW" / "abort". Critical/High are never deferred. Set ledger `terminal: AWAITING_USER` while waiting.
+**Round cap:** after round 3 still BLOCK → AskQuestion with exactly: "one more round" / "merge, deferring only MEDIUM/LOW" / "abort". Critical/High are never deferred. `run.mjs end --terminal AWAITING_USER` while waiting.
 
 ## Phase F — Merge
 
@@ -85,15 +85,15 @@ node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs artifact --verd
   --target "$TARGET_BRANCH" --out "$WORKTREE_DIR/.cursor/reviews/$SLUG.json"
 ```
 
-INVALID → fix the inputs and re-run, never hand-edit. The parent commits only that file on `EXEC_BRANCH`: `chore(review): add REVIEW-ARTIFACT for <plan-slug>`. Then orchestration Step 4 (ship queue, concurrent-merge with its conflict-delta Bugbot rule), post-merge Phase 3, cleanup evidence.
+INVALID → fix the inputs and re-run, never hand-edit. The parent commits only that file on `EXEC_BRANCH`: `chore(review): add REVIEW-ARTIFACT for <plan-slug>`. Then andx-execute Phase F: orch Step 4 (ship-queue land), ledger `F`, its `--deploy` path.
 
 ## MR mode (`--mr`)
 
-Replaces Phase F's merge when the user wants a draft MR instead of a local merge (ledger `mode: review-mr`). Never merges to the default branch.
+Replaces Phase F's merge with a draft MR. Never merges to the default branch.
 
 1. **Scope contract** from plan frontmatter: `mr_branch` (reviewer-facing name, no `andx/exec-*`), optional `mr_iids`, `base_sha`. Pushing to a branch not in `mr_branch`/`mr_iids` needs user confirmation.
 2. **Push:** `git -C "$WORKTREE_DIR" push origin "$EXEC_BRANCH:$mr_branch"` (no force unless the user asked). Verify `git ls-remote origin "$mr_branch"` equals `EXEC_HEAD`.
-3. **Draft MR:** create or update as **draft** via [HOSTS.md](../andx-mr-review/HOSTS.md); title + body must pass `node ~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs text -` (stdin). Record the URL in the ledger.
+3. **Draft MR:** create or update as **draft** via [HOSTS.md](../andx-mr-review/HOSTS.md); title + body must pass `node ~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs text -` (stdin). Ledger phase `MR`; URL → `run.mjs end --mr`.
 4. **Cleanup:** orch Step 4 push-to-MR runs.
 5. **Babysit:** Read `../andx-mr-babysit/SKILL.md` and follow it on the MR URL. Babysit owns the loop and its escalation bound; this skill owns only push + draft. Babysit findings about code outside `base_sha..head` are rejected.
 
@@ -101,13 +101,12 @@ Replaces Phase F's merge when the user wants a draft MR instead of a local merge
 
 ## Definition of done
 
-Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; no open High; merged + post-merge green + cleanup + queue release (deploy composers: andx-deploy releases after health); ledger `terminal: DONE`; reply ends with the orch status line.
+Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; no open High; merged + post-merge green + cleanup + queue release (`--deploy`: by andx-deploy after health); `run.mjs end --terminal DONE`; reply ends with its status line.
 
 ## Anti-patterns
 
 - Reviewer shares worker context
 - Merge with open High
 - Parent “just fixes” source
-- Parent unions or dedups findings by hand
 - Whole-repo ponytail-audit (scope to `touch`)
 - Treating `shrink:` as blocker

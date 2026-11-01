@@ -9,10 +9,10 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 | `andx-init` | Scaffold OKF + ICM layout (presets: app, data, content) |
 | `andx-plan` | Grill + write `<repo>/.cursor/plans/*.plan.md`; Next menu + `go` |
 | `andx-schedule` | Build EXEC-MATRIX waves from depends+touch; enable parallel execute |
-| `andx-execute` | Worktree execution + TDD + merge |
-| `andx-execute-and-review` | Execute + adversarial review gate |
-| `andx-execute-and-deploy` | Execute + push + deploy |
-| `andx-execute-review-and-deploy` | Execute + review gate + push + deploy |
+| `andx-execute` | Worktree execution + TDD + merge; `--deploy` adds push + deploy |
+| `andx-execute-and-review` | Execute + adversarial review gate; `--deploy`, `--mr` |
+| `andx-execute-and-deploy` | Alias of `/andx-execute --deploy` |
+| `andx-execute-review-and-deploy` | Alias of `/andx-execute-and-review --deploy` |
 | `andx-debug-and-fix` | Readonly debug analysis → execute worker |
 | `andx-deploy` | Deploy + health check (discover from **this** repo) |
 | `andx-deploy-init` | First-time CI/CD grill, checklist, review-gated plan |
@@ -172,7 +172,7 @@ Then install the other required companions above (impeccable for UI work, ponyta
 2. `/andx-plan add buyer refund requests` — answer the grill rounds (`yes` accepts each recommendation), approve the step list; the plan lands in `.cursor/plans/<slug>.plan.md`.
 3. Open a **fresh chat** (Claude Code: `/clear`) and paste the plan's `Fresh chat:` line, e.g. `/andx-execute-and-review /abs/repo/.cursor/plans/buyer-refund-request.plan.md`.
 4. The run works in `.worktrees/exec-<slug>-<stamp>`: worker implements per step with TDD, blind reviewers gate, then `ship-queue.mjs land` fast-forwards your branch (never switching branches in your checkout) and `worktree.mjs remove` cleans up. It ends with the `run.mjs end` line `MERGED PASS | PUSHED … | MR … | DEPLOYED …`.
-5. Ship: pick `/andx-execute-review-and-deploy` in step 3, or run `/andx-deploy` after the merge (first time: `/andx-deploy-init`). Draft MR instead of a local merge: `/andx-execute-and-review --mr` (pushes and babysits). Someone else's MR: `/andx-mr-review <url>`, then `/andx-mr-babysit <url>`.
+5. Ship: pick `/andx-execute-review-and-deploy` (same as `/andx-execute-and-review --deploy`) in step 3, or run `/andx-deploy` after the merge (first time: `/andx-deploy-init`). Draft MR instead of a local merge: `/andx-execute-and-review --mr` (pushes and babysits). Someone else's MR: `/andx-mr-review <url>`, then `/andx-mr-babysit <url>`.
 6. Optional: `/retro` after a run that escalated or needed ≥ 2 review rounds; `node ~/Dev/tools/andx-skills/scripts/spend-report.mjs --summary ~/.claude/projects` to track spend.
 
 Bug instead of feature: `/andx-debug-and-fix <symptom>` (read-only analysis → worktree fix → merge).
