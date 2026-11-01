@@ -2,6 +2,7 @@
 // Stand-in for worktrunk's wt: the subset worktree.mjs calls, output shaped like wt v0.81.0 --format json.
 // FAKE_WT_LOG: append each argv as a JSON line. FAKE_WT_VERSION: --version text. FAKE_WT_UNAPPROVED=1:
 // fail switch like wt does when .config/wt.toml hooks are not approved in a non-interactive shell.
+// FAKE_WT_LOCK=1: lock the new worktree, so the caller's own lock fails.
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 
@@ -25,6 +26,7 @@ else if (args[0] === "switch") {
   const branch = created ?? args[1];
   const r = created ? git("worktree", "add", "-b", branch, opt("--path"), opt("--base")) : git("worktree", "add", opt("--path"), branch);
   if (r.status !== 0) die(r.stderr.trim());
+  if (process.env.FAKE_WT_LOCK) git("worktree", "lock", opt("--path"));
   console.log(JSON.stringify({ action: "created", branch, path: opt("--path"), created_branch: !!created }));
 } else if (args[0] === "remove") {
   const branch = args[1];

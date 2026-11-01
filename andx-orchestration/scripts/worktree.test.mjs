@@ -407,7 +407,7 @@ test("create --branch checks out an existing branch, locked; remove keeps the br
   assert.match(git("branch"), /mr-head/);
 });
 
-test("create --branch --track resets the branch to the remote one; --name picks the folder", () => {
+test("create --branch --track resets the branch to the remote one", () => {
   const origin = join(repo, ".git", "origin.git");
   git("init", "-q", "--bare", origin);
   git("remote", "add", "origin", origin);
@@ -416,7 +416,7 @@ test("create --branch --track resets the branch to the remote one; --name picks 
   git("push", "-q", "origin", "feat-x");
   git("switch", "-q", "main");
   git("branch", "-f", "feat-x", "main");
-  const r = wt("create", "--slug", "babysit", "--branch", "feat-x", "--name", "mr-8", "--track", "origin/feat-x");
+  const r = wt("create", "--slug", "mr-8", "--branch", "feat-x", "--track", "origin/feat-x");
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const d = vars(r.stdout).WORKTREE_DIR;
   assert.equal(d, join(repo, ".worktrees", "mr-8"));
@@ -431,18 +431,69 @@ test("create --branch refuses the primary checkout's branch: stop and ask", () =
   assert.equal(wt("create", "--slug", "mr-9", "--track", "origin/x").status, 2, "--track needs --branch");
 });
 
-test("wt backend: create --branch runs wt switch on the branch; remove keeps it", () => {
+test("wt backend: create --branch runs wt switch on the branch, seeds natively; remove keeps it", () => {
   git("config", "andx.worktreeBackend", "wt");
   git("branch", "mr-head");
+  fs.writeFileSync(join(repo, ".worktreeinclude"), "node_modules/\n");
   const f = fakeWt();
   const r = f.run("create", "--slug", "mr-7", "--branch", "mr-head");
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const d = vars(r.stdout).WORKTREE_DIR;
   assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} switch mr-head --path ${d} --no-cd --format json`), JSON.stringify(f.calls()));
+  assert.match(r.stdout, /^SEED 0 entries \d+ms$/m);
+  assert.ok(!f.calls().some((c) => c.includes("copy-ignored")), "the branch's own rules are not handed to wt");
   assert.ok(porcelain().includes("locked andx mr-7 mr-head"));
   assert.equal(f.run("remove", "mr-7").status, 0);
   assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} remove mr-head --no-delete-branch --foreground --format json`));
   assert.match(git("branch"), /mr-head/);
+});
+
+test("create --branch seeds only what the branch's own .gitignore also ignores", () => {
+  fs.writeFileSync(join(repo, ".gitignore"), ".env.local\n");
+  run("git", ["add", ".gitignore"]);
+  commit(repo, "primary ignores .env.local");
+  git("switch", "-q", "-c", "mr-head");
+  fs.writeFileSync(join(repo, ".gitignore"), "");
+  run("git", ["add", ".gitignore"]);
+  commit(repo, "branch ignores nothing");
+  git("switch", "-q", "main");
+  fs.writeFileSync(join(repo, ".env.local"), "SECRET=1");
+  fs.writeFileSync(join(repo, ".worktreeinclude"), ".env.local\n");
+  const r = wt("create", "--slug", "mr-7", "--branch", "mr-head");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^SEED 0 entries \d+ms$/m);
+  assert.ok(!fs.existsSync(join(vars(r.stdout).WORKTREE_DIR, ".env.local")));
+});
+
+test("seeding never writes through a symlinked dir in the checkout", { skip: process.platform === "win32" && "git checks out symlinks as files there" }, () => {
+  const outside = fs.mkdtempSync(join(tmpdir(), "worktree-outside-"));
+  fs.writeFileSync(join(repo, ".gitignore"), "cache/\n");
+  run("git", ["add", ".gitignore"]);
+  fs.symlinkSync(outside, join(repo, "cache"));
+  run("git", ["add", "-f", "cache"]);
+  commit(repo, "cache links outside");
+  git("switch", "-q", "-c", "side");
+  git("rm", "-q", "--cached", "cache");
+  commit(repo, "untrack cache");
+  fs.rmSync(join(repo, "cache"));
+  fs.mkdirSync(join(repo, "cache"));
+  fs.writeFileSync(join(repo, "cache", "data.txt"), "x");
+  fs.writeFileSync(join(repo, ".worktreeinclude"), "cache/\n");
+  const r = wt("create", "--slug", "feat", "--target", "main");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^SEED skip cache: destination resolves outside the worktree$/m);
+  assert.match(r.stdout, /^SEED 0 entries \d+ms$/m);
+  assert.deepEqual(fs.readdirSync(outside), []);
+  fs.rmSync(outside, { recursive: true, force: true });
+});
+
+test("wt backend: a failed lock removes the new worktree and branch again", () => {
+  git("config", "andx.worktreeBackend", "wt");
+  const r = fakeWt({ FAKE_WT_LOCK: "1" }).run("create", "--slug", "feat");
+  assert.equal(r.status, 3, r.stdout + r.stderr);
+  assert.match(r.stderr, /git worktree lock failed; removed /);
+  assert.doesNotMatch(git("worktree", "list"), /exec-feat/);
+  assert.doesNotMatch(git("branch"), /exec-feat/);
 });
 
 test("create refuses a symlinked .worktrees", () => {
