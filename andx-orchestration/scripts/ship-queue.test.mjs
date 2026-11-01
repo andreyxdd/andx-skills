@@ -181,6 +181,25 @@ test("a wait that finds the queue halted while it holds the lock frees the lock 
   assert.equal(JSON.parse(git(repo, "cat-file", "blob", "refs/andx/ship/lock")).gen, 1);
 });
 
+test("a duplicate wait never takes over the live lock its own id holds", async () => {
+  hold("w");
+  ok("join", "w");
+  const w = waitAsync("w");
+  await sleep(400);
+  assert.equal(w.exitCode, null);
+  w.kill();
+  assert.equal((await w.done).out, "");
+  assert.match(ok("status"), /^holder: w gen 1 held 0m$/m);
+});
+
+test("a ref whose blob is empty fails fast with exit 2", () => {
+  const empty = spawnSync("git", ["hash-object", "-w", "--stdin"], { cwd: repo, input: "", encoding: "utf8" }).stdout.trim();
+  git(repo, "update-ref", "refs/andx/ship/ticket/7a", empty);
+  const r = q("status");
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /empty .*refs\/andx\/ship\/ticket\/7a.*git 2\.38\+/);
+});
+
 test("status --touch lists live tickets with overlapping paths", () => {
   ok("join", "api", "--touch", "src/api,docs/x.md");
   ok("join", "lib", "--touch", "lib/");

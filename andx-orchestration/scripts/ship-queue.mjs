@@ -73,9 +73,11 @@ export function refs(repo) {
     const s = { lock: null, halted: null, ticket: [], announce: [] };
     for (const line of r.stdout.split("\n").filter(Boolean)) {
       const [ref, oid] = line.split(" ", 2);
+      const raw = line.slice(ref.length + oid.length + 2);
+      if (!raw) fail(2, `empty %(raw) for ${ref}: a corrupt ref, or ship-queue needs git ${GIT_MIN}`);
       let data = null;
       try {
-        data = JSON.parse(line.slice(ref.length + oid.length + 2));
+        data = JSON.parse(raw);
       } catch {}
       const kind = ref.slice(NS.length + 1).split("/")[0];
       if (Array.isArray(s[kind])) s[kind].push({ ref, oid, data });
@@ -225,13 +227,13 @@ function main(args) {
         const { gen, oid } = takeLock({ cas }, s, id) ?? {};
         if (oid) {
           if (l?.holder) console.log(`reclaimed stale lock ${l.holder}`);
-          // halt writes the halt ref before freeing the lock, so this catches a halt between our read and our swap;
-          // the next poll then frees the lock before exiting 3.
-          if (!get(HALT)) {
-            drop(ticketRef(id));
-            console.log(`GRANTED ${id} gen ${gen}`);
-            process.exit(0);
-          }
+          // halt writes the halt ref before freeing the lock, so this catches a halt between our read and our swap.
+          // Free right here: a lock kept into the next poll would never be granted if resume came first.
+          const h = get(HALT);
+          if (h) update(LOCK, (cur) => (cur?.holder === id && cur.gen === gen ? free(cur) : cur)), halted(h);
+          drop(ticketRef(id));
+          console.log(`GRANTED ${id} gen ${gen}`);
+          process.exit(0);
         }
       }
       setTimeout(poll, pollMs);
