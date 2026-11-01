@@ -1,0 +1,92 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/run-lifecycle-deepening.plan.md",
+  "target_branch": "main",
+  "base_sha": "aa756d6a8af7230474d43f3a4f9a5b3f7d22e92b",
+  "head_sha": "468cd6548158fc07e9f3433cf4d5c93eb3cfcfb4",
+  "reviewed_at": "2026-11-01T01:39:13Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "deploy-entry-alias-only",
+      "status": "confirmed",
+      "severity": "high",
+      "resolution": "fixed",
+      "location": "andx-deploy/SKILL.md:16",
+      "finding": "andx-deploy entry, phases and release worded for --deploy and its aliases",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "review-deploy-phase-collision",
+      "status": "confirmed",
+      "severity": "high",
+      "resolution": "fixed",
+      "location": "andx-orchestration/scripts/run.mjs:16",
+      "finding": "review-deploy requires R and F; deploy requires F",
+      "reviewers": [
+        "bugbot",
+        "security"
+      ]
+    },
+    {
+      "id": "deploy-flag-user-only",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "fixed",
+      "location": "andx-execute/SKILL.md:8",
+      "finding": "--deploy/--mr only when typed by the user",
+      "reviewers": [
+        "security"
+      ]
+    },
+    {
+      "id": "mr-deploy-exclusive",
+      "status": "confirmed",
+      "severity": "low",
+      "resolution": "fixed",
+      "location": "andx-execute-and-review/SKILL.md:16",
+      "finding": "--mr and --deploy together stop",
+      "reviewers": [
+        "security",
+        "bugbot"
+      ]
+    },
+    {
+      "id": "deploy-init-forbids-flag",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "fixed",
+      "location": "andx-deploy-init/SKILL.md:1",
+      "finding": "first CI/CD forbids --deploy too",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "skill-map-deploy-row",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "fixed",
+      "location": "andx-orchestration/SKILL-MAP.md:107",
+      "finding": "deploy row names the --deploy paths",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "cursor-model-id-unverified",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "accepted",
+      "location": "andx-orchestration/HARNESS.md:42",
+      "finding": "Cursor id claude-sonnet-5-5 cited by format but not verified against a live model list; check the task card after install",
+      "reviewers": [
+        "spec"
+      ]
+    }
+  ]
+}
