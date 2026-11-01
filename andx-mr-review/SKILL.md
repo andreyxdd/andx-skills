@@ -90,11 +90,11 @@ Unless artifact mode or `--fast`:
 
 `--deep`: add react-best-practices + accessibility passes on UI diff paths.
 
-Package the MR diff (refs from step 4, never the default branch) into a per-MR reports dir:
+Package the MR diff (step 4 refs, never the default branch). One reports dir per MR head, so reports for an earlier head are never read:
 
 ```bash
-ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; RUN_DIR="$ROOT/.worktrees/.andx-run/review-mr-<iid>"
-mkdir -p "$RUN_DIR"; git -C "$ROOT" check-ignore -q .worktrees/ || echo .worktrees/ >> "$ROOT/.git/info/exclude"
+ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; RUN_DIR="$ROOT/.worktrees/.andx-run/review-mr-<iid>-<head_sha>"
+mkdir -p "$RUN_DIR"; git -C "$ROOT" check-ignore -q .worktrees/ || echo .worktrees/ >> "$(git rev-parse --git-path info/exclude)"
 node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs package --base <base_sha> --head <head_sha> --out "$RUN_DIR/package.diff"
 ```
 
@@ -117,7 +117,7 @@ node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs union --base <b
   --reports "$RUN_DIR" --slug mr-<iid> --expect <reviewers spawned> --refuters "$RUN_DIR/refuters.json" > "$RUN_DIR/verdict.json"
 ```
 
-The union dedups, drops wrong-base findings, applies refuters and fails closed (rules: `review.mjs --help`). Work from `verdict.json` only. A reviewer in `unparsed`: Bugbot → read its report and classify by hand (never re-request); others → re-request once, then report it as unreviewed.
+Union rules: `review.mjs --help`. Work from `verdict.json` only. A reviewer in `unparsed`: Bugbot → read its report and classify by hand (never re-request); others → re-request once, then report it as unreviewed.
 
 - Sort `blockers` + `advisory` + `deferred`: high → medium → low → nitpick
 - Enrich each with `ux_flow` / `api_note` (read i18n, apiSlice, types)
