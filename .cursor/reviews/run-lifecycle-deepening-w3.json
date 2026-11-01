@@ -1,0 +1,90 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/run-lifecycle-deepening.plan.md",
+  "target_branch": "main",
+  "base_sha": "d0b988a2985f65f8f2064942f2cfd15e64439f73",
+  "head_sha": "9985ced32e1324a5cef231ab512dd0b745b9fb7d",
+  "reviewed_at": "2026-11-01T01:17:06Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "on-fail-release-halt-split",
+      "status": "confirmed",
+      "severity": "high",
+      "resolution": "fixed",
+      "location": "andx-orchestration/SKILL.md:59",
+      "finding": "before-landing release vs after-landing halt restored",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "step1-start-first",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "fixed",
+      "location": "andx-orchestration/SKILL.md:30",
+      "finding": "run.mjs start before sweep/announce/create",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "cli-shorthand",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "fixed",
+      "location": "andx-orchestration/SKILL.md:50",
+      "finding": "every CLI call spelled out in full; hotfix lands its own branch",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "phase-prime-typo",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "fixed",
+      "location": "andx-orchestration/scripts/run.mjs:138",
+      "finding": "ASCII apostrophe normalized to prime in phase ids",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "worker-jargon-repo",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "fixed",
+      "location": "andx-execute/WORKER.md:33",
+      "finding": "jargon gate passes --repo",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "composer-mode-wiring",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "deferred",
+      "location": "andx-execute-and-review/SKILL.md:25",
+      "finding": "composers lack run.mjs start --mode + phase wiring and still say concurrent-merge; owned by step-11",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "mr-babysit-raw-worktree",
+      "status": "confirmed",
+      "severity": "medium",
+      "resolution": "deferred",
+      "location": "andx-mr-babysit/SKILL.md:58",
+      "finding": "existing MR branches need worktree.mjs support for an existing branch",
+      "reviewers": [
+        "spec"
+      ]
+    }
+  ]
+}
