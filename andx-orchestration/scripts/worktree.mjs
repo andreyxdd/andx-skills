@@ -30,8 +30,16 @@ const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
       exact manual command is printed. Exception: an andx lock whose run ledger is terminal or untouched
       for 24h is a dead run (unlock dead-run); --apply unlocks it, then judges it like the rest.
 
+Backend (create and remove print BACKEND=): git config andx.worktreeBackend, repo over global, set globally by
+  node install.mjs --worktree-backend X. native (default): plain git. wt: worktrunk's wt switch / remove /
+  step copy-ignored with the same names, locks and output (exit 3 if worktrunk is missing; Windows Terminal's
+  wt is never run). auto: wt when found, else BACKEND=native (wt not found). wt always runs as wt -C <dir>
+  without --yes: .config/wt.toml hooks not yet approved stop the run (exit 4) until the user runs
+  wt config approvals add. Landing never uses wt merge (ship-queue.mjs land).
+
 Common: --repo DIR (default cwd; any worktree of the repo). Slug: [a-z0-9-], max 40.
-Exit: 0 ok, 1 remove refused or nothing to remove, 2 usage, 3 git worktree add failed, 4 setup failed.`;
+Exit: 0 ok, 1 remove refused or nothing to remove, 2 usage, 3 worktree add failed or worktrunk missing,
+  4 setup failed or wt hooks unapproved.`;
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const fail = (code, msg) => {
@@ -39,6 +47,37 @@ const fail = (code, msg) => {
   process.exit(code);
 };
 const git = (cwd, ...args) => spawnSync("git", args, { cwd, encoding: "utf8" });
+
+// worktrunk ships as wt (git-wt where wt is taken). On Windows wt.exe under WindowsApps is Windows Terminal,
+// which opens a window when run, so it is never executed.
+export function wtCandidates(platform = process.platform, where = (n) => (spawnSync("where", [n], { encoding: "utf8" }).stdout ?? "").split(/\r?\n/).filter(Boolean)) {
+  return platform === "win32" ? [...where("git-wt"), ...where("wt").filter((p) => !/\\WindowsApps\\/i.test(p))] : ["wt", "git-wt"];
+}
+// stdin closed: wt sees no terminal, so it never prompts and unapproved hooks fail instead of waiting.
+// A .cmd shim (tests on Windows) needs a shell; each argument is quoted for cmd.exe.
+const runWt = (bin, args) => /\.(cmd|bat)$/i.test(bin)
+  ? spawnSync([bin, ...args].map((a) => `"${a.replaceAll('"', '""')}"`).join(" "), { encoding: "utf8", shell: true, stdio: ["ignore", "pipe", "pipe"] })
+  : spawnSync(bin, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+export const findWt = () => wtCandidates().find((b) => /\bwt v\d+\.\d+|worktrunk/.test(runWt(b, ["--version"]).stdout ?? ""));
+
+// git config andx.worktreeBackend (repo overrides global): the wt binary, or undefined for native git.
+function backend(root) {
+  const want = git(root, "config", "--get", "andx.worktreeBackend").stdout.trim() || "native";
+  if (!["native", "auto", "wt"].includes(want)) fail(2, `bad git config andx.worktreeBackend=${want}: native|auto|wt`);
+  const bin = want === "native" ? undefined : findWt();
+  if (want === "wt" && !bin) {
+    fail(3, "andx.worktreeBackend=wt but worktrunk is not installed: brew install worktrunk (or cargo install worktrunk), or git config andx.worktreeBackend native");
+  }
+  console.log(`BACKEND=${bin ? "wt" : "native"}${want === "auto" && !bin ? " (wt not found)" : ""}`);
+  return bin;
+}
+const wtJson = (r) => {
+  try {
+    return JSON.parse(r.stdout);
+  } catch {
+    return undefined;
+  }
+};
 
 // Comparable form: resolved, native separators, lower-cased where the filesystem is case-insensitive (win32).
 const key = (p, P = path) => (P.sep === "\\" ? P.resolve(p).toLowerCase() : P.resolve(p));
@@ -65,9 +104,21 @@ function mergedInto(cwd, head, ref) {
 
 // Claude Code's .worktreeinclude rule: an untracked entry is copied only if it matches the file and is git-ignored.
 // verbatimSymlinks keeps relative links (node_modules/.bin) pointing inside the new worktree, not back at root.
-function seedFrom(root, dir) {
+// worktrunk's copy-ignored copies every ignored file when .worktreeinclude is absent, hence the guard and --require-include.
+function seedFrom(root, dir, bin) {
   if (!fs.existsSync(path.join(root, ".worktreeinclude"))) return undefined;
   const t = performance.now();
+  const done = (n) => {
+    const seed = { entries: n, ms: Math.round(performance.now() - t) };
+    console.log(`SEED ${seed.entries} entries ${seed.ms}ms`);
+    return seed;
+  };
+  if (bin) {
+    const r = runWt(bin, ["-C", dir, "step", "copy-ignored", "--require-include", "--format", "json"]);
+    const out = wtJson(r);
+    if (r.status !== 0 || !out) fail(4, `${r.stderr}wt step copy-ignored failed in ${dir}; stop before spawning workers`);
+    return done(out.entries?.length ?? 0);
+  }
   const listed = git(root, "ls-files", "-z", "--others", "--ignored", "--directory", "--exclude-from=.worktreeinclude").stdout.split("\0").filter(Boolean);
   const ignored = listed.length
     ? spawnSync("git", ["check-ignore", "-z", "--stdin"], { cwd: root, input: listed.join("\0"), encoding: "utf8" }).stdout.split("\0").filter(Boolean)
@@ -88,9 +139,7 @@ function seedFrom(root, dir) {
       recursive: true, mode: fs.constants.COPYFILE_FICLONE, verbatimSymlinks: true, force: false, preserveTimestamps: true,
     });
   }
-  const seed = { entries: entries.length, ms: Math.round(performance.now() - t) };
-  console.log(`SEED ${seed.entries} entries ${seed.ms}ms`);
-  return seed;
+  return done(entries.length);
 }
 
 function create(root, o) {
@@ -98,6 +147,7 @@ function create(root, o) {
   if (fs.lstatSync(wtRoot, { throwIfNoEntry: false })?.isSymbolicLink()) {
     fail(2, `${wtRoot} is a symlink: worktrees would live outside this checkout; replace it with a real directory`);
   }
+  const bin = backend(root);
   const file = path.join(ledgerDir(root), `${o.slug}.json`);
   const ledger = readLedger(file);
   const target = o.target ?? ledger?.vars?.TARGET_BRANCH ?? git(root, "branch", "--show-current").stdout.trim();
@@ -116,11 +166,27 @@ function create(root, o) {
   }
 
   fs.mkdirSync(path.dirname(dir), { recursive: true });
-  const add = git(root, "worktree", "add", "--lock", "--reason", `andx ${o.slug} ${branch}`, "-b", branch, dir, target);
-  if (add.status !== 0) fail(3, `${add.stderr}git worktree add failed: no checkout fallback; stop and report.`);
+  const reason = `andx ${o.slug} ${branch}`;
+  let hooks;
+  if (bin) {
+    // The JSON on stdout says whether the worktree exists, even when a hook made wt exit non-zero.
+    hooks = runWt(bin, ["-C", root, "switch", "--create", branch, "--base", target, "--path", dir, "--no-cd", "--format", "json"]);
+    if (!wtJson(hooks)?.path) {
+      if (/approv/i.test(hooks.stderr)) {
+        fail(4, `${hooks.stderr}worktrunk project hooks (.config/wt.toml) are not approved; never pass --yes. Review them, then run: wt -C '${root}' config approvals add`);
+      }
+      fail(3, `${hooks.stderr}wt switch failed: no checkout fallback; stop and report.`);
+    }
+    const lock = git(root, "worktree", "lock", "--reason", reason, dir);
+    if (lock.status !== 0) fail(3, `${lock.stderr}git worktree lock failed; stop and report.`);
+  } else {
+    const add = git(root, "worktree", "add", "--lock", "--reason", reason, "-b", branch, dir, target);
+    if (add.status !== 0) fail(3, `${add.stderr}git worktree add failed: no checkout fallback; stop and report.`);
+  }
   console.log(`EXEC_BRANCH=${branch}\nWORKTREE_DIR=${dir}\nTARGET_BRANCH=${target}`);
+  if (hooks && hooks.status !== 0) fail(4, `${hooks.stderr}wt switch hooks failed in ${dir}; stop before spawning workers`);
 
-  const seed = seedFrom(root, dir);
+  const seed = seedFrom(root, dir, bin);
 
   // Setup comes from the primary checkout only: a branch's copy is untrusted.
   const cfg = path.join(root, ".cursor", "worktrees.json");
@@ -159,6 +225,7 @@ function create(root, o) {
 }
 
 function remove(root, slug, o) {
+  const bin = backend(root);
   const target = o.target ?? readLedger(path.join(ledgerDir(root), `${slug}.json`))?.vars?.TARGET_BRANCH
     ?? git(root, "branch", "--show-current").stdout.trim();
   const mid = o.wave ? `-w${o.wave}${o.step ? `-${o.step}` : "(?:-.+)?"}` : "(?:-w\\d+(?:-.+)?)?";
@@ -172,8 +239,10 @@ function remove(root, slug, o) {
   for (const { p, branch, lock } of hits) {
     const own = lock?.startsWith(`andx ${slug} `);
     if (own) git(root, "worktree", "unlock", p);
-    const r = git(root, "worktree", "remove", p);
-    if (r.status !== 0) {
+    const wtr = bin && branch ? runWt(bin, ["-C", root, "remove", branch, "--foreground", "--format", "json"]) : undefined;
+    const r = wtr ?? git(root, "worktree", "remove", p);
+    const out = wtr && wtJson(wtr)?.[0];
+    if (wtr ? !out : r.status !== 0) {
       if (own) git(root, "worktree", "lock", "--reason", lock, p);
       refused = 1;
       console.log(`KEEP ${p}: ${r.stderr.trim()}\n        manual: git worktree remove --force '${p}'  # only after you confirm`);
@@ -181,7 +250,8 @@ function remove(root, slug, o) {
     }
     console.log(`REMOVED ${p}`);
     if (!branch) continue;
-    if (target && mergedInto(root, branch, target) && git(root, "branch", "-D", branch).status === 0) {
+    // wt judges "merged" against its default branch; TARGET_BRANCH may differ, so a branch wt kept gets our check too.
+    if (out?.branch_outcome === "deleted" || (target && mergedInto(root, branch, target) && git(root, "branch", "-D", branch).status === 0)) {
       console.log(`DELETED branch ${branch}`);
     } else {
       refused = 1;

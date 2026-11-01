@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { tmpdir } from "node:os";
 import path, { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { agentPath } from "./worktree.mjs";
+import { agentPath, findWt, wtCandidates } from "./worktree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(here, "worktree.mjs");
@@ -287,6 +287,102 @@ test("create without .worktreeinclude copies nothing", () => {
   assert.equal(r.status, 0, r.stderr);
   assert.doesNotMatch(r.stdout, /SEED/);
   assert.ok(!fs.existsSync(join(vars(r.stdout).WORKTREE_DIR, "node_modules")));
+});
+
+const FAKE = join(here, "fixtures", "fake-wt", "wt.mjs");
+// A bin dir whose wt and git-wt run the fake; returns the env to run worktree.mjs with and the logged calls.
+function fakeWt(extra = {}) {
+  const bin = join(repo, ".git", "fake-wt");
+  fs.mkdirSync(bin);
+  for (const n of ["wt", "git-wt"]) {
+    if (process.platform === "win32") fs.writeFileSync(join(bin, `${n}.cmd`), `@"${process.execPath}" "${FAKE}" %*\r\n`);
+    else fs.writeFileSync(join(bin, n), `#!/bin/sh\nexec "${process.execPath}" "${FAKE}" "$@"\n`, { mode: 0o755 });
+  }
+  const log = join(bin, "calls.jsonl");
+  const PATH = Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
+  const env = { ...process.env, [PATH]: `${bin}${path.delimiter}${process.env[PATH]}`, FAKE_WT_LOG: log, ...extra };
+  const calls = () => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n").map((l) => JSON.parse(l)) : []);
+  return { run: (...a) => spawnSync(process.execPath, [SCRIPT, ...a], { cwd: repo, encoding: "utf8", env }), calls };
+}
+
+test("wt backend: create runs wt switch from the primary checkout, then locks; remove runs wt remove", () => {
+  git("config", "andx.worktreeBackend", "wt");
+  const f = fakeWt();
+  const r = f.run("create", "--slug", "feat", "--stamp", "20261101-062708");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const v = vars(r.stdout);
+  assert.equal(v.BACKEND, "wt");
+  assert.equal(v.EXEC_BRANCH, "andx/exec-feat-20261101-062708");
+  assert.equal(v.WORKTREE_DIR, join(repo, ".worktrees", "exec-feat-20261101-062708"));
+  assert.equal(v.TARGET_BRANCH, "main");
+  assert.ok(porcelain().includes("locked andx feat andx/exec-feat-20261101-062708"), porcelain());
+  assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} switch --create ${v.EXEC_BRANCH} --base main --path ${v.WORKTREE_DIR} --no-cd --format json`), JSON.stringify(f.calls()));
+  assert.ok(!f.calls().some((c) => c[2] === "step" && c[3] === "copy-ignored"), "no .worktreeinclude, no copy");
+
+  const rm = f.run("remove", "feat");
+  assert.equal(rm.status, 0, rm.stdout + rm.stderr);
+  assert.match(rm.stdout, /^BACKEND=wt$/m);
+  assert.match(rm.stdout, new RegExp(`^DELETED branch ${v.EXEC_BRANCH}$`, "m"));
+  assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} remove ${v.EXEC_BRANCH} --foreground --format json`));
+  assert.ok(!fs.existsSync(v.WORKTREE_DIR));
+  assert.ok(!f.calls().flat().some((a) => a === "--yes" || a === "-y"), "never auto-approves");
+});
+
+test("wt backend seeds with wt step copy-ignored only when .worktreeinclude exists", () => {
+  git("config", "andx.worktreeBackend", "wt");
+  fs.writeFileSync(join(repo, ".worktreeinclude"), "node_modules/\n");
+  const f = fakeWt();
+  const r = f.run("create", "--slug", "feat");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^SEED 1 entries \d+ms$/m);
+  const dir = vars(r.stdout).WORKTREE_DIR;
+  assert.ok(f.calls().some((c) => c.join(" ") === `-C ${dir} step copy-ignored --require-include --format json`));
+});
+
+test("wt mode without worktrunk exits 3; auto falls back to native; Windows Terminal's wt is not worktrunk", () => {
+  const f = fakeWt({ FAKE_WT_VERSION: "Windows Terminal 1.21.2361.0" });
+  git("config", "andx.worktreeBackend", "wt");
+  const r = f.run("create", "--slug", "feat");
+  assert.equal(r.status, 3);
+  assert.match(r.stderr, /worktrunk/);
+  assert.ok(!fs.existsSync(join(repo, ".worktrees")) || fs.readdirSync(join(repo, ".worktrees")).length === 0);
+  git("config", "andx.worktreeBackend", "auto");
+  const a = f.run("create", "--slug", "feat");
+  assert.equal(a.status, 0, a.stderr);
+  assert.match(a.stdout, /^BACKEND=native \(wt not found\)$/m);
+  git("config", "andx.worktreeBackend", "fast");
+  assert.equal(f.run("create", "--slug", "feat").status, 2);
+});
+
+test("wt backend stops on unapproved project hooks and names the approval command", () => {
+  git("config", "andx.worktreeBackend", "wt");
+  const r = fakeWt({ FAKE_WT_UNAPPROVED: "1" }).run("create", "--slug", "feat");
+  assert.equal(r.status, 4, r.stdout + r.stderr);
+  assert.match(r.stderr, /wt -C .* config approvals add/);
+  assert.doesNotMatch(r.stdout, /EXEC_BRANCH=/);
+});
+
+test("wt candidates: Windows tries git-wt, then wt only outside WindowsApps", () => {
+  const where = (n) => ({
+    "git-wt": [],
+    wt: ["C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe", "C:\\tools\\worktrunk\\wt.exe"],
+  })[n];
+  assert.deepEqual(wtCandidates("win32", where), ["C:\\tools\\worktrunk\\wt.exe"]);
+  assert.deepEqual(wtCandidates("win32", (n) => (n === "git-wt" ? ["C:\\x\\git-wt.exe"] : [])), ["C:\\x\\git-wt.exe"]);
+  assert.deepEqual(wtCandidates("darwin"), ["wt", "git-wt"]);
+});
+
+test("real worktrunk round trip", { skip: !findWt() && "worktrunk not installed" }, () => {
+  git("config", "andx.worktreeBackend", "wt");
+  const r = wt("create", "--slug", "feat");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const v = vars(r.stdout);
+  assert.equal(v.BACKEND, "wt");
+  assert.ok(porcelain().includes(`locked andx feat ${v.EXEC_BRANCH}`));
+  const rm = wt("remove", "feat");
+  assert.equal(rm.status, 0, rm.stdout + rm.stderr);
+  assert.match(rm.stdout, new RegExp(`^DELETED branch ${v.EXEC_BRANCH}$`, "m"));
+  assert.ok(!fs.existsSync(v.WORKTREE_DIR));
 });
 
 test("create refuses a symlinked .worktrees", () => {

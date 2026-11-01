@@ -88,6 +88,23 @@ test("--uninstall-hooks removes hooks and links nothing", () => {
   }
 });
 
+test("--worktree-backend sets the global git config under --home; a bad value links nothing", () => {
+  const home = tmp("install-home-");
+  try {
+    assert.equal(install(home, "--worktree-backend", "fast").status, 2);
+    assert.deepEqual(fs.readdirSync(home), []);
+    const r = install(home, "--worktree-backend", "wt");
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /^worktree backend: git config --global andx\.worktreeBackend = wt$/m);
+    assert.match(fs.readFileSync(join(home, ".gitconfig"), "utf8"), /\[andx\]\s+worktreeBackend = wt/);
+    const help = spawnSync(process.execPath, [join(ROOT, "install.mjs"), "--help"], { encoding: "utf8" });
+    assert.equal(help.status, 0);
+    assert.match(help.stdout, /--worktree-backend native\|auto\|wt/);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test("check-skills errors abort with nothing linked", () => {
   const root = tmp("install-root-"), home = tmp("install-home-");
   try {

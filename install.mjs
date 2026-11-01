@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 // Symlink canonical andx skills into Cursor, Claude, and Codex skill directories.
-// Usage: node install.mjs [--uninstall-hooks] [--home DIR]
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+const HELP = `Usage: node install.mjs [--home DIR] [--worktree-backend native|auto|wt] [--uninstall-hooks]
+  Links the andx skills into ~/.cursor, ~/.claude and ~/.codex skills, the agents into ~/.claude/agents,
+  and registers the hooks. --home DIR stands in for ~ (also for the git config below).
+  --worktree-backend X  also sets git config --global andx.worktreeBackend X (what worktree.mjs uses to
+                        create run worktrees; see its --help) and prints it
+  --uninstall-hooks     removes only the hooks`;
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SKILLS = [
   "andx-init",
@@ -50,8 +55,15 @@ export function link(target, dest) {
 }
 
 function main(args) {
+  if (args.includes("--help") || args.includes("-h")) return console.log(HELP) ?? 0;
   const i = args.indexOf("--home");
   const home = i >= 0 && args[i + 1] ? path.resolve(args[i + 1]) : os.homedir();
+  const b = args.indexOf("--worktree-backend");
+  const backend = b >= 0 ? args[b + 1] : undefined;
+  if (b >= 0 && !["native", "auto", "wt"].includes(backend)) {
+    console.error(`--worktree-backend must be native, auto or wt\n\n${HELP}`);
+    return 2;
+  }
   const script = (name, ...a) => spawnSync(process.execPath, [path.join(ROOT, "scripts", name), ...a], { stdio: "inherit" }).status;
 
   if (args.includes("--uninstall-hooks")) return script("install-hooks.mjs", "uninstall", "--home", home) ?? 1;
@@ -97,6 +109,19 @@ function main(args) {
 
   const status = script("install-hooks.mjs", "install", "--home", home);
   if (status !== 0) return status ?? 1;
+  if (backend) {
+    const env = { ...process.env };
+    if (i >= 0) {
+      Object.assign(env, { HOME: home, USERPROFILE: home });
+      delete env.GIT_CONFIG_GLOBAL;
+    }
+    const r = spawnSync("git", ["config", "--global", "andx.worktreeBackend", backend], { env, encoding: "utf8" });
+    if (r.status !== 0) {
+      console.error(`${r.stderr}git config --global andx.worktreeBackend ${backend} failed`);
+      return 1;
+    }
+    console.log(`worktree backend: git config --global andx.worktreeBackend = ${backend}`);
+  }
   console.log(`Done. Canonical source: ${ROOT}`);
   console.log("Run node install-companions.mjs for optional companions (e.g. react-best-practices).");
   return 0;
