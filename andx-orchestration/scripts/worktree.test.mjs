@@ -243,6 +243,52 @@ test("a squash-merged branch counts as integrated: sweep removes it, remove dele
   assert.match(r.stdout, new RegExp(`^DELETED branch ${v.EXEC_BRANCH}$`, "m"));
 });
 
+function seedRepo() {
+  fs.writeFileSync(join(repo, ".gitignore"), "node_modules/\n.env\ncfg.local\n");
+  run("git", ["add", ".gitignore"]);
+  fs.writeFileSync(join(repo, "cfg.local"), "branch");
+  run("git", ["add", "-f", "cfg.local"]);
+  commit(repo, "base");
+  // The primary checkout moves to a branch where cfg.local is untracked, so it is a seed candidate
+  // that already exists in a worktree of main.
+  git("switch", "-q", "-c", "side");
+  git("rm", "-q", "--cached", "cfg.local");
+  commit(repo, "untrack cfg.local");
+  fs.writeFileSync(join(repo, "cfg.local"), "primary");
+  fs.mkdirSync(join(repo, "node_modules", "a", ".bin"), { recursive: true });
+  fs.writeFileSync(join(repo, "node_modules", "a", "i.js"), "x");
+  fs.symlinkSync(join("..", "i.js"), join(repo, "node_modules", "a", ".bin", "i"), "file");
+  fs.writeFileSync(join(repo, ".env"), "SECRET=1");
+  fs.writeFileSync(join(repo, "inc.txt"), "listed but not ignored");
+  fs.writeFileSync(join(repo, ".worktreeinclude"), "node_modules/\ncfg.local\ninc.txt\n");
+}
+
+test("create seeds .worktreeinclude entries that are also git-ignored, copy-on-write, links verbatim", () => {
+  seedRepo();
+  run(process.execPath, [RUN, "start", "--slug", "feat", "--mode", "execute"]);
+  const r = wt("create", "--slug", "feat", "--target", "main");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^SEED 2 entries \d+ms$/m);
+  const d = vars(r.stdout).WORKTREE_DIR;
+  assert.equal(fs.readFileSync(join(d, "node_modules", "a", "i.js"), "utf8"), "x");
+  assert.equal(fs.readlinkSync(join(d, "node_modules", "a", ".bin", "i")), join("..", "i.js"));
+  assert.equal(fs.readFileSync(join(d, "cfg.local"), "utf8"), "branch", "existing file kept");
+  assert.ok(!fs.existsSync(join(d, ".env")), "ignored but not listed");
+  assert.ok(!fs.existsSync(join(d, "inc.txt")), "listed but not ignored");
+  const { seed } = ledgerOf("feat").worktrees[path.basename(d)];
+  assert.equal(seed.entries, 2);
+  assert.equal(typeof seed.ms, "number");
+});
+
+test("create without .worktreeinclude copies nothing", () => {
+  seedRepo();
+  fs.rmSync(join(repo, ".worktreeinclude"));
+  const r = wt("create", "--slug", "feat", "--target", "main");
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stdout, /SEED/);
+  assert.ok(!fs.existsSync(join(vars(r.stdout).WORKTREE_DIR, "node_modules")));
+});
+
 test("create refuses a symlinked .worktrees", () => {
   const elsewhere = fs.mkdtempSync(join(tmpdir(), "worktree-elsewhere-"));
   fs.symlinkSync(elsewhere, join(repo, ".worktrees"), process.platform === "win32" ? "junction" : "dir");

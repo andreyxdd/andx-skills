@@ -12,8 +12,11 @@ const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
       Name exec-S[-wN[-ID]]-STAMP: branch andx/<name>, folder .worktrees/<name>, started from TARGET_BRANCH
       (default: the run ledger's, else the primary checkout's branch). Without --wave and --stamp the run
       ledger's STAMP is reused, so the names equal what run.mjs start printed.
-      Makes sure .worktrees/ is git-ignored (adds it to info/exclude and says so), runs the primary checkout's
-      .cursor/worktrees.json setup in the new worktree, then --baseline, and records both in the run ledger.
+      Makes sure .worktrees/ is git-ignored (adds it to info/exclude and says so), seeds the worktree from
+      the primary checkout's .worktreeinclude (gitignore syntax, shared with Claude Code and worktrunk: only
+      untracked entries that are also git-ignored; copy-on-write, symlinks verbatim, existing files kept;
+      prints SEED <n> entries <ms>ms), runs the primary checkout's .cursor/worktrees.json setup in the new
+      worktree, then --baseline, and records seed, setup and baseline in the run ledger.
       Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH= lines. A failed git worktree add stops the run:
       there is no checkout fallback. The worktree is locked (reason "andx S <branch>") until remove, so no
       sweep or other tool deletes it mid-run. A symlinked .worktrees is refused (exit 2).
@@ -60,6 +63,36 @@ function mergedInto(cwd, head, ref) {
   return m.status === 0 && m.stdout.split("\n")[0] === git(cwd, "rev-parse", `${ref}^{tree}`).stdout.trim() ? "integrated" : "";
 }
 
+// Claude Code's .worktreeinclude rule: an untracked entry is copied only if it matches the file and is git-ignored.
+// verbatimSymlinks keeps relative links (node_modules/.bin) pointing inside the new worktree, not back at root.
+function seedFrom(root, dir) {
+  if (!fs.existsSync(path.join(root, ".worktreeinclude"))) return undefined;
+  const t = performance.now();
+  const listed = git(root, "ls-files", "-z", "--others", "--ignored", "--directory", "--exclude-from=.worktreeinclude").stdout.split("\0").filter(Boolean);
+  const ignored = listed.length
+    ? spawnSync("git", ["check-ignore", "-z", "--stdin"], { cwd: root, input: listed.join("\0"), encoding: "utf8" }).stdout.split("\0").filter(Boolean)
+    : [];
+  const real = fs.realpathSync(root);
+  const inside = (rel) => {
+    if ([".git", ".worktrees"].includes(rel.split("/")[0])) return false;
+    try {
+      const r = path.relative(real, fs.realpathSync(path.join(root, rel)));
+      return !!r && !r.startsWith("..") && !path.isAbsolute(r);
+    } catch {
+      return false;
+    }
+  };
+  const entries = ignored.map((e) => e.replace(/\/$/, "")).filter(inside);
+  for (const e of entries) {
+    fs.cpSync(path.join(root, e), path.join(dir, e), {
+      recursive: true, mode: fs.constants.COPYFILE_FICLONE, verbatimSymlinks: true, force: false, preserveTimestamps: true,
+    });
+  }
+  const seed = { entries: entries.length, ms: Math.round(performance.now() - t) };
+  console.log(`SEED ${seed.entries} entries ${seed.ms}ms`);
+  return seed;
+}
+
 function create(root, o) {
   const wtRoot = path.join(root, ".worktrees");
   if (fs.lstatSync(wtRoot, { throwIfNoEntry: false })?.isSymbolicLink()) {
@@ -86,6 +119,8 @@ function create(root, o) {
   const add = git(root, "worktree", "add", "--lock", "--reason", `andx ${o.slug} ${branch}`, "-b", branch, dir, target);
   if (add.status !== 0) fail(3, `${add.stderr}git worktree add failed: no checkout fallback; stop and report.`);
   console.log(`EXEC_BRANCH=${branch}\nWORKTREE_DIR=${dir}\nTARGET_BRANCH=${target}`);
+
+  const seed = seedFrom(root, dir);
 
   // Setup comes from the primary checkout only: a branch's copy is untrusted.
   const cfg = path.join(root, ".cursor", "worktrees.json");
@@ -117,7 +152,7 @@ function create(root, o) {
   // so the parent creates a wave's worktrees one after another.
   const data = readLedger(file);
   if (data) {
-    data.worktrees = { ...data.worktrees, [name]: { EXEC_BRANCH: branch, WORKTREE_DIR: dir, TARGET_BRANCH: target, ...(baseline && { baseline }) } };
+    data.worktrees = { ...data.worktrees, [name]: { EXEC_BRANCH: branch, WORKTREE_DIR: dir, TARGET_BRANCH: target, ...(seed && { seed }), ...(baseline && { baseline }) } };
     writeLedger(file, data);
     console.log(`LEDGER ${file}`);
   }
