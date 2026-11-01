@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ledgers, newStamp, runNames } from "./run.mjs";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "run.mjs");
 let repo;
@@ -24,6 +25,26 @@ beforeEach(() => {
   git("init", "-q", "-b", "main");
 });
 afterEach(() => fs.rmSync(repo, { recursive: true, force: true }));
+
+test("naming: local stamp, plain run, wave, and wave step", () => {
+  assert.equal(newStamp(new Date(2026, 10, 1, 6, 27, 8)), "20261101-062708");
+  const r = join("/r", "proj");
+  assert.deepEqual(runNames({ root: r, slug: "feat", stamp: "20261101-062708" }), {
+    EXEC_BRANCH: "andx/exec-feat-20261101-062708", WORKTREE_DIR: join(r, ".worktrees", "exec-feat-20261101-062708"),
+  });
+  assert.equal(runNames({ root: r, slug: "feat", wave: "2", stamp: "20261101-062708" }).EXEC_BRANCH, "andx/exec-feat-w2-20261101-062708");
+  assert.deepEqual(runNames({ root: r, slug: "feat", wave: "2", step: "step-8", stamp: "20261101-062708" }), {
+    EXEC_BRANCH: "andx/exec-feat-w2-step-8-20261101-062708", WORKTREE_DIR: join(r, ".worktrees", "exec-feat-w2-step-8-20261101-062708"),
+  });
+});
+
+test("ledgers lists run ledgers, skipping dotfiles and other files", () => {
+  assert.deepEqual(ledgers(repo), []);
+  const dir = join(repo, ".worktrees", ".andx-run");
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of ["a.json", ".a.json.1.tmp", "notes.txt", "b.json"]) fs.writeFileSync(join(dir, f), "{}");
+  assert.deepEqual(ledgers(repo).sort(), [join(dir, "a.json"), join(dir, "b.json")]);
+});
 
 test("start derives run variables and writes the ledger", () => {
   const v = vars(ok("start", "--slug", "feat", "--mode", "review"));

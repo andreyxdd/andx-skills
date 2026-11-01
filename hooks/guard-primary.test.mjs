@@ -1,7 +1,7 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, mkdirSync, realpathSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,6 +60,26 @@ test("active run: notebook and relative paths denied", () => {
   ledger();
   assert.equal(guard({ cwd: repo, tool_name: "NotebookEdit", tool_input: { notebook_path: join(repo, "n.ipynb") } }).code, 2);
   assert.equal(guard(claude("src/a.js", "Write")).code, 2);
+});
+
+test("active run: a symlink in an open folder is judged by its target", { skip: process.platform === "win32" }, () => {
+  ledger();
+  mkdirSync(join(repo, "src"));
+  mkdirSync(join(repo, ".cursor", "plans"), { recursive: true });
+  writeFileSync(join(repo, "src", "a.js"), "");
+  symlinkSync(join("..", "..", "src", "a.js"), join(repo, ".cursor", "plans", "link.md"));
+  symlinkSync(join("..", "..", "src", "gone.js"), join(repo, ".cursor", "plans", "dangling.md"));
+  assert.equal(guard(claude(join(repo, ".cursor", "plans", "link.md"))).code, 2);
+  assert.equal(guard(claude(join(repo, ".cursor", "plans", "dangling.md"), "Write")).code, 2);
+  writeFileSync(join(repo, ".cursor", "plans", "real.md"), "");
+  assert.deepEqual(guard(claude(join(repo, ".cursor", "plans", "real.md"))), ALLOW);
+});
+
+test("active run: dot-dot names inside the repo and the git dir are denied", () => {
+  ledger();
+  assert.equal(guard(claude(join(repo, "..env"))).code, 2);
+  assert.equal(guard(claude(join(repo, ".git", "config"))).code, 2);
+  assert.equal(guard(claude(join(repo, ".git", "hooks", "pre-commit"), "Write")).code, 2);
 });
 
 test("active run: worktrees, plans, reviews and the ledger dir allowed", () => {

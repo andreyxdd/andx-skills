@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import { readLedger, writeLedger } from "./run.mjs";
+import { ledgerDir, newStamp, readLedger, runNames, writeLedger } from "./run.mjs";
 
 const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
 
@@ -35,14 +35,6 @@ const fail = (code, msg) => {
 };
 const git = (cwd, ...args) => spawnSync("git", args, { cwd, encoding: "utf8" });
 
-export const worktreeName = ({ slug, wave, step, stamp }) => ["exec", slug, wave && `w${wave}`, step, stamp].filter(Boolean).join("-");
-
-// Same local-time stamp as run.mjs start.
-function newStamp() {
-  const now = new Date();
-  return new Date(now - now.getTimezoneOffset() * 60000).toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
-}
-
 // Comparable form: resolved, native separators, lower-cased where the filesystem is case-insensitive (win32).
 const key = (p, P = path) => (P.sep === "\\" ? P.resolve(p).toLowerCase() : P.resolve(p));
 
@@ -59,15 +51,14 @@ const worktrees = (root) => git(root, "worktree", "list", "--porcelain").stdout.
 }).filter((w) => w.p);
 
 function create(root, o) {
-  const file = path.join(root, ".worktrees", ".andx-run", `${o.slug}.json`);
+  const file = path.join(ledgerDir(root), `${o.slug}.json`);
   const ledger = readLedger(file);
   const target = o.target ?? ledger?.vars?.TARGET_BRANCH ?? git(root, "branch", "--show-current").stdout.trim();
   if (!target) fail(2, `primary checkout ${root} is not on a branch; pass --target`);
   const stamp = o.stamp ?? ((!o.wave && ledger?.vars?.STAMP) || newStamp());
   if (!/^\d{8}-\d{6}$/.test(stamp)) fail(2, `bad --stamp: ${stamp}`);
-  const name = worktreeName({ ...o, stamp });
-  const branch = `andx/${name}`;
-  const dir = path.join(root, ".worktrees", name);
+  const { EXEC_BRANCH: branch, WORKTREE_DIR: dir } = runNames({ root, slug: o.slug, wave: o.wave, step: o.step, stamp });
+  const name = path.basename(dir);
 
   if (git(root, "check-ignore", "-q", ".worktrees/").status !== 0) {
     const ex = git(root, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude").stdout.trim();
@@ -119,7 +110,7 @@ function create(root, o) {
 }
 
 function remove(root, slug, o) {
-  const target = o.target ?? readLedger(path.join(root, ".worktrees", ".andx-run", `${slug}.json`))?.vars?.TARGET_BRANCH
+  const target = o.target ?? readLedger(path.join(ledgerDir(root), `${slug}.json`))?.vars?.TARGET_BRANCH
     ?? git(root, "branch", "--show-current").stdout.trim();
   const mid = o.wave ? `-w${o.wave}${o.step ? `-${o.step}` : "(?:-.+)?"}` : "(?:-w\\d+(?:-.+)?)?";
   const re = new RegExp(`^exec-${slug}${mid}-\\d{8}-\\d{6}$`);
@@ -150,32 +141,29 @@ function remove(root, slug, o) {
 }
 
 function sweep(apply, target, repo) {
-  const run = (a, { check = true } = {}) => {
-    const r = spawnSync("git", a, { cwd: repo, encoding: "utf8" });
-    if (check && r.status !== 0) {
-      process.stderr.write(r.stderr ?? `${r.error?.message ?? "git failed"}\n`);
-      process.exit(r.status ?? 1);
-    }
-    return { ok: r.status === 0, out: (r.stdout ?? "").trim() };
+  const must = (cwd, ...a) => {
+    const r = git(cwd, ...a);
+    if (r.status !== 0) fail(r.status ?? 1, (r.stderr || r.error?.message || "git failed").trimEnd());
+    return r.stdout.trim();
   };
 
-  repo = run(["rev-parse", "--show-toplevel"]).out;
-  run(["worktree", "prune"]);
-  target ||= run(["branch", "--show-current"]).out;
-  const remoteDefault = run(["symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"], { check: false }).out;
-  const ancestor = (head, ref) => run(["merge-base", "--is-ancestor", head, ref], { check: false }).ok;
+  repo = must(repo, "rev-parse", "--show-toplevel");
+  must(repo, "worktree", "prune");
+  target ||= must(repo, "branch", "--show-current");
+  const remoteDefault = (git(repo, "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD").stdout ?? "").trim();
+  const ancestor = (head, ref) => git(repo, "merge-base", "--is-ancestor", head, ref).status === 0;
   const merged = (head) => ancestor(head, target) || (!!remoteDefault && ancestor(head, remoteDefault));
 
   let removed = 0, kept = 0;
   for (const { p, head, branch } of worktrees(repo)) {
     if (key(p) === key(repo) || !agentPath(p, repo)) continue;
-    const state = fs.existsSync(p) && run(["-C", p, "status", "--porcelain"], { check: false }).out ? "dirty" : "clean";
+    const state = fs.existsSync(p) && git(p, "status", "--porcelain").stdout?.trim() ? "dirty" : "clean";
     const merge = merged(head) ? "merged" : "unmerged";
     const action = state === "clean" && merge === "merged" ? "remove" : "keep";
     console.log(`${action.padEnd(7)} ${state.padEnd(6)} ${merge.padEnd(8)} ${branch || "detached"} ${p}`);
     if (action === "remove" && apply) {
-      run(["worktree", "remove", p]);
-      if (branch) run(["branch", "-d", branch], { check: false });
+      must(repo, "worktree", "remove", p);
+      if (branch) git(repo, "branch", "-d", branch);
       removed++;
     } else if (action === "keep") {
       kept++;
