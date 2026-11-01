@@ -2,9 +2,10 @@
 // Worktree lifecycle for a run: create (the one naming rule), remove, sweep.
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import { STALE_MS, TERMINAL, ledgerDir, newStamp, readLedger, runNames, writeLedger } from "./run.mjs";
+import { STALE_MS, TERMINAL, ledgerDir, newStamp, readLedger, runNames, setMarker, writeLedger } from "./run.mjs";
 
 const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
 
@@ -17,7 +18,8 @@ const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
       untracked entries that are also git-ignored; copy-on-write, symlinks verbatim, existing files kept;
       prints SEED <n> entries <ms>ms), runs the primary checkout's .cursor/worktrees.json setup in the new
       worktree, then --baseline, and records seed, setup and baseline in the run ledger.
-      Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH= lines. A failed git worktree add stops the run:
+      Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH=, PORT= lines; PORT (10000-19999, stable per branch,
+      recorded in the ledger) is the port dev servers in this worktree bind to. A failed git worktree add stops the run:
       there is no checkout fallback. The worktree is locked (reason "andx S <branch>") until remove, so no
       sweep or other tool deletes it mid-run. A symlinked .worktrees is refused (exit 2).
   create --slug S --branch B [--name N] [--track REMOTE/B]
@@ -83,6 +85,9 @@ const wtJson = (r) => {
     return undefined;
   }
 };
+
+// Native stand-in for wt's hash_port filter: same range, stable per branch (not the same number).
+const hashPort = (branch) => 10000 + (parseInt(createHash("sha256").update(branch).digest("hex").slice(0, 8), 16) % 10000);
 
 // Comparable form: resolved, native separators, lower-cased where the filesystem is case-insensitive (win32).
 const key = (p, P = path) => (P.sep === "\\" ? P.resolve(p).toLowerCase() : P.resolve(p));
@@ -199,7 +204,8 @@ function create(root, o) {
     const add = git(root, "worktree", "add", "--lock", "--reason", reason, ...pick);
     if (add.status !== 0) fail(3, `${add.stderr}git worktree add failed: no checkout fallback; stop and report.`);
   }
-  console.log(`EXEC_BRANCH=${branch}\nWORKTREE_DIR=${dir}\nTARGET_BRANCH=${target}`);
+  const port = (bin && Number(runWt(bin, ["-C", dir, "step", "eval", "{{ branch | hash_port }}"]).stdout?.trim())) || hashPort(branch);
+  console.log(`EXEC_BRANCH=${branch}\nWORKTREE_DIR=${dir}\nTARGET_BRANCH=${target}\nPORT=${port}`);
   if (hooks && hooks.status !== 0) fail(4, `${hooks.stderr}wt switch hooks failed in ${dir}; stop before spawning workers`);
 
   const seed = seedFrom(root, dir, bin);
@@ -234,7 +240,7 @@ function create(root, o) {
   // so the parent creates a wave's worktrees one after another.
   const data = readLedger(file);
   if (data) {
-    data.worktrees = { ...data.worktrees, [name]: { EXEC_BRANCH: branch, WORKTREE_DIR: dir, TARGET_BRANCH: target, ...(seed && { seed }), ...(baseline && { baseline }) } };
+    data.worktrees = { ...data.worktrees, [name]: { EXEC_BRANCH: branch, WORKTREE_DIR: dir, TARGET_BRANCH: target, port, ...(seed && { seed }), ...(baseline && { baseline }) } };
     writeLedger(file, data);
     console.log(`LEDGER ${file}`);
   }
@@ -270,6 +276,7 @@ function remove(root, slug, o) {
       continue;
     }
     console.log(`REMOVED ${p}`);
+    if (branch) setMarker(root, branch, null);
     if (!branch || !run(w)) continue;
     // wt judges "merged" against its default branch; TARGET_BRANCH may differ, so a branch wt kept gets our check too.
     if (out?.branch_outcome === "deleted" || (target && mergedInto(root, branch, target) && git(root, "branch", "-D", branch).status === 0)) {

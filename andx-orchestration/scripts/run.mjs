@@ -48,11 +48,13 @@ const USAGE = `run: one ledger per run at <primary checkout>/.worktrees/.andx-ru
 
   start --slug S --mode M    write a fresh ledger and print REPO_ROOT, TARGET_BRANCH, STAMP,
                              EXEC_BRANCH, WORKTREE_DIR, SHIP_ID as KEY=value lines
-  phase <slug> <id>          set the current phase and add it to the recorded phases (' is read as ′)
+  phase <slug> <id>          set the current phase and add it to the recorded phases (' is read as ′);
+                             marks every run branch 🤖 in wt list (git config worktrunk.state.<branch>.marker)
   landed <slug> <sha>        record the commit that landed on TARGET_BRANCH
   end <slug> --terminal T [--merged S] [--pushed S] [--mr URL] [--deployed S]
                              T: ${TERMINAL.join("|")}; S: ${STATUS.join("|")} (default NOT_REQUESTED, --mr default -)
-                             DONE needs every required phase of the mode; prints the final status line
+                             DONE needs every required phase of the mode; prints the final status line;
+                             marker 💬 AWAITING_USER, ❌ ABORTED/ESCALATED, cleared on DONE
   show <slug>                print the ledger
 
 Required phases: ${Object.entries(REQUIRED).map(([m, p]) => `${m} [${p.join(",")}]`).join(", ")}
@@ -64,6 +66,15 @@ const fail = (code, msg) => {
   process.exit(code);
 };
 const git = (cwd, ...args) => spawnSync("git", args, { cwd, encoding: "utf8" });
+
+// worktrunk's own marker format, kept in plain git config so wt list shows it whichever backend made the worktree.
+export function setMarker(cwd, branch, marker) {
+  const k = `worktrunk.state.${branch}.marker`;
+  if (marker) git(cwd, "config", k, JSON.stringify({ marker, set_at: Math.floor(Date.now() / 1000) }));
+  else git(cwd, "config", "--unset", k);
+}
+const MARKER = { DONE: null, AWAITING_USER: "💬", ABORTED: "❌", ESCALATED: "❌" };
+const runBranches = (d) => [...new Set([d.vars?.EXEC_BRANCH, ...Object.values(d.worktrees ?? {}).map((w) => w?.EXEC_BRANCH)].filter(Boolean))];
 
 export function readLedger(p) {
   try {
@@ -140,6 +151,7 @@ function main(args) {
     data.phase = id;
     data.phases = [...new Set([...(data.phases ?? []), id])];
     writeLedger(file, data);
+    for (const b of runBranches(data)) setMarker(root, b, "🤖");
     console.log(`PHASE ${slug} ${id}`);
   } else if (cmd === "landed") {
     if (!/^[0-9a-f]{7,64}$/i.test(arg ?? "")) fail(2, `landed needs a commit sha, got: ${arg ?? ""}`);
@@ -159,6 +171,7 @@ function main(args) {
     data.terminal = o.terminal;
     data.status = s;
     writeLedger(file, data);
+    for (const b of runBranches(data)) setMarker(root, b, MARKER[o.terminal]);
     console.log(`MERGED ${s.merged} | PUSHED ${s.pushed} | MR ${s.mr} | DEPLOYED ${s.deployed}`);
   } else if (cmd === "show") {
     console.log(JSON.stringify(data, null, 2));

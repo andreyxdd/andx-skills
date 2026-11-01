@@ -146,6 +146,28 @@ test("end non-DONE terminals need no phases and validate statuses", () => {
   assert.equal(ledger("feat").terminal, "AWAITING_USER");
 });
 
+test("phase and end set the wt list marker on every run branch; DONE clears it", () => {
+  const marker = (b) => {
+    const r = git("config", "--get", `worktrunk.state.${b}.marker`);
+    return r.status === 0 ? JSON.parse(r.stdout) : null;
+  };
+  const v = vars(ok("start", "--slug", "feat", "--mode", "execute"));
+  const wave = "andx/exec-feat-w1-step-2-20261101-062708";
+  const file = join(repo, ".worktrees", ".andx-run", "feat.json");
+  fs.writeFileSync(file, JSON.stringify({ ...ledger("feat"), worktrees: { w: { EXEC_BRANCH: wave } } }));
+  ok("phase", "feat", "A");
+  for (const b of [v.EXEC_BRANCH, wave]) assert.equal(marker(b)?.marker, "🤖", b);
+  assert.ok(Math.abs(marker(wave).set_at - Date.now() / 1000) < 60, "set_at is epoch seconds");
+  ok("end", "feat", "--terminal", "AWAITING_USER");
+  assert.equal(marker(wave).marker, "💬");
+  ok("end", "feat", "--terminal", "ESCALATED");
+  assert.equal(marker(wave).marker, "❌");
+  ok("phase", "feat", "F");
+  ok("end", "feat", "--terminal", "DONE");
+  assert.equal(marker(v.EXEC_BRANCH), null);
+  assert.equal(marker(wave), null);
+});
+
 test("landed records the sha; show prints the ledger", () => {
   ok("start", "--slug", "feat", "--mode", "execute");
   assert.equal(run(["landed", "feat", "not-a-sha"]).status, 2);

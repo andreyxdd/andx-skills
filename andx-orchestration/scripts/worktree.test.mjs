@@ -48,6 +48,8 @@ test("create without a ledger: adds the ignore line once, makes the worktree on 
   assert.equal(v.EXEC_BRANCH, "andx/exec-feat-20261101-062708");
   assert.equal(v.WORKTREE_DIR, join(repo, ".worktrees", "exec-feat-20261101-062708"));
   assert.equal(v.TARGET_BRANCH, "main");
+  // printf %s andx/exec-feat-20261101-062708 | shasum -a 256 -> fab7201d...; 10000 + 0xfab7201d % 10000
+  assert.equal(v.PORT, "15309");
   assert.match(r.stdout, /^IGNORE added \.worktrees\/ to .*exclude$/m);
   assert.match(fs.readFileSync(join(repo, ".git", "info", "exclude"), "utf8"), /^\.worktrees\/$/m);
   assert.equal(run("git", ["branch", "--show-current"], v.WORKTREE_DIR).trim(), v.EXEC_BRANCH);
@@ -69,7 +71,7 @@ test("create reuses the run ledger names and records worktree and red baseline",
   assert.match(r.stdout, /^BASELINE exit=1 red$/m);
   const name = path.basename(start.WORKTREE_DIR);
   assert.deepEqual(ledgerOf("feat").worktrees[name], {
-    EXEC_BRANCH: start.EXEC_BRANCH, WORKTREE_DIR: start.WORKTREE_DIR, TARGET_BRANCH: "main",
+    EXEC_BRANCH: start.EXEC_BRANCH, WORKTREE_DIR: start.WORKTREE_DIR, TARGET_BRANCH: "main", port: Number(v.PORT),
     baseline: { cmd: "exit 1", exit: 1, red: true },
   });
   assert.equal(ledgerOf("feat").mode, "execute");
@@ -106,7 +108,9 @@ test("create stops when git worktree add fails: no checkout fallback", () => {
 
 test("remove prints the list before and after and deletes the merged branch", () => {
   const v = vars(wt("create", "--slug", "feat").stdout);
+  git("config", `worktrunk.state.${v.EXEC_BRANCH}.marker`, '{"marker":"🤖","set_at":1}');
   const r = wt("remove", "feat");
+  assert.notEqual(spawnSync("git", ["config", "--get", `worktrunk.state.${v.EXEC_BRANCH}.marker`], { cwd: repo }).status, 0, "marker cleared");
   assert.equal(r.status, 0, r.stdout + r.stderr);
   // git worktree list prints C:/... on Windows while WORKTREE_DIR uses backslashes.
   const slash = (s) => s.replaceAll("\\", "/");
@@ -315,6 +319,8 @@ test("wt backend: create runs wt switch from the primary checkout, then locks; r
   assert.equal(v.EXEC_BRANCH, "andx/exec-feat-20261101-062708");
   assert.equal(v.WORKTREE_DIR, join(repo, ".worktrees", "exec-feat-20261101-062708"));
   assert.equal(v.TARGET_BRANCH, "main");
+  assert.equal(v.PORT, "12345", "wt's own hash_port");
+  assert.ok(f.calls().some((c) => c.join(" ") === `-C ${v.WORKTREE_DIR} step eval {{ branch | hash_port }}`));
   assert.ok(porcelain().includes("locked andx feat andx/exec-feat-20261101-062708"), porcelain());
   assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} switch --create ${v.EXEC_BRANCH} --base main --path ${v.WORKTREE_DIR} --no-cd --format json`), JSON.stringify(f.calls()));
   assert.ok(!f.calls().some((c) => c[2] === "step" && c[3] === "copy-ignored"), "no .worktreeinclude, no copy");
@@ -378,6 +384,7 @@ test("real worktrunk round trip", { skip: !findWt() && "worktrunk not installed"
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const v = vars(r.stdout);
   assert.equal(v.BACKEND, "wt");
+  assert.match(v.PORT, /^1\d{4}$/);
   assert.ok(porcelain().includes(`locked andx feat ${v.EXEC_BRANCH}`));
   const rm = wt("remove", "feat");
   assert.equal(rm.status, 0, rm.stdout + rm.stderr);
