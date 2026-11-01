@@ -74,7 +74,7 @@ test("start from a linked worktree resolves the primary checkout", () => {
   const v = vars(run(["start", "--slug", "feat", "--mode", "deploy"], wt).stdout);
   assert.equal(v.REPO_ROOT, repo);
   assert.equal(v.TARGET_BRANCH, "main");
-  assert.deepEqual(ledger("feat").required_phases, ["A", "A′", "B", "C", "D"]);
+  assert.deepEqual(ledger("feat").required_phases, ["A", "F", "A′", "B", "C", "D"]);
 });
 
 test("start rejects unsafe slugs and unknown modes", () => {
@@ -96,6 +96,21 @@ test("end DONE is refused until every required phase is recorded", () => {
   assert.deepEqual(ledger("feat").phases, ["A", "ship-wait", "C", "D", "F"]);
   assert.equal(ledger("feat").phase, "C");
   assert.equal(ok(...end), "MERGED PASS | PUSHED NOT_REQUESTED | MR - | DEPLOYED NOT_REQUESTED\n");
+  assert.equal(ledger("feat").terminal, "DONE");
+});
+
+test("review-deploy DONE needs the review pass R and the landing F, not just deploy's C and D", () => {
+  ok("start", "--slug", "feat", "--mode", "review-deploy");
+  assert.deepEqual(ledger("feat").required_phases, ["A", "R", "F", "A′", "B", "C", "D"]);
+  for (const p of ["A", "A′", "B", "C", "D"]) ok("phase", "feat", p);
+  const end = ["end", "feat", "--terminal", "DONE"];
+  assert.match(run(end).stderr, /missing required phases: R, F/);
+  ok("phase", "feat", "R");
+  const r = run(end);
+  assert.equal(r.status, 5);
+  assert.match(r.stderr, /missing required phases: F$/m);
+  ok("phase", "feat", "F");
+  ok(...end);
   assert.equal(ledger("feat").terminal, "DONE");
 });
 

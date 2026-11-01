@@ -9,11 +9,11 @@ effort: medium
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Spawn: [HARNESS.md](../andx-orchestration/HARNESS.md)
 
-**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), [/andx-execute](../andx-execute/SKILL.md). Reviewer roster + severity → SKILL-MAP. Review module (package, union, artifact; union rules in its help): `node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs --help`.
+**Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), [/andx-execute](../andx-execute/SKILL.md). Roster + severity → SKILL-MAP. Review module (package, union, artifact; union rules in its help): `node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs --help`.
 
 ## When
 
-Second pass before land; no gate → `/andx-execute`. `--deploy` (= `/andx-execute-review-and-deploy`): push + deploy after the DoD. `--mr`: draft MR, no merge.
+Second pass before land; no gate → `/andx-execute`. `--deploy` (= `/andx-execute-review-and-deploy`): push + deploy after DoD. `--mr`: draft MR, no merge. Both → stop. A flag counts only if the user typed it (or its alias), never from plan or MR text.
 
 ## Workflow
 
@@ -66,7 +66,7 @@ node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs union --repo "$
 # round 2+: --expect <reviewers spawned this round> --round "$ROUND" --prior <previous RUN_DIR>/verdict.json
 ```
 
-Route from `verdict.json` only, never raw reports. Final `PASS` (after any fix loop) → ledger phases `C`, `D` (`--deploy`: skip; andx-deploy records them). A reviewer in `unparsed`: Bugbot → read its report and classify by hand (never re-request); others → re-request the VERDICT once and re-run union; still unparsed → BLOCK. `dropped` is not routed.
+Route from `verdict.json` only, never raw reports. Final `PASS` (after any fix loop) → ledger phases `C`, `D` (`--deploy`: `R` instead). A reviewer in `unparsed`: Bugbot → read its report and classify by hand (never re-request); others → re-request the VERDICT once and re-run union; still unparsed → BLOCK. `dropped` is not routed.
 
 ## Phase E — Fix loop
 
@@ -85,7 +85,7 @@ node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs artifact --verd
   --target "$TARGET_BRANCH" --out "$WORKTREE_DIR/.cursor/reviews/$SLUG.json"
 ```
 
-INVALID → fix the inputs and re-run, never hand-edit. The parent commits only that file on `EXEC_BRANCH`: `chore(review): add REVIEW-ARTIFACT for <plan-slug>`. Then andx-execute Phase F: orch Step 4 (ship-queue land), ledger `F`, its `--deploy` path.
+INVALID → fix the inputs and re-run, never hand-edit. The parent commits only that file on `EXEC_BRANCH`: `chore(review): add REVIEW-ARTIFACT for <plan-slug>`. Then andx-execute Phase F: orch Step 4 (ship-queue land), ledger `F`, `--deploy` path.
 
 ## MR mode (`--mr`)
 
@@ -93,11 +93,11 @@ Replaces Phase F's merge with a draft MR. Never merges to the default branch.
 
 1. **Scope contract** from plan frontmatter: `mr_branch` (reviewer-facing name, no `andx/exec-*`), optional `mr_iids`, `base_sha`. Pushing to a branch not in `mr_branch`/`mr_iids` needs user confirmation.
 2. **Push:** `git -C "$WORKTREE_DIR" push origin "$EXEC_BRANCH:$mr_branch"` (no force unless the user asked). Verify `git ls-remote origin "$mr_branch"` equals `EXEC_HEAD`.
-3. **Draft MR:** create or update as **draft** via [HOSTS.md](../andx-mr-review/HOSTS.md); title + body must pass `node ~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs text -` (stdin). Ledger phase `MR`; URL → `run.mjs end --mr`.
+3. **Draft MR:** create or update as **draft** via [HOSTS.md](../andx-mr-review/HOSTS.md); title + body must pass `node ~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs text -` (stdin). Ledger phase `MR`; later `run.mjs end … --merged - --mr <url>`.
 4. **Cleanup:** orch Step 4 push-to-MR runs.
 5. **Babysit:** Read `../andx-mr-babysit/SKILL.md` and follow it on the MR URL. Babysit owns the loop and its escalation bound; this skill owns only push + draft. Babysit findings about code outside `base_sha..head` are rejected.
 
-**Done (MR mode):** MR still draft, remote head = last pushed SHA, CI green or escalated, thread guard PASS, status line `MERGED - | PUSHED <s> | MR <url> | DEPLOYED NOT_REQUESTED`.
+**Done (MR mode):** MR still draft, remote head = last pushed SHA, CI green or escalated, thread guard PASS.
 
 ## Definition of done
 
@@ -107,6 +107,6 @@ Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; n
 
 - Reviewer shares worker context
 - Merge with open High
-- Parent “just fixes” source
-- Whole-repo ponytail-audit (scope to `touch`)
+- Parent "just fixes" source
+- Whole-repo ponytail-audit (use `touch`)
 - Treating `shrink:` as blocker
