@@ -1,0 +1,383 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/worktrunk-adoption.plan.md",
+  "target_branch": "main",
+  "base_sha": "e55d1302a5cc4ccd07de559ca08ff72c26c670df",
+  "head_sha": "4f76585243de7eb05531a8c3e49b86dd6b80cfe2",
+  "reviewed_at": "2026-11-01T03:34:50.444Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "worktree-mjs-exec-branch-port-printed-before-hook",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "`andx-orchestration/scripts/worktree.mjs:208`",
+      "finding": "`EXEC_BRANCH=`/`PORT=` printed before hook/seed/setup failures; parent must gate on exit code, not stdout alone",
+      "reviewers": [
+        "bugbot",
+        "ponytail"
+      ]
+    },
+    {
+      "id": "worktree-mjs-wt-switch-ok-git-worktree-lock",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "`andx-orchestration/scripts/worktree.mjs:200`",
+      "finding": "wt switch ok + `git worktree lock` fail leaves unlocked worktree (no rollback); exit 3, manual cleanup",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "worktree-mjs-24h-ledger-mtime-zero-commit-branch",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "`andx-orchestration/scripts/worktree.mjs:311`",
+      "finding": "24h ledger mtime + zero-commit branch reads as merged; sweep `--apply` can drop a stalled pre-worker run (by design per plan)",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "worktree-mjs-seeding-failed-its-speed-hypothesis-26",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-orchestration/scripts/worktree.mjs:118",
+      "finding": "seeding failed its speed hypothesis (26% slower than warm npm install); keep only as env-file carry-over, drop `ms`/ledger `seed`, re-point the README example at `.env.local`",
+      "reviewers": [
+        "ponytail"
+      ]
+    },
+    {
+      "id": "install-mjs-worktree-backend-wraps-one-git-config",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "install.mjs:61",
+      "finding": "`--worktree-backend` wraps one `git config --global` command; delete it with its test and the new `--help` path",
+      "reviewers": [
+        "ponytail"
+      ]
+    },
+    {
+      "id": "worktree-mjs-name-has-no-caller-delete",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-orchestration/scripts/worktree.mjs:168",
+      "finding": "`--name` has no caller; delete",
+      "reviewers": [
+        "ponytail"
+      ]
+    },
+    {
+      "id": "wt-where-cwd-planting",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-orchestration/scripts/worktree.mjs:60",
+      "finding": "Windows `where`/WindowsApps/cmd.exe-quoting paths are untested against real Windows and opt-in only; reduce to `[\"wt\",\"git-wt\"]`",
+      "reviewers": [
+        "ponytail",
+        "security"
+      ]
+    },
+    {
+      "id": "wt-mjs-fake-plus-argv-string-assertions-pin",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-orchestration/scripts/fixtures/fake-wt/wt.mjs:1",
+      "finding": "fake plus argv-string assertions pin implementation; trim to the exit-3 and exit-4 cases the real-wt test cannot reach",
+      "reviewers": [
+        "ponytail"
+      ]
+    },
+    {
+      "id": "seed-dest-symlink-escape",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-orchestration/scripts/worktree.mjs:148",
+      "finding": "native seed writes `path.join(dir, e)` through an intermediate symlink committed on an MR branch (e.g. `apps/web` → `/elsewhere`), landing primary's ignored files outside the worktree; only the source side is realpath-checked",
+      "reviewers": [
+        "security"
+      ]
+    },
+    {
+      "id": "seed-ignore-mismatch-untrusted-branch",
+      "status": "needs_validation",
+      "location": "andx-orchestration/scripts/worktree.mjs:132",
+      "finding": "ignore status is checked against the primary's rules only; an untrusted `--branch` checkout whose `.gitignore` drops `.env.local` makes the seeded secret untracked, and WORKER Phase 4 \"clean `git status`\" + babysit push can commit it to the MR branch",
+      "reviewers": [
+        "security"
+      ]
+    },
+    {
+      "id": "glossary-md-seeding-claims-a-speed-benefit-the",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "GLOSSARY.md:Seeding",
+      "finding": "claims a speed benefit the measurement falsified; numbers not recorded (plan: step-6)",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "andx-orchestration-skill-md-step-1-item-3",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx",
+      "finding": "orchestration/SKILL.md:Step 1 item 3 and Step 2 — `BACKEND=` and `PORT` inline, against the \"only via --help\" rule (plan: step-6)",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "andx-execute-worker-md-andx-orchestration-skill-md",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx",
+      "finding": "execute/WORKER.md, andx-orchestration/SKILL.md — cosmetic rewrites outside any step; \"lock already landed\" lost",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "worktree-mjs-fs-cpsync-path-join-root-e",
+      "status": "needs_validation",
+      "location": "andx-orchestration/scripts/worktree.mjs:172",
+      "finding": "`fs.cpSync(path.join(root, e), dst, {` still recurses into an existing branch-tracked dir and may follow a symlink committed below it (e.g. `cache/sub -> /outside`); the new check only realpaths dst and its nearest existing ancestor (seed-dest-symlink-escape, residual)",
+      "reviewers": [
+        "security"
+      ]
+    },
+    {
+      "id": "wt-lock-fail-force-remove-existing",
+      "status": "needs_validation",
+      "location": "andx-orchestration/scripts/worktree.mjs:229",
+      "finding": "`git(root, \"worktree\", \"remove\", \"--force\", \"--force\", dir);` runs without proof this call created dir; if `wt switch <branch>` reports an already-existing locked worktree at .worktrees/<slug>, the lock fails (\"already locked\") and the double force deletes that run's uncommitted work",
+      "reviewers": [
+        "security"
+      ]
+    },
+    {
+      "id": "glossary-md-backend-semantics-triplicated-across-glossary-readme",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "GLOSSARY.md:3",
+      "finding": "backend semantics triplicated across GLOSSARY, README, worktree.mjs USAGE; keep USAGE as source.",
+      "reviewers": [
+        "audit",
+        "ponytail"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "install-mjs-home-userprofile-git-config-global-env",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "install.mjs:1345",
+      "finding": "HOME/USERPROFILE/GIT_CONFIG_GLOBAL env surgery replaceable by `git config --file <home>/.gitconfig`; check XDG case first.",
+      "reviewers": [
+        "audit"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-mjs-inside-splits-on-only-if-windows",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "`andx-orchestration/scripts/worktree.mjs:138`",
+      "finding": "`inside()` splits on `/` only; if Windows git ever emitted `\\` paths, `.worktrees` guard weakens (git usually forwards `/`)",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "test-yml-real-wt-e2e-only-on-macos",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "`.github/workflows/test.yml:47`",
+      "finding": "real wt e2e only on macOS; Windows `wt` path relies on unit/fake-wt tests",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-mjs-mr-hotfix-locks-without-ledger-never",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "`andx-orchestration/scripts/worktree.mjs:307`",
+      "finding": "MR/hotfix locks without ledger never auto-dead; sweep keeps until manual unlock (documented in GLOSSARY)",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-mjs-auto-backend-has-no-stated-user",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/worktree.mjs:71",
+      "finding": "`auto` backend has no stated user",
+      "reviewers": [
+        "ponytail"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "run-mjs-wt-list-markers-serve-only-an",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/run.mjs:71",
+      "finding": "`wt list` markers serve only an optional external tool",
+      "reviewers": [
+        "ponytail"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worker-md-unrelated-wording-only-edits-in-a",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-execute/WORKER.md:3",
+      "finding": "unrelated wording-only edits in a feature diff",
+      "reviewers": [
+        "ponytail"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "wt-cmd-percent-expansion",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/worktree.mjs:66",
+      "finding": "`.cmd`/`.bat` shell path: `%VAR%` inside quoted args is still expanded; `check-ref-format` allows `%` in branch names",
+      "reviewers": [
+        "security"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "ci-unpinned-worktrunk",
+      "status": "confirmed",
+      "severity": "low",
+      "location": ".github/workflows/test.yml:16",
+      "finding": "unpinned `brew install worktrunk` on push/pull_request runners; add `permissions: contents: read`",
+      "reviewers": [
+        "security"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-test-mjs-real-wt-e2e-never-exercises",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/worktree.test.mjs",
+      "finding": "real-wt e2e never exercises `copy-ignored --require-include`",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-mjs-remove-extra-mergedinto-branch-d-path",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/worktree.mjs:remove",
+      "finding": "extra `mergedInto` + `branch -D` path after wt keeps a branch; untested",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-mjs-create-branch-ledger-entry-needs-an",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/worktree.mjs:create",
+      "finding": "`--branch` ledger entry needs an existing ledger; wt `--track` untested",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "install-test-mjs-outside-touch-declared",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "scripts/install.test.mjs",
+      "finding": "outside `touch` (declared)",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "step-6-wt-version-and-global-config-verification",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "step-6",
+      "finding": "`wt --version` and global-config verification deferred to the parent",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "skill-md-quote-removed-kept-drops-its-line",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/SKILL.md:32",
+      "finding": "\"quote `removed= kept=`.\" drops \"its … line\" from the original wording (declared prose trim).",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-mjs-seedfrom-existing-branch-worktrees-always-seeded",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/worktree.mjs:seedFrom",
+      "finding": "existing-branch worktrees always seeded natively; differs from plan step-3/4 (documented, tested); update plan.",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-mjs-main-name-removed-plan-step-4",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/worktree.mjs:main",
+      "finding": "`--name` removed; plan step-4 seam still lists it.",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "test-yml-permissions-contents-read-and-other-hardening",
+      "status": "confirmed",
+      "severity": "low",
+      "location": ".github/workflows/test.yml:3",
+      "finding": "`permissions: contents: read` and other hardening outside plan success lines (safe, tested).",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "worktree-mjs-filter-safedest-walks-to-first-existing",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-orchestration/scripts/worktree.mjs:178",
+      "finding": "filter safeDest walks to first existing ancestor; nested source-only symlinks (ignored, not in git tree) may still copy when dest has no pre-existing symlink",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    }
+  ]
+}
