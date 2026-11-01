@@ -159,7 +159,7 @@ claude plugin marketplace add DietrichGebert/ponytail && claude plugin install p
 ```bash
 git clone https://github.com/andreyxdd/andx-skills.git ~/Dev/tools/andx-skills
 cd ~/Dev/tools/andx-skills
-node install.mjs              # links skills into ~/.cursor, ~/.claude, ~/.codex; agents into ~/.claude/agents; hooks
+node install.mjs              # links skills into ~/.cursor, ~/.claude, ~/.codex; agents into ~/.claude/agents (+ spec-reviewer copy in ~/.cursor/agents); hooks
 node install-companions.mjs   # Matt Pocock skills + react-best-practices; prints the per-harness catalog budget
 export CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000   # add to your shell profile (Claude Code ≥ 2.1.312)
 ```
