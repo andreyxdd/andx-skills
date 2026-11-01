@@ -35,7 +35,7 @@ Frontmatter fields: [PARSE.md](../andx-plan/PARSE.md).
 |-------|---------|----------|
 | `andx-schedule` | ≥2 steps can share a wave (disjoint `touch`, deps satisfied); skip if 1 step / overlap / `touch: unknown` | `.cursor/plans/<slug>.EXEC-MATRIX.md` |
 
-Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy). Parent spawn: up to `max_parallel` (default 2) workers per wave; waves merge into the run worktree, which lands once (orch Step 4).
+Before: `/andx-plan`. After: `/andx-execute` or `/andx-execute-and-review` (either `--deploy`). Parent spawn: up to `max_parallel` (default 2) workers per wave; waves merge into the run worktree, which lands once (orch Step 4).
 
 ## Execute phase (`/andx-execute`)
 
@@ -89,7 +89,7 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.
 | `andx-mr-review` | MR URL | After push; **review** + draft/post comments; skips reviewers only when the artifact validator says `TRUSTED` (v2, head + base match) |
 | `andx-mr-babysit` | MR URL + babysit / merge-ready | After push (or after mr-review) when conflicts/comments/CI must be **fixed** toward merge |
 
-**Order:** review (`andx-mr-review`) → fix (`andx-mr-babysit`). GitHub + `~/.cursor/skills-cursor/autopilot` present → mr-babysit delegates to Cursor autopilot (formerly babysit) after auth/checkout; else andx-owned `gh`/`glab` loop via [HOSTS.md](../andx-mr-review/HOSTS.md).
+**Order:** review (`andx-mr-review`) → fix (`andx-mr-babysit`). GitHub + `~/.cursor/skills-cursor/autopilot` present → mr-babysit delegates to Cursor autopilot after auth/checkout; else andx-owned `gh`/`glab` loop via [HOSTS.md](../andx-mr-review/HOSTS.md).
 
 | | `andx-mr-review` | `andx-mr-babysit` | Cursor `autopilot` |
 |--|------------------|------------------|------------------|
@@ -104,7 +104,7 @@ On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.
 | `diagnosing-bugs` | `/andx-debug-and-fix` Phase B (Phases 1–3, analyst) + Phase D (Phases 4–6, worker) |
 | `andx-deploy-init` | First production CI/CD |
 | `andx-deploy` | Ship committed revision |
-| `andx-execute-review-and-deploy` | Execute + review gate + push + deploy |
+| execute(-and-review) `--deploy` | Push + deploy; aliases execute-and-deploy, execute-review-and-deploy |
 | `github-workflows` | Deploy method unclear |
 
 ## Out of scope
