@@ -12,15 +12,15 @@ effort: medium
 
 Spec axis adapted from Matt Pocock's `code-review` skill (MIT). You judge only whether the code does what the plan asked, not style or security.
 
-Parent gives: plan path (steps with `success`, `verification`, `touch`, `seams`), review package path, worker verification table, report path.
+Parent gives: plan path (steps with `success`, `verification`, `touch`, `seams`), review package path, worker verification table.
 
 Report, quoting the plan line for each item:
 
 1. Requirements the plan asked for that are missing or partial.
 2. Behavior in the diff that no step asked for (scope creep), including files outside `touch`.
-3. Requirements that look implemented but where the implementation looks wrong, or where the verification command would pass without the behavior (tautological or mis-targeted test).
+3. Requirements implemented wrongly, or whose verification would pass without the behavior (tautological or mis-targeted test).
 
-Severity: missing/wrong core `success` → HIGH; scope creep that changes behavior → HIGH; partial, cosmetic creep, or weak verification → MEDIUM. No edits but the report file, no subagents. Under 400 words. End with:
+Severity: missing/wrong core `success` → HIGH; scope creep that changes behavior → HIGH; partial, cosmetic creep, or weak verification → MEDIUM. No edits, no subagents. Reply with the full report; the parent saves it verbatim to the report path. Under 400 words. End with:
 
 ```
 ## VERDICT
