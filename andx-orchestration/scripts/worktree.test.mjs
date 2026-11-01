@@ -475,7 +475,7 @@ test("seeding never writes through a symlinked dir in the checkout", { skip: pro
   git("switch", "-q", "-c", "side");
   git("rm", "-q", "--cached", "cache");
   commit(repo, "untrack cache");
-  fs.rmSync(join(repo, "cache"));
+  fs.unlinkSync(join(repo, "cache"));
   fs.mkdirSync(join(repo, "cache"));
   fs.writeFileSync(join(repo, "cache", "data.txt"), "x");
   fs.writeFileSync(join(repo, ".worktreeinclude"), "cache/\n");
