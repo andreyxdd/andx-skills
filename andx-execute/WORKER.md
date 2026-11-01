@@ -30,7 +30,7 @@ Diagnose → fix criterion → implement → re-run (max 3 attempts) → stop wi
 
 Full regression + lint (even docs) + doc verifier if needed + every table row, fresh.
 
-**Jargon gate:** `G=~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs; node "$G" diff "$TARGET_BRANCH" HEAD` (`--allow-skill-text` in a skill repo). Hits → read [CODE-COMMENTS.md](./CODE-COMMENTS.md), rewrite to plain English / public branch pins.
+**Jargon gate:** `G=~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs; node "$G" diff "$TARGET_BRANCH" HEAD --repo "$WORKTREE_DIR"` (`--allow-skill-text` in a skill repo). Hits → fix per [CODE-COMMENTS.md](./CODE-COMMENTS.md).
 
 ## Phase 4 — Commit and hand off
 

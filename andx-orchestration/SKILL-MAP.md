@@ -35,7 +35,7 @@ Frontmatter fields: [PARSE.md](../andx-plan/PARSE.md).
 |-------|---------|----------|
 | `andx-schedule` | ≥2 steps can share a wave (disjoint `touch`, deps satisfied); skip if 1 step / overlap / `touch: unknown` | `.cursor/plans/<slug>.EXEC-MATRIX.md` |
 
-Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy). Parent spawn: up to `max_parallel` (default 2) workers per wave; sequential orch Step 4 concurrent-merge + cleanup each `WORKTREE_DIR`.
+Before: `/andx-plan`. After: `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy). Parent spawn: up to `max_parallel` (default 2) workers per wave; waves merge into the run worktree, which lands once (orch Step 4).
 
 ## Execute phase (`/andx-execute`)
 
