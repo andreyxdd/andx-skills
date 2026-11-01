@@ -73,12 +73,9 @@ export function refs(repo) {
     const s = { lock: null, halted: null, ticket: [], announce: [] };
     for (const line of r.stdout.split("\n").filter(Boolean)) {
       const [ref, oid] = line.split(" ", 2);
-      const raw = line.slice(ref.length + oid.length + 2);
-      // Every blob written here is non-empty JSON, so an empty field means this git does not expand %(raw).
-      if (!raw) fail(2, `git for-each-ref printed no %(raw) for ${ref}: ship-queue needs git ${GIT_MIN}`);
       let data = null;
       try {
-        data = JSON.parse(raw);
+        data = JSON.parse(line.slice(ref.length + oid.length + 2));
       } catch {}
       const kind = ref.slice(NS.length + 1).split("/")[0];
       if (Array.isArray(s[kind])) s[kind].push({ ref, oid, data });
@@ -188,7 +185,7 @@ function main(args) {
         console.log(`CONFLICT ${lines.slice(1, end < 0 ? undefined : end).join(",")}`);
         process.exit(6);
       }
-      if (m.status !== 0) fail(2, m.stderr);
+      if (m.status !== 0) fail(2, `${m.stderr}ship-queue needs git ${GIT_MIN}`);
     }
     update(ticketRef(id), (t) => ({
       id, joined_at: t?.joined_at ?? stamp(), heartbeat: stamp(), poll_ms: pollMs,
@@ -211,6 +208,7 @@ function main(args) {
     };
     const poll = () => {
       const s = snapshot();
+      if (s.halted && s.lock?.data?.holder === id) update(LOCK, (l) => (l?.holder === id ? free(l) : l));
       halted(s.halted);
       const own = s.ticket.find((t) => t.ref === ticketRef(id));
       me = { ...(own?.data ?? me), heartbeat: stamp(), poll_ms: pollMs };
@@ -227,15 +225,13 @@ function main(args) {
         const { gen, oid } = takeLock({ cas }, s, id) ?? {};
         if (oid) {
           if (l?.holder) console.log(`reclaimed stale lock ${l.holder}`);
-          const h = get(HALT);
-          // halt writes the halt ref before freeing the lock, so this catches a halt between our read and our swap.
-          // If freeing loses its swap, the next poll decides again.
-          if (!h) {
+          // halt writes the halt ref before freeing the lock, so this catches a halt between our read and our swap;
+          // the next poll then frees the lock before exiting 3.
+          if (!get(HALT)) {
             drop(ticketRef(id));
             console.log(`GRANTED ${id} gen ${gen}`);
             process.exit(0);
           }
-          if (cas(LOCK, free({ gen }), oid)) halted(h);
         }
       }
       setTimeout(poll, pollMs);
@@ -262,7 +258,7 @@ function main(args) {
     };
     const wt = real(o.worktree);
     const [gitDir, commonDir] = out(at(wt, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")).split("\n").map(real);
-    if (!gitDir || gitDir === commonDir || wt === real(root) || real(path.dirname(commonDir)) !== real(root)) {
+    if (!gitDir || gitDir === commonDir || real(path.dirname(commonDir)) !== real(root)) {
       fail(2, `--worktree ${wt} must be a linked worktree of ${root}, not the primary checkout`);
     }
     if (led?.vars?.WORKTREE_DIR && real(led.vars.WORKTREE_DIR) !== wt) fail(2, `--worktree ${wt} is not the ledger's WORKTREE_DIR ${led.vars.WORKTREE_DIR}`);
