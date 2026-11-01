@@ -90,9 +90,15 @@ beforeEach(() => {
   git(repo, "add", "-A");
   git(repo, "commit", "-q", "-m", "base");
 });
-afterEach(() => {
+// Windows: git grandchildren of killed runs can hold the dir a while after the run exits; a leaked temp dir beats a red run.
+afterEach(async () => {
   for (const c of children) c.kill();
-  fs.rmSync(repo, { recursive: true, force: true, maxRetries: 5 });
+  await Promise.all(children.map((c) => c.done));
+  try {
+    fs.rmSync(repo, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  } catch (e) {
+    if (process.platform !== "win32" || !["EBUSY", "EPERM"].includes(e.code)) throw e;
+  }
 });
 
 test("runs land in ready order, each a fast-forward, re-tested only when the integrate changed EXEC", { timeout: 60000 }, async () => {

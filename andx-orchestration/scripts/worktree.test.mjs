@@ -98,9 +98,11 @@ test("remove prints the list before and after and deletes the merged branch", ()
   const v = vars(wt("create", "--slug", "feat").stdout);
   const r = wt("remove", "feat");
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  const [before, after] = r.stdout.split("# git worktree list (after)");
-  assert.ok(before.includes(v.WORKTREE_DIR), before);
-  assert.ok(!after.includes(v.WORKTREE_DIR), after);
+  // git worktree list prints C:/... on Windows while WORKTREE_DIR uses backslashes.
+  const slash = (s) => s.replaceAll("\\", "/");
+  const [before, after] = slash(r.stdout).split("# git worktree list (after)");
+  assert.ok(before.includes(slash(v.WORKTREE_DIR)), before);
+  assert.ok(!after.includes(slash(v.WORKTREE_DIR)), after);
   assert.doesNotMatch(git("branch"), /exec-feat/);
 });
 

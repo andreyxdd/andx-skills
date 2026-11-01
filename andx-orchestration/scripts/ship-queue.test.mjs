@@ -56,7 +56,14 @@ beforeEach(() => {
   git(repo, "add", "-A");
   git(repo, "commit", "-q", "-m", "base");
 });
-afterEach(() => fs.rmSync(repo, { recursive: true, force: true, maxRetries: 5 }));
+// Windows: git grandchildren of killed waiters can hold the dir a while after the waiter exits; a leaked temp dir beats a red run.
+afterEach(() => {
+  try {
+    fs.rmSync(repo, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  } catch (e) {
+    if (process.platform !== "win32" || !["EBUSY", "EPERM"].includes(e.code)) throw e;
+  }
+});
 
 test("concurrent waiters are granted strictly in join order, one generation each", async () => {
   for (const id of ["feat/c", "feat/a", "feat/b"]) ok("join", id);
