@@ -132,9 +132,13 @@ test("a halt by the holder stops the remaining runs", { timeout: 60000 }, async 
   assert.deepEqual(landings(), ["merge p: Fast-forward"]);
 });
 
-test("a primary checkout on another branch: nothing lands and no branch switch happens", () => {
+test("a primary checkout on another branch: nothing lands, no branch switch, the worktree is not integrated", () => {
   branch("d", "d.txt", "d\n");
+  fs.writeFileSync(join(repo, "m.txt"), "m\n");
+  git(repo, "add", "-A");
+  git(repo, "commit", "-q", "-m", "main moved");
   git(repo, "switch", "-q", "-c", "other");
+  const head = git(wt("d"), "rev-parse", "HEAD");
   const main = git(repo, "rev-parse", "main");
   ok("join", "d", "--target", "main");
   ok("wait", "d", ...FAST);
@@ -144,5 +148,7 @@ test("a primary checkout on another branch: nothing lands and no branch switch h
   assert.equal(git(repo, "rev-parse", "main"), main);
   assert.equal(git(repo, "branch", "--show-current").trim(), "other");
   assert.equal(fs.existsSync(join(repo, "d.txt")), false);
+  assert.equal(git(wt("d"), "rev-parse", "HEAD"), head);
+  assert.equal(git(wt("d"), "status", "--porcelain"), "");
   assert.match(ok("status"), /^holder: d gen 1 held 0m$/m);
 });
