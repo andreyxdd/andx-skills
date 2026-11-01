@@ -39,6 +39,4 @@ else if (args[0] === "switch") {
   console.log(JSON.stringify([{ kind: "worktree", branch, path: p, branch_outcome: keep ? "retained_unmerged" : "deleted" }]));
 } else if (args[0] === "step" && args[1] === "copy-ignored") {
   console.log(JSON.stringify({ outcome: "copied", entries: [{ path: "node_modules", kind: "dir" }] }));
-} else if (args[0] === "step" && args[1] === "eval") {
-  console.log("12345");
 } else die(`fake wt: unsupported ${args.join(" ")}`);

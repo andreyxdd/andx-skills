@@ -8,7 +8,7 @@ worktrunk (`wt`) is now an optional backend for creating and removing run worktr
 
 ## Decision
 
-Landing goes through `ship-queue.mjs land` in every backend mode. `wt` is used only for `switch`, `remove`, `step copy-ignored` and `step eval`.
+Landing goes through `ship-queue.mjs land` in every backend mode. `wt` is used only for `switch`, `remove` and `step copy-ignored`.
 
 ## Why
 

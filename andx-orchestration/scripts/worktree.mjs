@@ -18,8 +18,9 @@ const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
       .cursor/worktrees.json setup in the new worktree, then --baseline, and records both in the run ledger.
       Before setup it seeds the worktree from the primary checkout's .worktreeinclude (gitignore syntax,
       shared with Claude Code and worktrunk: only untracked entries that are also git-ignored; copy-on-write,
-      symlinks verbatim, existing files kept); prints SEED <n> entries <ms>ms, ledger seed.
-      Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH=, PORT= lines; PORT (10000-19999, stable per branch,
+      symlinks verbatim, existing files kept); prints SEED <n> entries (those that copied anything), ledger seed.
+      Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH=, PORT= lines last, only once seeding, setup and
+      --baseline are done (none on failure); PORT (10000-19999, stable per branch,
       in the ledger) is what dev servers in this worktree bind to. A failed worktree add stops the run:
       there is no checkout fallback. The worktree is locked (reason "andx S <branch>") until remove, so no
       sweep or other tool deletes it mid-run. A symlinked .worktrees is refused (exit 2).
@@ -93,7 +94,7 @@ const wtJson = (r) => {
   }
 };
 
-// Native stand-in for wt's hash_port filter: same range, stable per branch (not the same number).
+// The port for every backend: 10000-19999, stable per branch.
 const hashPort = (branch) => 10000 + (parseInt(createHash("sha256").update(branch).digest("hex").slice(0, 8), 16) % 10000);
 
 // Comparable form: resolved, native separators, lower-cased where the filesystem is case-insensitive (win32).
@@ -125,11 +126,9 @@ function mergedInto(cwd, head, ref) {
 // An existing branch's checkout is untrusted: its own ignore rules must agree too, so it is always seeded natively.
 function seedFrom(root, dir, bin, existingBranch) {
   if (!fs.existsSync(path.join(root, ".worktreeinclude"))) return undefined;
-  const t = performance.now();
-  const done = (n) => {
-    const seed = { entries: n, ms: Math.round(performance.now() - t) };
-    console.log(`SEED ${seed.entries} entries ${seed.ms}ms`);
-    return seed;
+  const done = (entries) => {
+    console.log(`SEED ${entries} entries`);
+    return { entries };
   };
   if (bin && !existingBranch) {
     const r = runWt(bin, ["-C", dir, "step", "copy-ignored", "--require-include", "--format", "json"]);
@@ -173,11 +172,17 @@ function seedFrom(root, dir, bin, existingBranch) {
       skip(dst);
       continue;
     }
+    // An entry counts only if something new lands: force: false keeps existing paths, skips copy nothing.
+    let copied = false;
     fs.cpSync(path.join(root, e), dst, {
       recursive: true, mode: fs.constants.COPYFILE_FICLONE, verbatimSymlinks: true, force: false, preserveTimestamps: true,
-      filter: (_, d) => safeDest(d) || (skip(d), false),
+      filter: (_, d) => {
+        if (!safeDest(d)) return skip(d), false;
+        copied ||= !fs.lstatSync(d, { throwIfNoEntry: false });
+        return true;
+      },
     });
-    n++;
+    if (copied) n++;
   }
   return done(n);
 }
@@ -251,8 +256,6 @@ function create(root, o) {
     const add = git(root, "worktree", "add", "--lock", "--reason", reason, ...pick);
     if (add.status !== 0) fail(3, `${add.stderr}git worktree add failed: no checkout fallback; stop and report.`);
   }
-  const port = (bin && Number(runWt(bin, ["-C", dir, "step", "eval", "{{ branch | hash_port }}"]).stdout?.trim())) || hashPort(branch);
-  console.log(`EXEC_BRANCH=${branch}\nWORKTREE_DIR=${dir}\nTARGET_BRANCH=${target}\nPORT=${port}`);
   if (hooks && hooks.status !== 0) fail(4, `${hooks.stderr}wt switch hooks failed in ${dir}; stop before spawning workers`);
 
   const seed = seedFrom(root, dir, bin, !!o.branch);
@@ -282,6 +285,10 @@ function create(root, o) {
     baseline = { cmd: o.baseline, exit: r.status, red: r.status !== 0 };
     console.log(`BASELINE exit=${r.status} ${baseline.red ? "red" : "green"}`);
   }
+
+  // Printed only once the worktree is ready: a caller acting on these lines never sees a half-built one.
+  const port = hashPort(branch);
+  console.log(`EXEC_BRANCH=${branch}\nWORKTREE_DIR=${dir}\nTARGET_BRANCH=${target}\nPORT=${port}`);
 
   // Read-modify-write without a lock: parallel creates for one slug can drop each other's entry,
   // so the parent creates a wave's worktrees one after another.

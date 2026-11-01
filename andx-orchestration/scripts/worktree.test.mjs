@@ -91,12 +91,25 @@ test("create runs the primary checkout setup and quotes each exit code", () => {
   fs.writeFileSync(join(repo, ".cursor", "worktrees.json"), JSON.stringify({
     "setup-worktree": [`${node} -e "require('fs').writeFileSync('root.txt', process.env.ROOT_WORKTREE_PATH)"`, `${node} -e "process.exit(3)"`],
   }));
-  const r = wt("create", "--slug", "feat");
+  const r = wt("create", "--slug", "feat", "--stamp", "20261101-062708");
   assert.equal(r.status, 4, r.stdout + r.stderr);
-  const v = vars(r.stdout);
-  assert.equal(fs.readFileSync(join(v.WORKTREE_DIR, "root.txt"), "utf8"), repo);
+  const { WORKTREE_DIR } = runNames({ root: repo, slug: "feat", stamp: "20261101-062708" });
+  assert.equal(fs.readFileSync(join(WORKTREE_DIR, "root.txt"), "utf8"), repo);
   assert.match(r.stdout, /^SETUP exit=0 /m);
   assert.match(r.stdout, /^SETUP exit=3 /m);
+  assert.doesNotMatch(r.stdout, /^(EXEC_BRANCH|WORKTREE_DIR|TARGET_BRANCH|PORT)=/m, "a half-built worktree is never announced");
+});
+
+test("create prints BACKEND first and the worktree lines only after seed, setup and baseline", () => {
+  fs.writeFileSync(join(repo, ".gitignore"), ".env.local\n");
+  fs.writeFileSync(join(repo, ".env.local"), "x");
+  fs.writeFileSync(join(repo, ".worktreeinclude"), ".env.local\n");
+  fs.mkdirSync(join(repo, ".cursor"));
+  fs.writeFileSync(join(repo, ".cursor", "worktrees.json"), JSON.stringify({ "setup-worktree": [`${JSON.stringify(process.execPath)} -e ""`] }));
+  const r = wt("create", "--slug", "feat", "--baseline", "exit 0");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const tags = r.stdout.split("\n").map((l) => /^(BACKEND|SEED|SETUP exit|BASELINE|EXEC_BRANCH|WORKTREE_DIR|TARGET_BRANCH|PORT)\b/.exec(l)?.[1]).filter(Boolean);
+  assert.deepEqual(tags, ["BACKEND", "SEED", "SETUP exit", "BASELINE", "EXEC_BRANCH", "WORKTREE_DIR", "TARGET_BRANCH", "PORT"]);
 });
 
 test("create stops when git worktree add fails: no checkout fallback", () => {
@@ -273,16 +286,15 @@ test("create seeds .worktreeinclude entries that are also git-ignored, copy-on-w
   run(process.execPath, [RUN, "start", "--slug", "feat", "--mode", "execute"]);
   const r = wt("create", "--slug", "feat", "--target", "main");
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /^SEED 2 entries \d+ms$/m);
+  // node_modules is copied; cfg.local already exists in the worktree, so it is not counted.
+  assert.match(r.stdout, /^SEED 1 entries$/m);
   const d = vars(r.stdout).WORKTREE_DIR;
   assert.equal(fs.readFileSync(join(d, "node_modules", "a", "i.js"), "utf8"), "x");
   assert.equal(fs.readlinkSync(join(d, "node_modules", "a", ".bin", "i")), join("..", "i.js"));
   assert.equal(fs.readFileSync(join(d, "cfg.local"), "utf8"), "branch", "existing file kept");
   assert.ok(!fs.existsSync(join(d, ".env")), "ignored but not listed");
   assert.ok(!fs.existsSync(join(d, "inc.txt")), "listed but not ignored");
-  const { seed } = ledgerOf("feat").worktrees[path.basename(d)];
-  assert.equal(seed.entries, 2);
-  assert.equal(typeof seed.ms, "number");
+  assert.deepEqual(ledgerOf("feat").worktrees[path.basename(d)].seed, { entries: 1 });
 });
 
 test("create without .worktreeinclude copies nothing", () => {
@@ -319,8 +331,8 @@ test("wt backend: create runs wt switch from the primary checkout, then locks; r
   assert.equal(v.BACKEND, "wt");
   assert.deepEqual({ EXEC_BRANCH: v.EXEC_BRANCH, WORKTREE_DIR: v.WORKTREE_DIR }, runNames({ root: repo, slug: "feat", stamp: "20261101-062708" }));
   assert.equal(v.TARGET_BRANCH, "main");
-  assert.equal(v.PORT, "12345", "wt's own hash_port");
-  assert.ok(f.calls().some((c) => c.join(" ") === `-C ${v.WORKTREE_DIR} step eval {{ branch | hash_port }}`));
+  assert.equal(v.PORT, "15309", "same port as the native backend for this branch");
+  assert.ok(!f.calls().some((c) => c[2] === "step" && c[3] === "eval"), "no wt call for the port");
   assert.ok(porcelain().includes(`locked andx feat ${v.EXEC_BRANCH}`), porcelain());
   assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} switch --create ${v.EXEC_BRANCH} --base main --path ${v.WORKTREE_DIR} --no-cd --format json`), JSON.stringify(f.calls()));
   assert.ok(!f.calls().some((c) => c[2] === "step" && c[3] === "copy-ignored"), "no .worktreeinclude, no copy");
@@ -340,7 +352,7 @@ test("wt backend seeds with wt step copy-ignored only when .worktreeinclude exis
   const f = fakeWt();
   const r = f.run("create", "--slug", "feat");
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /^SEED 1 entries \d+ms$/m);
+  assert.match(r.stdout, /^SEED 1 entries$/m);
   const dir = vars(r.stdout).WORKTREE_DIR;
   assert.ok(f.calls().some((c) => c.join(" ") === `-C ${dir} step copy-ignored --require-include --format json`));
 });
@@ -440,7 +452,7 @@ test("wt backend: create --branch runs wt switch on the branch, seeds natively; 
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const d = vars(r.stdout).WORKTREE_DIR;
   assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} switch mr-head --path ${d} --no-cd --format json`), JSON.stringify(f.calls()));
-  assert.match(r.stdout, /^SEED 0 entries \d+ms$/m);
+  assert.match(r.stdout, /^SEED 0 entries$/m);
   assert.ok(!f.calls().some((c) => c.includes("copy-ignored")), "the branch's own rules are not handed to wt");
   assert.ok(porcelain().includes("locked andx mr-7 mr-head"));
   assert.equal(f.run("remove", "mr-7").status, 0);
@@ -461,7 +473,7 @@ test("create --branch seeds only what the branch's own .gitignore also ignores",
   fs.writeFileSync(join(repo, ".worktreeinclude"), ".env.local\n");
   const r = wt("create", "--slug", "mr-7", "--branch", "mr-head");
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /^SEED 0 entries \d+ms$/m);
+  assert.match(r.stdout, /^SEED 0 entries$/m);
   assert.ok(!fs.existsSync(join(vars(r.stdout).WORKTREE_DIR, ".env.local")));
 });
 
@@ -482,7 +494,7 @@ test("seeding never writes through a symlinked dir in the checkout", { skip: pro
   const r = wt("create", "--slug", "feat", "--target", "main");
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /^SEED skip cache: destination resolves outside the worktree$/m);
-  assert.match(r.stdout, /^SEED 0 entries \d+ms$/m);
+  assert.match(r.stdout, /^SEED 0 entries$/m);
   assert.deepEqual(fs.readdirSync(outside), []);
   fs.rmSync(outside, { recursive: true, force: true });
 });
@@ -529,6 +541,7 @@ test("seeding never follows a symlink below a dir the checkout already has", { s
   const r = wt("create", "--slug", "feat", "--target", "linked");
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, new RegExp(`^SEED skip ${join("cache", "sub")}: destination resolves outside the worktree$`, "m"));
+  assert.match(r.stdout, /^SEED 0 entries$/m, "cache already exists and its only new path was skipped");
   assert.deepEqual(fs.readdirSync(outside), []);
   fs.rmSync(outside, { recursive: true, force: true });
 });
