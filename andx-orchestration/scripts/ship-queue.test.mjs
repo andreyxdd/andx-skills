@@ -171,6 +171,16 @@ test("halt stops waiters with exit 3 and resume clears it", async () => {
   assert.equal(ok("wait", "b", ...FAST), "GRANTED b gen 2\n");
 });
 
+test("a wait that finds the queue halted while it holds the lock frees the lock before exiting 3", () => {
+  hold("w");
+  refs(repo).cas("refs/andx/ship/halted", { id: "x", reason: "red", at: new Date().toISOString() }, "");
+  ok("join", "w");
+  const r = q("wait", "w", ...FAST);
+  assert.deepEqual([r.status, r.stdout], [3, "HALTED red\n"]);
+  assert.equal(ok("status"), "halted: red (by x)\nholder: none\nwaiter 1: w waiting 0m\n");
+  assert.equal(JSON.parse(git(repo, "cat-file", "blob", "refs/andx/ship/lock")).gen, 1);
+});
+
 test("status --touch lists live tickets with overlapping paths", () => {
   ok("join", "api", "--touch", "src/api,docs/x.md");
   ok("join", "lib", "--touch", "lib/");
