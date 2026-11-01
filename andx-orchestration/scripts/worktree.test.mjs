@@ -385,6 +385,59 @@ test("real worktrunk round trip", { skip: !findWt() && "worktrunk not installed"
   assert.ok(!fs.existsSync(v.WORKTREE_DIR));
 });
 
+test("create --branch checks out an existing branch, locked; remove keeps the branch", () => {
+  git("branch", "mr-head");
+  const r = wt("create", "--slug", "mr-7", "--branch", "mr-head");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const v = vars(r.stdout);
+  assert.equal(v.EXEC_BRANCH, "mr-head");
+  assert.equal(v.WORKTREE_DIR, join(repo, ".worktrees", "mr-7"));
+  assert.equal(run("git", ["branch", "--show-current"], v.WORKTREE_DIR).trim(), "mr-head");
+  assert.ok(porcelain().includes("locked andx mr-7 mr-head"));
+  const rm = wt("remove", "mr-7");
+  assert.equal(rm.status, 0, rm.stdout + rm.stderr);
+  assert.ok(!fs.existsSync(v.WORKTREE_DIR));
+  assert.match(git("branch"), /mr-head/);
+});
+
+test("create --branch --track resets the branch to the remote one; --name picks the folder", () => {
+  const origin = join(repo, ".git", "origin.git");
+  git("init", "-q", "--bare", origin);
+  git("remote", "add", "origin", origin);
+  git("switch", "-q", "-c", "feat-x");
+  change(repo, "remote work");
+  git("push", "-q", "origin", "feat-x");
+  git("switch", "-q", "main");
+  git("branch", "-f", "feat-x", "main");
+  const r = wt("create", "--slug", "babysit", "--branch", "feat-x", "--name", "mr-8", "--track", "origin/feat-x");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const d = vars(r.stdout).WORKTREE_DIR;
+  assert.equal(d, join(repo, ".worktrees", "mr-8"));
+  assert.equal(git("rev-parse", "feat-x").trim(), git("rev-parse", "origin/feat-x").trim());
+  assert.equal(git("rev-parse", "--abbrev-ref", "feat-x@{upstream}").trim(), "origin/feat-x");
+});
+
+test("create --branch refuses the primary checkout's branch: stop and ask", () => {
+  const r = wt("create", "--slug", "mr-9", "--branch", "main");
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /stop and ask the user/);
+  assert.equal(wt("create", "--slug", "mr-9", "--track", "origin/x").status, 2, "--track needs --branch");
+});
+
+test("wt backend: create --branch runs wt switch on the branch; remove keeps it", () => {
+  git("config", "andx.worktreeBackend", "wt");
+  git("branch", "mr-head");
+  const f = fakeWt();
+  const r = f.run("create", "--slug", "mr-7", "--branch", "mr-head");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const d = vars(r.stdout).WORKTREE_DIR;
+  assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} switch mr-head --path ${d} --no-cd --format json`), JSON.stringify(f.calls()));
+  assert.ok(porcelain().includes("locked andx mr-7 mr-head"));
+  assert.equal(f.run("remove", "mr-7").status, 0);
+  assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} remove mr-head --no-delete-branch --foreground --format json`));
+  assert.match(git("branch"), /mr-head/);
+});
+
 test("create refuses a symlinked .worktrees", () => {
   const elsewhere = fs.mkdtempSync(join(tmpdir(), "worktree-elsewhere-"));
   fs.symlinkSync(elsewhere, join(repo, ".worktrees"), process.platform === "win32" ? "junction" : "dir");

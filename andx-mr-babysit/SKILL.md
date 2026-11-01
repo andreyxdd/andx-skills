@@ -55,7 +55,7 @@ Load MR metadata, head/base refs, pipeline/checks, open discussion threads.
 
 ### 3. Branch materialize
 
-Fetch MR head into a worktree, never the primary checkout (`worktree.mjs create` only branches from TARGET, so add it directly): `git fetch origin <head_branch> && git worktree add --track -B <head_branch> "$REPO_ROOT/.worktrees/mr-<iid>" origin/<head_branch>`. Branch already checked out in the primary checkout → stop and ask the user; never switch the primary checkout. Fixes run there (spawn `andx-worker` with that `WORKTREE_DIR`). Record `base_sha` / `head_sha`. At done/escalate: `git worktree remove` it when clean; leftovers show in `node ~/.cursor/skills/andx-orchestration/scripts/worktree.mjs sweep`.
+Fetch the MR head into a worktree, never the primary checkout: `W=~/.cursor/skills/andx-orchestration/scripts/worktree.mjs; git fetch origin <head_branch> && node "$W" create --slug mr-<iid> --branch <head_branch> --track origin/<head_branch>` (exit 2 → stop and ask the user). Fixes run in its `WORKTREE_DIR=` (spawn `andx-worker` there). Record `base_sha` / `head_sha`. At done/escalate: `node "$W" remove mr-<iid>`; leftovers show in `node "$W" sweep`.
 
 ### 4. Route: delegate vs andx-owned loop
 

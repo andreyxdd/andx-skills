@@ -20,9 +20,14 @@ const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
       Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH= lines. A failed git worktree add stops the run:
       there is no checkout fallback. The worktree is locked (reason "andx S <branch>") until remove, so no
       sweep or other tool deletes it mid-run. A symlinked .worktrees is refused (exit 2).
+  create --slug S --branch B [--name N] [--track REMOTE/B]
+      Worktree for an existing branch (an MR head) at .worktrees/N (default S), with the same lock, seed,
+      setup and ledger entry; --track first resets B to REMOTE/B and tracks it. B checked out in the
+      primary checkout: exit 2, stop and ask the user (never switch the primary checkout).
   remove <slug> [--wave N [--step ID]] [--target BRANCH]
-      Unlocks the slug's own locks, removes its worktrees (git refuses dirty ones) and deletes each branch
-      merged into TARGET_BRANCH; prints git worktree list before and after.
+      Unlocks the slug's own locks, removes its worktrees (run ones by name, --branch ones by lock; git
+      refuses dirty ones) and deletes each run branch merged into TARGET_BRANCH (--branch ones are kept);
+      prints git worktree list before and after.
   sweep [--apply] [--target BRANCH] [REPO]
       Lists agent worktrees. Safe = clean tree and branch merged into TARGET (default: current branch) or
       origin's default: an ancestor, or integrated (squash/rebase: merging it changes nothing). Dry run by
@@ -154,8 +159,13 @@ function create(root, o) {
   if (!target) fail(2, `primary checkout ${root} is not on a branch; pass --target`);
   const stamp = o.stamp ?? ((!o.wave && ledger?.vars?.STAMP) || newStamp());
   if (!/^\d{8}-\d{6}$/.test(stamp)) fail(2, `bad --stamp: ${stamp}`);
-  const { EXEC_BRANCH: branch, WORKTREE_DIR: dir } = runNames({ root, slug: o.slug, wave: o.wave, step: o.step, stamp });
+  const { EXEC_BRANCH: branch, WORKTREE_DIR: dir } = o.branch
+    ? { EXEC_BRANCH: o.branch, WORKTREE_DIR: path.join(wtRoot, o.name ?? o.slug) }
+    : runNames({ root, slug: o.slug, wave: o.wave, step: o.step, stamp });
   const name = path.basename(dir);
+  if (o.branch && git(root, "branch", "--show-current").stdout.trim() === o.branch) {
+    fail(2, `${o.branch} is checked out in the primary checkout ${root}: stop and ask the user; never switch the primary checkout`);
+  }
 
   if (git(root, "check-ignore", "-q", ".worktrees/").status !== 0) {
     const ex = git(root, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude").stdout.trim();
@@ -169,8 +179,13 @@ function create(root, o) {
   const reason = `andx ${o.slug} ${branch}`;
   let hooks;
   if (bin) {
+    if (o.track) {
+      const t = git(root, "branch", "-f", "--track", branch, o.track);
+      if (t.status !== 0) fail(3, `${t.stderr}git branch --track ${branch} ${o.track} failed; stop and report.`);
+    }
     // The JSON on stdout says whether the worktree exists, even when a hook made wt exit non-zero.
-    hooks = runWt(bin, ["-C", root, "switch", "--create", branch, "--base", target, "--path", dir, "--no-cd", "--format", "json"]);
+    const pick = o.branch ? [branch] : ["--create", branch, "--base", target];
+    hooks = runWt(bin, ["-C", root, "switch", ...pick, "--path", dir, "--no-cd", "--format", "json"]);
     if (!wtJson(hooks)?.path) {
       if (/approv/i.test(hooks.stderr)) {
         fail(4, `${hooks.stderr}worktrunk project hooks (.config/wt.toml) are not approved; never pass --yes. Review them, then run: wt -C '${root}' config approvals add`);
@@ -180,7 +195,8 @@ function create(root, o) {
     const lock = git(root, "worktree", "lock", "--reason", reason, dir);
     if (lock.status !== 0) fail(3, `${lock.stderr}git worktree lock failed; stop and report.`);
   } else {
-    const add = git(root, "worktree", "add", "--lock", "--reason", reason, "-b", branch, dir, target);
+    const pick = !o.branch ? ["-b", branch, dir, target] : o.track ? ["--track", "-B", branch, dir, o.track] : [dir, branch];
+    const add = git(root, "worktree", "add", "--lock", "--reason", reason, ...pick);
     if (add.status !== 0) fail(3, `${add.stderr}git worktree add failed: no checkout fallback; stop and report.`);
   }
   console.log(`EXEC_BRANCH=${branch}\nWORKTREE_DIR=${dir}\nTARGET_BRANCH=${target}`);
@@ -233,13 +249,18 @@ function remove(root, slug, o) {
   const list = () => git(root, "worktree", "list").stdout.trimEnd();
   git(root, "worktree", "prune");
   console.log(`# git worktree list (before)\n${list()}`);
-  const hits = worktrees(root).filter((w) => key(path.dirname(w.p)) === key(path.join(root, ".worktrees")) && re.test(path.basename(w.p)));
+  // Run worktrees match the naming rule; --branch worktrees only their lock, and their branch is never deleted.
+  const ownLock = (w) => !!w.lock?.startsWith(`andx ${slug} `);
+  const run = (w) => re.test(path.basename(w.p));
+  const hits = worktrees(root).filter((w) => key(path.dirname(w.p)) === key(path.join(root, ".worktrees")) && (run(w) || (!o.wave && ownLock(w))));
   let refused = hits.length ? 0 : 1;
   if (!hits.length) console.log(`no worktree for ${slug} under ${path.join(root, ".worktrees")}`);
-  for (const { p, branch, lock } of hits) {
-    const own = lock?.startsWith(`andx ${slug} `);
+  for (const w of hits) {
+    const { p, branch, lock } = w;
+    const own = ownLock(w);
     if (own) git(root, "worktree", "unlock", p);
-    const wtr = bin && branch ? runWt(bin, ["-C", root, "remove", branch, "--foreground", "--format", "json"]) : undefined;
+    const keepBranch = run(w) ? [] : ["--no-delete-branch"];
+    const wtr = bin && branch ? runWt(bin, ["-C", root, "remove", branch, ...keepBranch, "--foreground", "--format", "json"]) : undefined;
     const r = wtr ?? git(root, "worktree", "remove", p);
     const out = wtr && wtJson(wtr)?.[0];
     if (wtr ? !out : r.status !== 0) {
@@ -249,7 +270,7 @@ function remove(root, slug, o) {
       continue;
     }
     console.log(`REMOVED ${p}`);
-    if (!branch) continue;
+    if (!branch || !run(w)) continue;
     // wt judges "merged" against its default branch; TARGET_BRANCH may differ, so a branch wt kept gets our check too.
     if (out?.branch_outcome === "deleted" || (target && mergedInto(root, branch, target) && git(root, "branch", "-D", branch).status === 0)) {
       console.log(`DELETED branch ${branch}`);
@@ -319,7 +340,7 @@ function main(args) {
       args,
       allowPositionals: true,
       options: Object.fromEntries([
-        ...["repo", "slug", "wave", "step", "stamp", "target", "baseline"].map((k) => [k, { type: "string" }]),
+        ...["repo", "slug", "wave", "step", "stamp", "target", "baseline", "branch", "name", "track"].map((k) => [k, { type: "string" }]),
         ["apply", { type: "boolean" }],
         ["help", { type: "boolean", short: "h" }],
       ]),
@@ -335,6 +356,9 @@ function main(args) {
   if (!SLUG.test(slug ?? "")) fail(2, `bad or missing slug: ${slug ?? ""}\n\n${USAGE}`);
   if (o.wave !== undefined && !/^\d+$/.test(o.wave)) fail(2, `bad --wave: ${o.wave}`);
   if (o.step !== undefined && (!o.wave || !SLUG.test(o.step))) fail(2, `--step needs --wave and [a-z0-9-]: ${o.step}`);
+  if ((o.name !== undefined || o.track !== undefined) && o.branch === undefined) fail(2, "--name and --track need --branch");
+  if (o.branch !== undefined && (o.wave || git(".", "check-ref-format", "--branch", o.branch).status !== 0)) fail(2, `bad --branch (no --wave): ${o.branch}`);
+  if (o.name !== undefined && !SLUG.test(o.name)) fail(2, `bad --name: ${o.name}`);
   const g = git(o.repo ?? ".", "rev-parse", "--path-format=absolute", "--git-common-dir");
   if (g.status !== 0) fail(2, g.stderr || `not a git repo: ${o.repo ?? "."}`);
   const root = path.resolve(path.dirname(g.stdout.trim()));
