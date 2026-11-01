@@ -1,10 +1,10 @@
 ---
 name: andx-plan
-description: "/andx-plan: turn an idea into an execution-ready .cursor/plans/<slug>.plan.md (grill, steps with depends/touch/verification, Next menu). Use for \"plan this feature\" or planning for andx-execute."
+description: "/andx-plan: turn an idea into an execution-ready $PLANS_DIR/<slug>.plan.md (grill, steps with depends/touch/verification, Next menu). Use for \"plan this feature\" or planning for andx-execute."
 ---
 # Andx Plan
 
-Idea → execution-ready **`<project>/.cursor/plans/<slug>.plan.md`**.
+Idea → execution-ready **`$PLANS_DIR/<slug>.plan.md`** (`PLANS_DIR=` from `node ~/.agents/skills/andx-orchestration/scripts/run.mjs dirs --ensure`).
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Format: [PLAN-FORMAT.md](./PLAN-FORMAT.md)
 
@@ -20,8 +20,8 @@ Phase 0 Anchor → 1 Domain grill? → 1.5 Design? → 2 Execution grill → 3 W
 
 ## Phase 0 — Anchor
 
-1. **Workspace gate:** plans only under target project `.cursor/plans/`. Never `~/.cursor/plans`. If root ≠ target repo → `move_agent_to_root` first. Ensure `.cursor/plans/` exists (gitignore by default).
-2. **Plan-mode upgrade:** if `.cursor/plans/*.plan.md` or Cursor Plan draft exists but lacks `depends`/`touch`/`verification`, upgrade in place to PLAN-FORMAT — skip domain grill unless gaps.
+1. **Workspace gate:** plans only in the target project's `$PLANS_DIR`, never user-global. If root ≠ target repo → switch workspace root (HARNESS) first.
+2. **Plan-mode upgrade:** if `$PLANS_DIR/*.plan.md` or a harness plan-mode draft exists but lacks `depends`/`touch`/`verification`, upgrade in place to PLAN-FORMAT — skip domain grill unless gaps.
 3. Read OKF/ICM when present: `IDENTITY.md`, `ROUTING.md`, `knowledge/index.md`, active `pipeline/<stage>/CONTEXT.md`, legacy CONTEXT/ADRs/thread.
 4. **Workspace rules:** per [workspace rules](../andx-orchestration/WORKSPACE-RULES.md) on the likely `touch`. Bake constraints into steps (`depends`/`success`/`verification`) — do not leave cross-repo sync implicit.
 5. Missing `knowledge/` → suggest `/andx-init` once (non-blocking).
@@ -42,7 +42,7 @@ Grill in **rounds** per `/grilling`: ask the whole frontier (every question whos
 
 New module / HTTP-GraphQL / MCP / user asks design. Skip if extending documented contract → `design_pass: skipped`.
 
-New module or seam: read `~/.cursor/skills/codebase-design/DESIGN-IT-TWICE.md` (two or more radically different interfaces, compare on depth/leverage/locality, user picks). HTTP: api-design; MCP: create-mcp-server; capture under `knowledge/modules|apis/`; first doc copy from andx-init templates. Record `companion_skills` + `design_refs`.
+New module or seam: read `~/.agents/skills/codebase-design/DESIGN-IT-TWICE.md` (two or more radically different interfaces, compare on depth/leverage/locality, user picks). HTTP: api-design; MCP: create-mcp-server; capture under `knowledge/modules|apis/`; first doc copy from andx-init templates. Record `companion_skills` + `design_refs`.
 
 ## Phase 2 — Execution grill (always)
 
@@ -56,9 +56,9 @@ Present full step list; **user approves before Phase 3**.
 
 ## Phase 3 — Write plan file
 
-Write `.cursor/plans/<slug>.plan.md` per PLAN-FORMAT (frontmatter + steps). Absolute path in reply.
+Write `$PLANS_DIR/<slug>.plan.md` per PLAN-FORMAT (frontmatter + steps). Absolute path in reply.
 
-Ensure project `.gitignore` covers `.cursor/` or `.cursor/plans/` before writing; never commit `.cursor/**` unless user explicitly demands a tracked plan.
+Hidden `$PLANS_DIR` stays gitignored and uncommitted unless the user demands it; `docs/plans`/`plans` follow the project.
 
 ### Session-end Next + `go` (hard gate)
 
@@ -67,13 +67,13 @@ Ensure project `.gitignore` covers `.cursor/` or `.cursor/plans/` before writing
 Chat reply **must end** with (also mirror in plan `## Next`):
 
 ```text
-Plan: <abs>/.cursor/plans/<slug>.plan.md
+Plan: <PLANS_DIR>/<slug>.plan.md
 Next:
 - (default) /andx-execute
 - /andx-execute-and-review
 - /andx-execute-and-deploy
 - /andx-execute-review-and-deploy
-Fresh chat: /andx-execute <abs>/.cursor/plans/<slug>.plan.md
+Fresh chat: /andx-execute <PLANS_DIR>/<slug>.plan.md
 Reply go → run default on this plan.
 ```
 
@@ -86,11 +86,11 @@ Reply go → run default on this plan.
 - Multi-wave (disjoint `touch`, deps allow ≥2 parallel) → offer `/andx-schedule` before execute (optional; not default unless user asked schedule)
 - Else (incl. `workstream: docs`) → `/andx-execute`
 
-**`go` contract (same-thread fallback, keeps the grill context):** same thread, bare `go` / `Go` / `/go` → immediately Read `~/.cursor/skills/<default-skill>/SKILL.md` and follow it with this plan path (works for user-only skills too); do not re-ask Phase 2. `review` / `deploy` / skill name → matching option when unambiguous.
+**`go` contract (same-thread fallback, keeps the grill context):** same thread, bare `go` / `Go` / `/go` → immediately Read `~/.agents/skills/<default-skill>/SKILL.md` and follow it with this plan path (works for user-only skills too); do not re-ask Phase 2. `review` / `deploy` / skill name → matching option when unambiguous.
 
 ## Anti-patterns
 
-- Plans in `~/.cursor/plans` or from home without `move_agent_to_root`
+- Plans user-global, or written from a root that is not the target repo
 - Steps without falsifiable success/verification
 - Horizontal (layer-by-layer) steps; code steps without `seams`
 - One question per turn when several are already answerable (use rounds)
@@ -98,4 +98,4 @@ Reply go → run default on this plan.
 - Write file before step-list approval
 - Duplicate companion skill prose into plan body
 - Omit Next menu / plan path / `go` contract (silent end after write)
-- Committing `.cursor/**` by default
+- Committing a hidden `$PLANS_DIR` by default

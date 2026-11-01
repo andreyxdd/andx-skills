@@ -17,7 +17,7 @@ Handoff **pass**; landed; post-merge Phase 3 green; cleanup quoted; lock release
 
 ## Preflight (read-only)
 
-1. Anchor plan: `<repo>/.cursor/plans/*.plan.md` with `andx_ready: true`; missing `depends`/`touch`/`verification` → `/andx-plan`.
+1. Anchor plan: `$PLANS_DIR/*.plan.md` (`run.mjs dirs`) with `andx_ready: true`; missing `depends`/`touch`/`verification` → `/andx-plan`.
 2. Parse steps per [PARSE.md](../andx-plan/PARSE.md). **`DOCS_ONLY`** when `workstream: docs` or every step `kind: docs`.
 3. Load `knowledge_refs` / `design_refs` (immutable contract) / `pipeline/<stage>/CONTEXT.md` into the worker prompt.
 4. Toolchain (test/lint/build/e2e/doc verifier) → verification table per plan `verification` / CI.

@@ -2,8 +2,8 @@
 
 Shared between `/andx-execute-and-review` (writer) and `/andx-mr-review` (reader).
 
-**Path:** `<repo>/.cursor/reviews/<plan-slug>.json`, committed on the branch so the MR head carries it.
-**Validate:** `node ~/.cursor/skills/andx-mr-review/scripts/validate-review-artifact.mjs <file> --head <MR head SHA> --base <MR base SHA>` → `TRUSTED` | `READABLE[: reason]` | `INVALID` (exit 1).
+**Path:** `$REVIEWS_DIR/<plan-slug>.json` (`run.mjs dirs`), committed on the branch so the MR head carries it.
+**Validate:** `node ~/.agents/skills/andx-mr-review/scripts/validate-review-artifact.mjs <file> --head <MR head SHA> --base <MR base SHA>` → `TRUSTED` | `READABLE[: reason]` | `INVALID` (exit 1).
 
 ## Top-level
 
@@ -11,7 +11,7 @@ Shared between `/andx-execute-and-review` (writer) and `/andx-mr-review` (reader
 |-------|------|----------|-------|
 | `schema_version` | number | yes | `2` for new artifacts; readers accept `1` and `2`, reject anything else |
 | `source` | string | yes | `andx-execute-and-review` \| `andx-mr-review` \| `andx-security-review` |
-| `plan` | string | yes | e.g. `.cursor/plans/foo.plan.md` |
+| `plan` | string | yes | repo-relative, e.g. `.andx/plans/foo.plan.md` |
 | `target_branch` | string | yes | e.g. `main` (stacked MR: parent MR branch) |
 | `base_sha` | string | v2 | full SHA of `MERGE_BASE_SHA` the reviewers judged from |
 | `head_sha` | string | yes | full SHA reviewed (`EXEC_HEAD`) |
@@ -78,7 +78,7 @@ Shared between `/andx-execute-and-review` (writer) and `/andx-mr-review` (reader
 
 ## mr-review consumption
 
-1. Read `.cursor/reviews/*.json` on the MR head (`git show <sha>:path`).
+1. Read `.andx/reviews/*.json` and `.cursor/reviews/*.json` on the MR head (`git show <sha>:path`).
 2. Run the validator with MR head and base. **`TRUSTED` only** → skip reviewer subagents.
 3. `READABLE` (v1, or head/base mismatch) → run the full reviewer stack; prior findings may seed the report but never replace review.
 4. `INVALID` or missing → full reviewer stack.

@@ -89,6 +89,36 @@ test("install into empty home creates both files", () => {
   }
 });
 
+test("Codex and Kimi hooks only when their home exists; idempotent; uninstall keeps the rest", () => {
+  const home = mkdtempSync(join(tmpdir(), "install-hooks-"));
+  try {
+    install("install", home);
+    assert.deepEqual(readdirSync(home).sort(), [".claude", ".cursor"]);
+
+    mkdirSync(join(home, ".codex"));
+    mkdirSync(join(home, ".kimi-code"));
+    const toml = join(home, ".kimi-code", "config.toml");
+    writeFileSync(toml, 'default_model = "k2"\n\n[[hooks]]\nevent = "Stop"\ncommand = "mine.sh"\n');
+    install("install", home);
+    const codex = read(join(home, ".codex", "hooks.json"));
+    assert.deepEqual(codex.hooks.PreToolUse, [{ matcher: "apply_patch|Edit|Write", hooks: [{ type: "command", command: PRIMARY, timeout: 5 }] }]);
+    assert.equal(codex.hooks.Stop[0].hooks[0].command, CONTINUE);
+    const text = readFileSync(toml, "utf8");
+    assert.ok(text.startsWith('default_model = "k2"\n\n[[hooks]]\nevent = "Stop"\ncommand = "mine.sh"\n\n# >>> andx hooks'), text);
+    assert.ok(text.includes(`command = ${JSON.stringify(`${CONTINUE} --exit2`)}\ntimeout = 10\n`), text);
+    assert.ok(text.includes(`[[hooks]]\nevent = "PreToolUse"\nmatcher = "Write|Edit"\ncommand = ${JSON.stringify(PRIMARY)}\ntimeout = 5\n# <<< andx hooks\n`), text);
+    for (const line of text.split("\n").filter((l) => / = /.test(l))) assert.match(line, /^(default_model|event|matcher|command|timeout) = /, line);
+    install("install", home);
+    assert.equal(readFileSync(toml, "utf8"), text);
+
+    install("uninstall", home);
+    assert.equal(readFileSync(toml, "utf8"), 'default_model = "k2"\n\n[[hooks]]\nevent = "Stop"\ncommand = "mine.sh"\n');
+    assert.deepEqual(read(join(home, ".codex", "hooks.json")).hooks, {});
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test("bad mode exits non-zero", () => {
   assert.notEqual(spawnSync(process.execPath, [join(here, "install-hooks.mjs"), "nope"]).status, 0);
 });

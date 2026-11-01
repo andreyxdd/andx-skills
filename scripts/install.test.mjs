@@ -21,18 +21,24 @@ function install(home, ...args) {
   return spawnSync(process.execPath, [join(ROOT, "install.mjs"), "--home", home, ...args], { encoding: "utf8" });
 }
 
-test("install links skills into three harnesses, agents, drops retired, writes hooks", () => {
+test("install links skills into ~/.agents and ~/.claude, drops its old links, agents, retired, hooks", () => {
   const home = tmp("install-home-");
   try {
     fs.mkdirSync(join(home, ".claude", "skills", "andx-pr-review"), { recursive: true });
     fs.mkdirSync(join(home, ".codex", "skills", "andx-plan"), { recursive: true });
     fs.writeFileSync(join(home, ".codex", "skills", "andx-plan", "stale.md"), "x");
+    fs.mkdirSync(join(home, ".cursor", "skills"), { recursive: true });
+    for (const s of ["andx-execute", "andx-pr-review"]) link(join(ROOT, s === "andx-pr-review" ? "andx-plan" : s), join(home, ".cursor", "skills", s));
+    link(join(ROOT, "README.md"), join(home, ".cursor", "skills", "mine"));
     const r = install(home);
     assert.equal(r.status, 0, r.stdout + r.stderr);
-    for (const h of [".cursor", ".claude", ".codex"]) {
+    for (const h of [".agents", ".claude"]) {
       for (const s of SKILLS) assert.equal(real(join(home, h, "skills", s)), real(join(ROOT, s)), `${h}/${s}`);
       assert.equal(fs.existsSync(join(home, h, "skills", "andx-pr-review")), false);
     }
+    assert.deepEqual(fs.readdirSync(join(home, ".cursor", "skills")), ["mine"], "old andx links gone, foreign entry kept");
+    assert.ok(fs.existsSync(join(home, ".codex", "skills", "andx-plan", "stale.md")), "a real folder is not ours to delete");
+    assert.match(r.stdout, /^removed old link .*andx-execute/m);
     for (const a of LINKED_AGENTS) {
       assert.equal(fs.readFileSync(join(home, ".claude", "agents", a), "utf8"), fs.readFileSync(join(ROOT, "agents", a), "utf8"));
     }
@@ -74,11 +80,35 @@ test("spec reviewer gets a per-harness model copy; other agents stay linked and 
   }
 });
 
+test("Codex gets TOML agents and Kimi linked agents only when installed", () => {
+  const home = tmp("install-home-");
+  try {
+    assert.equal(install(home).status, 0);
+    assert.equal(fs.existsSync(join(home, ".codex")) || fs.existsSync(join(home, ".kimi-code")), false);
+    fs.mkdirSync(join(home, ".codex"));
+    fs.mkdirSync(join(home, ".kimi-code"));
+    assert.equal(install(home).status, 0);
+    const all = fs.readdirSync(join(ROOT, "agents")).filter((a) => a.endsWith(".md")).sort();
+    assert.deepEqual(fs.readdirSync(join(home, ".codex", "agents")).sort(), all.map((a) => a.replace(/\.md$/, ".toml")));
+    assert.deepEqual(fs.readdirSync(join(home, ".kimi-code", "agents")).sort(), all);
+    const toml = fs.readFileSync(join(home, ".codex", "agents", "andx-analyst.toml"), "utf8");
+    const src = fs.readFileSync(join(ROOT, "agents", "andx-analyst.md"), "utf8");
+    assert.match(toml, /^name = "andx-analyst"$/m);
+    assert.match(toml, /^description = "Read-only root-cause analyst for andx-debug-and-fix: .*"$/m);
+    const instr = JSON.parse(toml.match(/^developer_instructions = (".*")$/m)[1]);
+    assert.equal(instr, src.split(/^---$/m).slice(2).join("---").trim());
+    assert.equal(toml.split("\n").filter((l) => l && !l.startsWith("#")).length, 3, "one line per key: JSON string escapes are TOML basic strings");
+    assert.match(fs.readFileSync(join(home, ".codex", "hooks.json"), "utf8"), /apply_patch\|Edit\|Write/);
+    assert.match(fs.readFileSync(join(home, ".kimi-code", "config.toml"), "utf8"), /andx-continue\.mjs\\" --exit2"/);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test("--uninstall-hooks removes hooks and links nothing", () => {
   const home = tmp("install-home-");
   try {
     assert.equal(install(home).status, 0);
-    fs.rmSync(join(home, ".codex"), { recursive: true });
     const r = install(home, "--uninstall-hooks");
     assert.equal(r.status, 0, r.stderr);
     assert.doesNotMatch(fs.readFileSync(join(home, ".claude", "settings.json"), "utf8"), /andx-continue/);

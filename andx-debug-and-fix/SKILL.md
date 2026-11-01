@@ -25,7 +25,7 @@ Anchor symptom; falsifiable repro; run read-only on primary checkout → must fa
 
 ## Phase B — Analyst
 
-Spawn agent `andx-analyst` (HARNESS). Prompt: symptom, repro output, `REPO_ROOT`, read `~/.cursor/skills/diagnosing-bugs/SKILL.md` and run **Phases 1–3 only** (tight red-capable loop, minimise, 3–5 ranked falsifiable hypotheses), redact secrets, scratch scripts under `/tmp` only. Probes that need source instrumentation go into the handoff as experiments for the worker. Return the handoff below. Skip user decision gate — auto-proceed on `pass` (show the ranked hypotheses in chat). No edits/commits in Phase B.
+Spawn agent `andx-analyst` (HARNESS). Prompt: symptom, repro output, `REPO_ROOT`, read `~/.agents/skills/diagnosing-bugs/SKILL.md` and run **Phases 1–3 only** (tight red-capable loop, minimise, 3–5 ranked falsifiable hypotheses), redact secrets, scratch scripts under `/tmp` only. Probes that need source instrumentation go into the handoff as experiments for the worker. Return the handoff below. Skip user decision gate — auto-proceed on `pass` (show the ranked hypotheses in chat). No edits/commits in Phase B.
 
 ```markdown
 ## Debug analyst handoff

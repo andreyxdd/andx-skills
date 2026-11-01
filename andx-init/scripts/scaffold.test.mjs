@@ -26,10 +26,10 @@ for (const [preset, { files, dirs }] of Object.entries(PRESET)) {
       const r = scaffold(preset, dir);
       assert.equal(r.status, 0, r.stderr);
       for (const f of ["IDENTITY.md", "ROUTING.md", "knowledge/index.md", "knowledge/domain/glossary.md", ...files]) assert.ok(isFile(join(dir, f)), f);
-      for (const d of [".cursor/plans", ...dirs]) assert.ok(isDir(join(dir, d)), d);
+      for (const d of [".andx/plans", ...dirs]) assert.ok(isDir(join(dir, d)), d);
       assert.ok(has(join(dir, "knowledge/domain/glossary.md"), "type: Glossary"));
       const gi = join(dir, ".gitignore");
-      for (const line of ["pipeline/*/output/*", "!pipeline/*/output/.gitkeep", ".cursor/plans/"]) assert.ok(has(gi, line), line);
+      for (const line of ["pipeline/*/output/*", "!pipeline/*/output/.gitkeep", ".andx/plans/"]) assert.ok(has(gi, line), line);
       assert.match(r.stdout, new RegExp(`^Scaffold complete: preset=${preset} root=`, "m"));
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -49,10 +49,27 @@ test("brownfield keeps existing files and appends gitignore lines once", () => {
     assert.equal(fs.readFileSync(join(dir, "IDENTITY.md"), "utf8"), "MINE");
     assert.match(r.stdout, /^skip \(exists\): .*IDENTITY\.md$/m);
     assert.ok(isFile(join(dir, "ROUTING.md")));
-    const want = "node_modules/\npipeline/*/output/*\n!pipeline/*/output/.gitkeep\n.cursor/plans/\n";
+    const want = "node_modules/\npipeline/*/output/*\n!pipeline/*/output/.gitkeep\n.andx/plans/\n";
     assert.equal(fs.readFileSync(join(dir, ".gitignore"), "utf8"), want);
     assert.equal(scaffold("app", dir).status, 0);
     assert.equal(fs.readFileSync(join(dir, ".gitignore"), "utf8"), want);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("an existing plans folder is reused and a tracked one is not gitignored", () => {
+  const dir = fs.mkdtempSync(join(tmpdir(), "scaffold-plans-"));
+  try {
+    fs.mkdirSync(join(dir, ".cursor", "plans"), { recursive: true });
+    assert.equal(scaffold("app", dir).status, 0);
+    assert.ok(!isDir(join(dir, ".andx")));
+    assert.ok(has(join(dir, ".gitignore"), ".cursor/plans/"));
+    fs.rmSync(join(dir, ".cursor"), { recursive: true });
+    fs.rmSync(join(dir, ".gitignore"));
+    fs.mkdirSync(join(dir, "docs", "plans"), { recursive: true });
+    assert.equal(scaffold("app", dir).status, 0);
+    assert.ok(!isDir(join(dir, ".andx")) && !has(join(dir, ".gitignore"), "plans"));
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

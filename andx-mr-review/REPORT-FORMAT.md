@@ -68,10 +68,10 @@ Example:
 
 ## Artifact
 
-- Source: subagents | `.cursor/reviews/<slug>.json` (head_sha match)
+- Source: subagents | `$REVIEWS_DIR/<slug>.json` (head_sha match)
 - Subagents skipped: yes/no
 ```
 
 ## Export
 
-Optional write: `<workspace>/.cursor/reviews/<mr-id>-report.md` for search/audit.
+Optional write: `$REVIEWS_DIR/<mr-id>-report.md` (`run.mjs dirs`) for search/audit.

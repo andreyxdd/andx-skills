@@ -55,6 +55,20 @@ test("unknown frontmatter keys fail", () => {
   assert.doesNotMatch(r.stdout, /'color'/);
 });
 
+test("harness tool names and ~/.cursor/skills paths fail outside HARNESS.md", () => withHome((d) => {
+  write(d, "demo/SKILL.md", "---\nname: demo\ndescription: x\n---\nWait with AwaitShell, then run ~/.cursor/skills/demo/x.mjs; Cursor built-ins at ~/.cursor/skills-cursor/ are fine.\n");
+  write(d, "demo/HARNESS.md", "Cursor: `Task(subagent_type=\"x\")`, AskQuestion.\n");
+  write(d, "agents/a.md", "---\nname: a\ndescription: x\n---\nResume with resume=<id>.\n");
+  const r = run([d]);
+  assert.equal(r.status, 1);
+  const leaks = r.stdout.split("\n").filter((l) => l.includes("harness-specific"));
+  assert.deepEqual(leaks.map((l) => l.replace(/;.*/, "")), [
+    "error: demo/SKILL.md: harness-specific AwaitShell (line 5)",
+    "error: demo/SKILL.md: harness-specific ~/.cursor/skills/ (line 5)",
+    "error: agents/a.md: harness-specific resume= (line 5)",
+  ]);
+}));
+
 const chainTokens = (out) => Object.fromEntries([...out.matchAll(/^ +(\d+)\t(\S+)$/gm)].map((m) => [m[2], +m[1]]));
 
 test("every read chain is within scripts/token-caps.json, and every chain has a cap", () => {

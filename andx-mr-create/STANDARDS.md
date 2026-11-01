@@ -34,7 +34,7 @@ Format: `{username}/VLT-{n}-{mr-slug}` when a ClickUp task exists; else `{userna
 5. **Evidence** (from the `pr` skill) — before/after: failing → passing test output, or screenshots for visual changes.
 6. **Merge danger** — `Door: one-way | two-way` (can it be rolled back cheaply?) and `Blast radius: <one word>` plus one line on what could break.
 
-Summary may open with the smallest visual that makes the point (call tree, diff-sketch, file tree, or Mermaid), per `~/.cursor/skills/pr/SKILL.md`.
+Summary may open with the smallest visual that makes the point (call tree, diff-sketch, file tree, or Mermaid), per `~/.agents/skills/pr/SKILL.md`.
 
 Title: conventional (`feat(scope): …` / `fix(scope): …`). No `(united)`, no “was !N”.
 
@@ -60,7 +60,7 @@ Drop from the branch (restore to target base) anything that is **not** required 
 | Pure `errcheck` `_ = Encode` / `defer _ = Close` — even in files this MR already edits | Error handling only on **new** lines you introduce, and only if surrounding new code already checks that error (do not wrap a whole file’s old Encodes) |
 | Essay comments / `_ = displayedCurrency` on unused params | Leave original comments; unused params need no blank-ident |
 | Unrelated handler/adapter/middleware churn | Feature wiring (`cmd/server`, config for new chain, etc.) |
-| Agent artifacts (`.cursor/reviews/*`) | Product docs/runbooks **in** the diff |
+| Agent artifacts (`.andx/reviews/*`, `.cursor/reviews/*`) | Product docs/runbooks **in** the diff |
 | CI hacks whose only job is hiding fleet lint debt (`--new-from-rev` scope) | Real linter fixes for code this MR introduces |
 | Drive-by a11y / import-only churn in files not needed for the feature | A11y required by the feature UX itself |
 | `ADR-NNN` / out-of-repo doc cites and essay comments in source ([CODE-COMMENTS](../andx-execute/CODE-COMMENTS.md)) | ≤2-line plain-English *why*; ADRs only under in-repo `docs/`/`knowledge/` committed here |

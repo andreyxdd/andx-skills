@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { dataDirs } from "../../andx-orchestration/scripts/run.mjs";
 
 const args = process.argv.slice(2);
 if (args.length !== 2) {
@@ -45,10 +46,13 @@ for (const stage of isDir(pipeline) ? fs.readdirSync(pipeline) : []) {
   fs.appendFileSync(path.join(out, ".gitkeep"), "");
 }
 
-fs.mkdirSync(path.join(repo, ".cursor", "plans"), { recursive: true });
+// An existing plans folder stays the plans folder; a tracked one (docs/plans, plans) stays tracked.
+const { PLANS_DIR } = dataDirs(repo);
+fs.mkdirSync(path.join(repo, PLANS_DIR), { recursive: true });
 
 const gitignore = path.join(repo, ".gitignore");
-const LINES = ["pipeline/*/output/*", "!pipeline/*/output/.gitkeep", ".cursor/plans/"];
+const LINES = ["pipeline/*/output/*", "!pipeline/*/output/.gitkeep"];
+if (PLANS_DIR.startsWith(".")) LINES.push(`${PLANS_DIR}/`);
 if (fs.existsSync(gitignore)) {
   let text = fs.readFileSync(gitignore, "utf8");
   const have = new Set(text.split(/\r?\n/));

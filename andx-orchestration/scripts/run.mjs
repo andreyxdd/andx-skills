@@ -33,6 +33,14 @@ export function ledgers(root) {
   }
 }
 
+// Project data folders, repo-relative: the first that exists, else the .andx one.
+const DATA = {
+  PLANS_DIR: [".andx/plans", ".cursor/plans", ".claude/plans", "docs/plans", "plans"],
+  REVIEWS_DIR: [".andx/reviews", ".cursor/reviews"],
+};
+export const dataDirs = (root) =>
+  Object.fromEntries(Object.entries(DATA).map(([k, c]) => [k, c.find((d) => fs.statSync(path.join(root, d), { throwIfNoEntry: false })?.isDirectory()) ?? c[0]]));
+
 // Local time, YYYYMMDD-HHMMSS.
 export function newStamp(now = new Date()) {
   return new Date(now - now.getTimezoneOffset() * 60000).toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
@@ -56,6 +64,10 @@ const USAGE = `run: one ledger per run at <primary checkout>/.worktrees/.andx-ru
                              DONE needs every required phase of the mode; prints the final status line;
                              marker 💬 AWAITING_USER, ❌ ABORTED/ESCALATED, cleared on DONE
   show <slug>                print the ledger
+  dirs [--ensure]            print PLANS_DIR and REVIEWS_DIR (absolute, in --repo's own checkout): the first existing of
+                             ${DATA.PLANS_DIR.join(", ")} / ${DATA.REVIEWS_DIR.join(", ")}, else the .andx one;
+                             --ensure creates both and gitignores .andx/plans/ (.andx/reviews/) when
+                             .cursor/plans/ (.cursor/reviews/) is gitignored
 
 Required phases: ${Object.entries(REQUIRED).map(([m, p]) => `${m} [${p.join(",")}]`).join(", ")}
 Common: --repo DIR (default cwd; any worktree of the repo). Slug: [a-z0-9-], max 40.
@@ -112,6 +124,7 @@ function main(args) {
       options: Object.fromEntries([
         ...["repo", "slug", "mode", "terminal", "merged", "pushed", "mr", "deployed"].map((k) => [k, { type: "string" }]),
         ["help", { type: "boolean", short: "h" }],
+        ["ensure", { type: "boolean" }],
       ]),
     }));
   } catch (e) {
@@ -119,11 +132,29 @@ function main(args) {
   }
   if (o.help) return console.log(USAGE);
   if (cmd === "start") slug = o.slug;
-  if (!SLUG.test(slug ?? "")) fail(2, `bad or missing slug: ${slug ?? ""}\n\n${USAGE}`);
+  if (cmd !== "dirs" && !SLUG.test(slug ?? "")) fail(2, `bad or missing slug: ${slug ?? ""}\n\n${USAGE}`);
 
   const g = git(o.repo ?? ".", "rev-parse", "--path-format=absolute", "--git-common-dir");
   if (g.status !== 0) fail(2, g.stderr || `not a git repo: ${o.repo ?? "."}`);
   const root = path.resolve(path.dirname(g.stdout.trim()));
+
+  if (cmd === "dirs") {
+    // Per checkout, unlike the ledger: a worktree's tracked reviews folder is its own.
+    const top = git(o.repo ?? ".", "rev-parse", "--show-toplevel").stdout.trim() || root;
+    const dirs = dataDirs(top);
+    if (o.ensure) {
+      for (const d of Object.values(dirs)) fs.mkdirSync(path.join(top, d), { recursive: true });
+      const ignored = (p) => git(top, "check-ignore", "-q", p).status === 0;
+      const gi = path.join(top, ".gitignore");
+      for (const d of ["plans", "reviews"]) {
+        if (!ignored(`.cursor/${d}/x`) || ignored(`.andx/${d}/x`)) continue;
+        const text = fs.existsSync(gi) ? fs.readFileSync(gi, "utf8") : "";
+        fs.writeFileSync(gi, `${text}${text && !text.endsWith("\n") ? "\n" : ""}.andx/${d}/\n`);
+      }
+    }
+    for (const [k, d] of Object.entries(dirs)) console.log(`${k}=${path.join(top, d)}`);
+    return;
+  }
   const file = path.join(ledgerDir(root), `${slug}.json`);
 
   if (cmd === "start") {

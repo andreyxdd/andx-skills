@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const HELP = `Validate SKILL.md files: YAML frontmatter, name == folder, description present,
 relative links resolve (in-repo broken = error, external companion = warning).
   node check-skills.mjs [ROOT]                      default: this repo; exit 1 on errors
-  node check-skills.mjs --budget                    catalog cost per harness (cursor:, claude:) across installed skill dirs
+  node check-skills.mjs --budget                    catalog cost per harness (cursor:, claude:, codex:, kimi:, pi:)
   node check-skills.mjs --prose [ROOT]              line counts, duplicated clauses, unresolved links (report only)
   node check-skills.mjs --tokens [ROOT] [--no-caps] read-chain tokens per entry skill/agent + catalog tokens per turn;
                                                     exit 1 if a chain is over its cap in ROOT/scripts/token-caps.json
@@ -16,7 +16,7 @@ relative links resolve (in-repo broken = error, external companion = warning).
 Read chains (--tokens), tokens = floor(bytes / 4):
   entries  every */SKILL.md without disable-model-invocation: true, plus every andx-* skill except
            andx-orchestration (chain name drops "andx-"); every agents/*.md (same naming)
-  refs     repo .md files a file links ([x](path)) or names by path (../x/y.md, ~/.cursor/skills/<x>/y.md
+  refs     repo .md files a file links ([x](path)) or names by path (../x/y.md, ~/.agents/skills/<x>/y.md
            mapped to ROOT/<x>/y.md); script paths (*.mjs, *.sh) and files outside ROOT are not refs
   hubs     non-entry files referenced by at least 3 entry skills
   direct   the entry's refs; another skill's SKILL.md counts only if it is a hub or its line says
@@ -122,8 +122,13 @@ function resolve(link, dir, name) {
   const target = link.replace(/#.*$/, "");
   if (!target) return true;
   if (target.startsWith("~")) return fs.existsSync(path.join(os.homedir(), target.slice(1)));
-  return [dir, home(path.join(".cursor/skills", name))].some((b) => fs.existsSync(path.resolve(b, target)));
+  return [dir, home(path.join(".agents/skills", name))].some((b) => fs.existsSync(path.resolve(b, target)));
 }
+
+// One harness's tool names or install paths in shared prose; HARNESS.md maps capabilities to them.
+// Prose names the capability with "(HARNESS)"; a markdown link would pull HARNESS.md into every read chain.
+const LEAK = /\bTask\(|\bAwaitShell\b|\bAskQuestion\b|\bmove_agent_to_(?:cloned_)?root\b|\bsubagent_type\b|\b(?:Create|Update)Goal\b|\brun_in_background\b|\bgeneralPurpose\b|\bSendMessage\b|\bresume=|~\/\.cursor\/skills\//g;
+const leaks = (p) => read(p).split("\n").flatMap((l, i) => [...l.matchAll(LEAK)].map((m) => `${m[0]} (line ${i + 1})`));
 
 function check(root) {
   const errors = [], warnings = [];
@@ -136,6 +141,7 @@ function check(root) {
     if (!String(fm.description ?? "").trim()) errors.push(`${folder}: empty description`);
     for (const k of Object.keys(fm)) if (!SKILL_KEYS.has(k)) errors.push(`${folder}: unknown frontmatter key '${k}'`);
     for (const md of glob(dir, "*.md")) {
+      if (path.basename(md) !== "HARNESS.md") for (const h of leaks(md)) errors.push(`${folder}/${path.basename(md)}: harness-specific ${h}; name the capability and write (HARNESS)`);
       for (const l of links(md)) {
         if (resolve(l, dir, folder)) continue;
         const local = !(l.startsWith("../") || l.startsWith("~")) || inRepo.includes(l.replace(/^\.\.\//, "").split("/")[0]);
@@ -148,6 +154,7 @@ function check(root) {
     const [fm, err] = frontmatter(p);
     if (err) { errors.push(`${rel}: invalid frontmatter (${err})`); continue; }
     for (const k of Object.keys(fm)) if (!AGENT_KEYS.has(k)) errors.push(`${rel}: unknown frontmatter key '${k}'`);
+    for (const h of leaks(p)) errors.push(`${rel}: harness-specific ${h}; name the capability and write (HARNESS)`);
   }
   return [errors, warnings];
 }
@@ -155,11 +162,15 @@ function check(root) {
 const HARNESS_DIRS = {
   cursor: [".cursor/skills", ".agents/skills", ".claude/skills", ".codex/skills", ".cursor/skills-cursor"],
   claude: [".claude/skills"],
+  codex: [".agents/skills", ".codex/skills"],
+  kimi: [".kimi-code/skills", ".agents/skills"],
+  pi: [".pi/agent/skills", ".agents/skills"],
 };
+const PLUGIN_HARNESSES = ["cursor", "claude"];
 
 function visibleSkills(harness = "cursor") {
   let enabled = {};
-  try { enabled = JSON.parse(read(home(".claude/settings.json"))).enabledPlugins ?? {}; } catch {}
+  if (PLUGIN_HARNESSES.includes(harness)) try { enabled = JSON.parse(read(home(".claude/settings.json"))).enabledPlugins ?? {}; } catch {}
   const mtime = (p) => fs.statSync(p).mtimeMs;
   const plugins = Object.entries(enabled).filter(([, v]) => v !== false && v !== null).map(([k]) => {
     const [plugin, market = ""] = k.split("@");
@@ -218,11 +229,11 @@ function refs(root, file) {
   const out = [];
   for (const line of read(file).split("\n")) {
     const found = [...line.matchAll(/\]\(([^)\s]+)\)/g)].map((m) => m[1])
-      .concat(line.match(/(?:\.\.\/|~\/\.cursor\/skills\/)[^\s`)'"]+/g) ?? []);
+      .concat(line.match(/(?:\.\.\/|~\/\.agents\/skills\/)[^\s`)'"]+/g) ?? []);
     for (const ref of found) {
       const t = ref.replace(/#.*$/, "").replace(/[.,;:]+$/, "");
-      if (!t.endsWith(".md") || /^[a-z]+:/.test(t) || (t.startsWith("~") && !t.startsWith("~/.cursor/skills/"))) continue;
-      const abs = t.startsWith("~") ? path.join(root, t.slice("~/.cursor/skills/".length)) : path.resolve(path.dirname(file), t);
+      if (!t.endsWith(".md") || /^[a-z]+:/.test(t) || (t.startsWith("~") && !t.startsWith("~/.agents/skills/"))) continue;
+      const abs = t.startsWith("~") ? path.join(root, t.slice("~/.agents/skills/".length)) : path.resolve(path.dirname(file), t);
       const rel = relTo(root, abs);
       if (!rel.startsWith("..") && stat(abs)?.isFile()) out.push([rel, line]);
     }

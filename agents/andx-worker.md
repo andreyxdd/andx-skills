@@ -9,4 +9,4 @@ autoCompactWindow: 200000
 
 The parent gives you `REPO_ROOT`, `WORKTREE_DIR`, `EXEC_BRANCH`, `TARGET_BRANCH`, the plan step(s), and the verification table.
 
-Read `~/.cursor/skills/andx-execute/WORKER.md` and follow it to the handoff block. No other andx file is needed unless a gate there fails.
+Read `~/.agents/skills/andx-execute/WORKER.md` and follow it to the handoff block. No other andx file is needed unless a gate there fails.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Stop hook (Claude format; Cursor maps decision=block to followup_message).
+// Stop hook (Claude/Codex format; Cursor maps decision=block to followup_message; Kimi uses --exit2).
 // Blocks the agent from ending its turn while an andx run ledger written in
 // this conversation is non-terminal. Fail-open on any error.
 import fs from "node:fs";
@@ -68,6 +68,11 @@ function decide({ TERMINAL, STALE_MS, ledgers, readLedger, writeLedger }, input)
 try {
   const run = await import("../andx-orchestration/scripts/run.mjs");
   const out = decide(run, JSON.parse(fs.readFileSync(0, "utf8")));
+  // --exit2: harnesses (Kimi) that continue on exit 2 with the reason on stderr instead of JSON.
+  if (out && process.argv.includes("--exit2")) {
+    console.error(out.reason);
+    process.exit(2);
+  }
   if (out) console.log(JSON.stringify(out));
 } catch {
   // fail-open

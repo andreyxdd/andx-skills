@@ -40,6 +40,20 @@ test("continue: non-terminal ledger in transcript blocks and counts", () => {
   assert.equal(JSON.parse(readFileSync(p, "utf8")).continues, 1);
 });
 
+test("continue --exit2: blocks with exit 2 and the reason on stderr", () => {
+  ledger("feat");
+  writeFileSync(transcript, "wrote .worktrees/.andx-run/feat.json");
+  const r = spawnSync(process.execPath, [join(here, "andx-continue.mjs"), "--exit2"], { encoding: "utf8", input: JSON.stringify({ cwd: dir, transcript_path: transcript }) });
+  assert.equal(r.status, 2);
+  assert.equal(r.stdout, "");
+  assert.match(r.stderr, /'feat' \(mode review\) is at phase C, not terminal\./);
+});
+
+test("continue: no transcript_path allows", () => {
+  ledger("feat");
+  assert.deepEqual(cont({ cwd: dir }), { code: 0, out: "" });
+});
+
 test("continue: terminal allows", () => {
   ledger("feat", { terminal: "DONE" });
   writeFileSync(transcript, ".andx-run/feat.json");

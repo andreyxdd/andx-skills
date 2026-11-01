@@ -21,7 +21,7 @@ Skill routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · [CHECKLIST.
 
 ## Workspace gate
 
-Before Phase A reads or writes, confirm Cursor workspace is target app repo. If not, call `move_agent_to_root` from `cursor-app-control` with target repo path. Never read or write target `.cursor/plans/` from a different workspace root.
+Before Phase A reads or writes, confirm workspace root is the target app repo; else switch workspace root (HARNESS). Never touch the target's `$PLANS_DIR` (`run.mjs dirs`) from another root.
 
 ## Workflow
 
@@ -46,11 +46,11 @@ Offer/write an ADR only for a hard-to-reverse, surprising decision with a real t
 
 ### C. Manual checklist
 
-Present [CHECKLIST.md](./CHECKLIST.md) as a human checklist. Steps with secrets or third-party dashboards → generate a wizard per `~/.cursor/skills/wizard/SKILL.md` (copy its `template.sh`, one stage per step, `ask_secret` for secrets, `set_secret` names matching CI `secrets.*`), verify with `bash -n`, and hand the user the run command; do not run it yourself. Pause until user confirms it is complete. Never print or request production secret values in chat.
+Present [CHECKLIST.md](./CHECKLIST.md) as a human checklist. Steps with secrets or third-party dashboards → generate a wizard per `~/.agents/skills/wizard/SKILL.md` (copy its `template.sh`, one stage per step, `ask_secret` for secrets, `set_secret` names matching CI `secrets.*`), verify with `bash -n`, and hand the user the run command; do not run it yourself. Pause until user confirms it is complete. Never print or request production secret values in chat.
 
 ### D. Write CI/CD plan
 
-After checklist confirmation, write target repo `.cursor/plans/<slug>-cicd.plan.md`, based on [PLAN-TEMPLATE.md](./PLAN-TEMPLATE.md). Plan must include `andx_ready: true`, concrete `depends`, `touch`, and falsifiable verification.
+After checklist confirmation, write target repo `$PLANS_DIR/<slug>-cicd.plan.md`, based on [PLAN-TEMPLATE.md](./PLAN-TEMPLATE.md). Plan must include `andx_ready: true`, concrete `depends`, `touch`, and falsifiable verification.
 
 ### E. User confirms plan
 

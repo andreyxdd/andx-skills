@@ -16,8 +16,8 @@ test("no tracked Ruby or shell scripts", () => {
 });
 
 test("no ruby invocation in docs, scripts, config or workflows", () => {
-  // .cursor/ holds plan and review records whose findings may quote old commands.
-  const scanned = tracked.filter((f) => f !== SELF && !f.startsWith(".cursor/") && /\.(md|mjs|json|ya?ml)$/.test(f));
+  // .cursor/ and .andx/ hold plan and review records whose findings may quote old commands.
+  const scanned = tracked.filter((f) => f !== SELF && !f.startsWith(".cursor/") && !f.startsWith(".andx/") && /\.(md|mjs|json|ya?ml)$/.test(f));
   const hits = scanned.flatMap((f) => readFileSync(join(ROOT, f), "utf8").split("\n")
     .flatMap((l, i) => (/(^|[^\w-])ruby\s|\/usr\/bin\/ruby/.test(l) ? [`${f}:${i + 1}: ${l.trim()}`] : [])));
   assert.deepEqual(hits, []);

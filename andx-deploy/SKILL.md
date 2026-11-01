@@ -24,7 +24,7 @@ Entered with `--deploy` (or its aliases): start only after its cleanup evidence 
 
 ## Phase B — Discover (every run)
 
-Read this repo fresh; never cache prior-session commands. If unclear, read `~/.cursor/skills/github-workflows/SKILL.md`.
+Read this repo fresh; never cache prior-session commands. If unclear, read `~/.agents/skills/github-workflows/SKILL.md`.
 
 | Look for | Signals |
 |----------|---------|

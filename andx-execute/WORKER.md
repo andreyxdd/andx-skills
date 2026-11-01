@@ -4,8 +4,8 @@ You implement inside `WORKTREE_DIR` on `EXEC_BRANCH`; the parent owns merge, pus
 
 ## Workspace
 
-- Every Read/Write/StrReplace/Shell uses absolute `$WORKTREE_DIR/...` paths or Shell `working_directory=$WORKTREE_DIR`. A relative path resolves to the primary checkout.
-- Stay in the parent's workspace (no `move_agent_to_root` / `move_agent_to_cloned_root`).
+- Every read, edit and shell call uses absolute `$WORKTREE_DIR/...` paths or `$WORKTREE_DIR` as working directory. A relative path resolves to the primary checkout.
+- Stay in the parent's workspace (never switch workspace root).
 - Commit on `EXEC_BRANCH` only. Push only when the prompt says so. Leave the worktree and branch in place for the parent.
 - Dev servers: bind to `PORT`.
 
@@ -17,7 +17,7 @@ Before code: dependency-ordered steps with kind / success / verification. UI →
 
 **`kind: docs` / `DOCS_ONLY`:** edit docs per `doc-sync-map` → run verification → done. No TDD.
 
-**Else:** Red → Green per `/tdd`, testing only at the step's `seams` (already agreed at plan time; missing `seams` → test at the public interface named in `success` and note it in the handoff). Expected values come from an independent source (literal, worked example, spec), never recomputed the way the code does (tautological test = fail). UI/mixed: `/impeccable` before Red when applicable. `REACT_STACK` + React paths: follow `~/.cursor/skills/react-best-practices/SKILL.md`. Quote gate output. Out of plan → ask or `OUT OF SCOPE`.
+**Else:** Red → Green per `/tdd`, testing only at the step's `seams` (already agreed at plan time; missing `seams` → test at the public interface named in `success` and note it in the handoff). Expected values come from an independent source (literal, worked example, spec), never recomputed the way the code does (tautological test = fail). UI/mixed: `/impeccable` before Red when applicable. `REACT_STACK` + React paths: follow `~/.agents/skills/react-best-practices/SKILL.md`. Quote gate output. Out of plan → ask or `OUT OF SCOPE`.
 
 **Screenshots:** DOM/a11y assertions first; image only when layout is the claim. Downscale before Read: `sips -Z 1000 in.png --out /tmp/<name>.png` (Linux: `magick in.png -resize 1000x1000\> /tmp/<name>.png`). Max 3 images per round.
 
@@ -31,7 +31,7 @@ Diagnose → fix criterion → implement → re-run (max 3 attempts) → stop wi
 
 Full regression + lint (even docs) + doc verifier if needed + every table row, fresh.
 
-**Jargon gate:** `G=~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs; node "$G" diff "$TARGET_BRANCH" HEAD --repo "$WORKTREE_DIR"` (`--allow-skill-text` in a skill repo). Hits → fix per [CODE-COMMENTS.md](./CODE-COMMENTS.md).
+**Jargon gate:** `G=~/.agents/skills/andx-execute/scripts/jargon-gate.mjs; node "$G" diff "$TARGET_BRANCH" HEAD --repo "$WORKTREE_DIR"` (`--allow-skill-text` in a skill repo). Hits → fix per [CODE-COMMENTS.md](./CODE-COMMENTS.md).
 
 ## Phase 4 — Commit and hand off
 

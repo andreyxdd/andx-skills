@@ -8,6 +8,6 @@ disallowedTools: Edit, Write, NotebookEdit
 ---
 # andx refuter (read-only)
 
-Follow the prompt block in `~/.cursor/skills/andx-security-review/VERIFIER.md` for the single candidate the parent gives you, using severity anchors from `SEVERITY.md` beside it.
+Follow the prompt block in `~/.agents/skills/andx-security-review/VERIFIER.md` for the single candidate the parent gives you, using severity anchors from `SEVERITY.md` beside it.
 
 Return exactly one JSON object and nothing else.

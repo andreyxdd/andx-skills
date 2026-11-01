@@ -1,13 +1,13 @@
 # andx-skills
 
-Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked). Claude = best-effort when Task APIs differ — see [andx-orchestration/HARNESS.md](./andx-orchestration/HARNESS.md).
+Canonical **andx** agent skills for any coding-agent harness. Full support (skills, agents, hooks): Cursor, Claude Code, Codex, Kimi Code. Skills only, with workers and reviewers run through `spawn.mjs`: Pi, Gemini CLI, OpenCode, Copilot, Droid, Qwen, Amp, Windsurf, Cline, Goose. Skills name capabilities ("spawn", "long wait", "ask user"); [andx-orchestration/HARNESS.md](./andx-orchestration/HARNESS.md) maps them to each harness's tools.
 
 ## Skills
 
 | Skill | Purpose |
 |-------|---------|
 | `andx-init` | Scaffold OKF + ICM layout (presets: app, data, content) |
-| `andx-plan` | Grill + write `<repo>/.cursor/plans/*.plan.md`; Next menu + `go` |
+| `andx-plan` | Grill + write `$PLANS_DIR/*.plan.md` (see [Project data](#project-data)); Next menu + `go` |
 | `andx-schedule` | Build EXEC-MATRIX waves from depends+touch; enable parallel execute |
 | `andx-execute` | Worktree execution + TDD + merge; `--deploy` adds push + deploy |
 | `andx-execute-and-review` | Execute + adversarial review gate; `--deploy`, `--mr` |
@@ -25,8 +25,8 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 | File | Owns |
 |------|------|
 | `andx-orchestration/SKILL.md` | Worktree, spawn checklist, handoff, landing, cleanup |
-| `andx-orchestration/scripts/` | `run.mjs` (run ledger), `worktree.mjs` (create/remove/sweep), `ship-queue.mjs` (queue + landing); rules in each `--help` |
-| `andx-orchestration/HARNESS.md` | Cursor vs Claude Task mapping |
+| `andx-orchestration/scripts/` | `run.mjs` (run ledger, `dirs`), `worktree.mjs` (create/remove/sweep), `ship-queue.mjs` (queue + landing), `spawn.mjs` (headless agent runs); rules in each `--help` |
+| `andx-orchestration/HARNESS.md` | Capability → tool mapping per harness |
 | `andx-orchestration/SKILL-MAP.md` | Companion + reviewer routing |
 | `andx-plan/PLAN-FORMAT.md`, `PARSE.md` | Plan templates; frontmatter + parse rules |
 
@@ -42,7 +42,7 @@ Entry skills stay thin — link here; do not re-paste cleanup bash or reviewer t
 | **ICM** | `ROUTING.md`, `pipeline/<stage>/` | Where work happens |
 | **Agents** | `AGENTS.md` | Slim entry: read order, `/andx-plan` → Next → `go`, HARNESS/SKILL-MAP pointer, deploy rediscovery |
 
-Presets: `app` | `data` | `content`. Scaffold **additive** (never overwrite); gitignore `pipeline/*/output/`, `.cursor/plans/`.
+Presets: `app` | `data` | `content`. Scaffold **additive** (never overwrite); gitignore `pipeline/*/output/` and a hidden plans dir (default `.andx/plans/`).
 
 - `app`: may hint `stack: react-next`; includes `knowledge/doc-sync-map.md`
 - `data` / `content`: default `stack: none` (no React forced)
@@ -62,7 +62,27 @@ node install.mjs
 node install-companions.mjs   # optional; React/Next companions
 ```
 
-Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/` (Windows: directory junctions, no admin needed) and registers the hooks in both harnesses, including `guard-primary.mjs`, which denies the parent's file edits in the primary checkout (outside `.worktrees/`, `.cursor/plans/`, `.cursor/reviews/`) while a run is active. `node install.mjs --uninstall-hooks` removes only the hooks.
+Skills are symlinked (Windows: directory junctions, no admin needed) into `~/.agents/skills/`, the shared folder every harness but Claude Code reads, and `~/.claude/skills/`. Links older installs made in `~/.cursor/skills/` and `~/.codex/skills/` are removed, because Cursor also reads `~/.agents`, `~/.claude` and `~/.codex` and would list each skill more than once; real folders there are left alone.
+
+| | Cursor | Claude Code | Codex | Kimi Code |
+|---|---|---|---|---|
+| Skills | `~/.agents/skills` | `~/.claude/skills` | `~/.agents/skills` | `~/.agents/skills` |
+| Agents | `~/.claude/agents` (spec reviewer: copy in `~/.cursor/agents`) | `~/.claude/agents` | `~/.codex/agents/*.toml`, generated | `~/.kimi-code/agents` |
+| Hooks | `~/.cursor/hooks.json`, plus it runs Claude's | `~/.claude/settings.json` | `~/.codex/hooks.json` | marked `[[hooks]]` block in `~/.kimi-code/config.toml` |
+
+Codex and Kimi entries are written only when `~/.codex` / `~/.kimi-code` exists, so re-run `node install.mjs` after installing one. The hooks include `guard-primary.mjs`, which denies the parent's file edits in the primary checkout (outside `.worktrees/`, `.andx/` and the plans/reviews dirs) while a run is active; Codex `apply_patch` edits are checked by the paths in the patch. `node install.mjs --uninstall-hooks` removes only the hooks.
+
+Untested on real Codex / Kimi installs (fake-CLI and temp-home tests only). Unverified: whether Codex and Kimi pass `transcript_path` to the Stop hook (without it the auto-continue hook does nothing), and whether Codex needs a feature flag for `hooks.json`.
+
+**Skills only, any harness:** `npx skills add -g andreyxdd/andx-skills` ([vercel-labs/skills](https://github.com/vercel-labs/skills)) copies the skill folders into each detected harness's global folder. It brings no agents, hooks or `git config`, and `spawn.mjs` needs the repo's `agents/`, so planning and single-agent skills work but execute/review need the clone + `node install.mjs`.
+
+### Harnesses without named read-only agents
+
+`node ~/.agents/skills/andx-orchestration/scripts/spawn.mjs --agent andx-bug-reviewer --cwd "$WORKTREE_DIR" --prompt-file p.md --readonly` runs an agent file through a headless CLI: `claude -p`, `codex exec`, `pi -p` or `kimi -p`. Pick the CLI with `--cli` or once with `git config --global andx.spawnCli pi`. `--readonly` maps to each CLI's read-only switch (Codex `--sandbox read-only`, Claude `--disallowedTools`, Pi `--tools read,grep,find,ls`; Kimi has none and is refused) and exits 3 if the agent changed `git status` anyway. Codex agents inherit the parent's sandbox, so read-only roles on Codex go through `spawn.mjs` too. Where Bugbot (Cursor) and `/code-review` (Claude) are missing, the `andx-bug-reviewer` agent fills the bug-review slot.
+
+### Project data
+
+Plans and review records live in the target repo. `node ~/.agents/skills/andx-orchestration/scripts/run.mjs dirs [--ensure]` prints `PLANS_DIR=` and `REVIEWS_DIR=`: the first existing of `.andx/plans`, `.cursor/plans`, `.claude/plans`, `docs/plans`, `plans` (reviews: `.andx/reviews`, `.cursor/reviews`), else the `.andx` one. A repo that already keeps plans somewhere keeps them there. `--ensure` creates both and adds `.andx/plans/` (`.andx/reviews/`) to `.gitignore` when `.cursor/plans/` (`.cursor/reviews/`) is already ignored. Review records stay committable unless reviews were ignored before.
 
 ### Worktree backend
 
@@ -93,11 +113,12 @@ Seeding is for files an install cannot recreate, not for speed. In one measureme
 1. Edit only this repo (`~/Dev/tools/andx-skills/`).
 2. Re-run `node install.mjs` after pull/change.
 
-## Conventions (Cursor-primary)
+## Conventions
 
-- Plans: project-local `.cursor/plans/` only.
+- Plans: project-local `$PLANS_DIR` only ([Project data](#project-data)).
 - Worktrees: `$REPO_ROOT/.worktrees/exec-<slug>[-w<N>[-<step>]]-<stamp>`, named and created only by `worktree.mjs create`.
-- `move_agent_to_root` only when workspace ≠ target **project** (`/andx-plan`, `/andx-init`). Never for exec worktrees — worker uses `WORKTREE_DIR` as tool cwd in the same workspace.
+- Switch the workspace root (Cursor `move_agent_to_root`, elsewhere restart in the repo) only when workspace ≠ target **project** (`/andx-plan`, `/andx-init`). Never for exec worktrees — worker uses `WORKTREE_DIR` as tool cwd in the same workspace.
+- Shared skill prose names capabilities, never one harness's tools: `node scripts/check-skills.mjs` fails on `Task(`, `AwaitShell`, `AskQuestion`, `move_agent_to_root`, `~/.cursor/skills/` and similar outside `HARNESS.md`.
 - Flow: `/andx-plan` → optional `/andx-schedule` (multi-wave) → `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).
 - After `/andx-plan`: Next menu. Recommended: open a fresh chat (Claude Code: `/clear`) and paste its `Fresh chat: /andx-<default> <abs plan path>` line, so execution requests do not carry the grill transcript. Fallback: bare `go` runs the default skill in the same thread, grill context included.
 - Companions (`grilling`, `tdd`, `impeccable`, …): `node install-companions.mjs` (Matt Pocock skills pinned clone + react-best-practices).
@@ -107,7 +128,7 @@ Seeding is for files an install cannot recreate, not for speed. In one measureme
 
 - Claude Code ≥ 2.1.312: older versions ignore the agents' `autoCompactWindow: 200000` when it is lower than the session window.
 - `export CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000` (shell profile): caps parent context before compaction; without it a 1M-context model grows toward 1M and every request pays for it.
-- Frontmatter already sets `effort: medium` on the orchestrator skills and the spec reviewer; the worker, security reviewer, and refuter inherit the session model and effort. `node scripts/check-skills.mjs` rejects frontmatter keys neither Cursor nor Claude Code documents.
+- Frontmatter already sets `effort: medium` on the orchestrator skills and the spec reviewer; the worker, security reviewer, and refuter inherit the session model and effort. `node scripts/check-skills.mjs` rejects frontmatter keys neither Cursor nor Claude Code documents (other harnesses ignore keys they do not know).
 
 ## Spend baseline
 
@@ -157,8 +178,8 @@ External skills the andx skills route to (see [SKILL-MAP.md](./andx-orchestratio
 | `wizard`, `pr`, `retro` | [mattpocock/skills](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills/engineering) | deploy secrets, MR body, post-run retro | Optional |
 | `grill-me`, `to-spec`, `to-tickets`, `handoff`, `writing-for-agents`, `improve-codebase-architecture` | [mattpocock/skills](https://github.com/mattpocock/skills/tree/f3fc5632f401156837ee3872f14fe33ccf1024ea/skills) | upstream of `andx-plan` (user-invoked) | Optional |
 | `impeccable` | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | UI steps in plan, worker, review | Required for UI |
-| `review-bugbot`, `review-security`, `autopilot` | [Cursor built-in skills](https://cursor.com/docs/context/skills#built-in-cursor-skills) | Bugbot reviewer, `--deep` security, GitHub babysit | Required (Cursor) |
-| `/code-review` | [Claude Code built-in](https://docs.anthropic.com/en/docs/claude-code) | Bugbot reviewer on Claude Code | Required (Claude Code) |
+| `review-bugbot`, `review-security`, `autopilot` | [Cursor built-in skills](https://cursor.com/docs/context/skills#built-in-cursor-skills) | bug reviewer, `--deep` security, GitHub babysit | Cursor |
+| `/code-review` | [Claude Code built-in](https://docs.anthropic.com/en/docs/claude-code) | bug reviewer on Claude Code | Claude Code |
 | `ponytail-review`, `ponytail-audit` | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) (Claude Code plugin) | Ponytail + Audit reviewers | Required |
 | `react-best-practices` | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices) | worker + React reviewer when `stack: react-next` | Optional |
 | `accessibility` | [addyosmani/web-quality-skills](https://github.com/addyosmani/web-quality-skills) | A11y reviewer, UI plan steps | Optional |
@@ -183,8 +204,9 @@ claude plugin marketplace add DietrichGebert/ponytail && claude plugin install p
 ```bash
 git clone https://github.com/andreyxdd/andx-skills.git ~/Dev/tools/andx-skills
 cd ~/Dev/tools/andx-skills
-node install.mjs              # links skills into ~/.cursor, ~/.claude, ~/.codex; agents into ~/.claude/agents (+ spec-reviewer copy in ~/.cursor/agents); hooks
-node install-companions.mjs   # Matt Pocock skills + react-best-practices; prints the per-harness catalog budget
+node install.mjs              # skills into ~/.agents + ~/.claude; agents + hooks per installed harness (table above)
+node install-companions.mjs   # Matt Pocock skills + react-best-practices into ~/.agents + ~/.claude; prints the per-harness catalog budget
+git config --global andx.spawnCli pi   # only on a harness without named agents (Pi, Amp, Windsurf, ...)
 export CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000   # add to your shell profile (Claude Code ≥ 2.1.312)
 ```
 
@@ -193,8 +215,8 @@ Then install the other required companions above (impeccable for UI work, ponyta
 **Per feature** (in the target repo, not this one)
 
 1. `/andx-init app` — once per repo: scaffold `IDENTITY.md`, `ROUTING.md`, `knowledge/` (optional, recommended).
-2. `/andx-plan add buyer refund requests` — answer the grill rounds (`yes` accepts each recommendation), approve the step list; the plan lands in `.cursor/plans/<slug>.plan.md`.
-3. Open a **fresh chat** (Claude Code: `/clear`) and paste the plan's `Fresh chat:` line, e.g. `/andx-execute-and-review /abs/repo/.cursor/plans/buyer-refund-request.plan.md`.
+2. `/andx-plan add buyer refund requests` — answer the grill rounds (`yes` accepts each recommendation), approve the step list; the plan lands in `$PLANS_DIR/<slug>.plan.md` (`.andx/plans/` unless the repo already has a plans dir).
+3. Open a **fresh chat** (Claude Code: `/clear`) and paste the plan's `Fresh chat:` line, e.g. `/andx-execute-and-review /abs/repo/.andx/plans/buyer-refund-request.plan.md`.
 4. The run works in `.worktrees/exec-<slug>-<stamp>`: worker implements per step with TDD, blind reviewers gate, then `ship-queue.mjs land` fast-forwards your branch (never switching branches in your checkout) and `worktree.mjs remove` cleans up. It ends with the `run.mjs end` line `MERGED PASS | PUSHED … | MR … | DEPLOYED …`.
 5. Ship: pick `/andx-execute-review-and-deploy` (same as `/andx-execute-and-review --deploy`) in step 3, or run `/andx-deploy` after the merge (first time: `/andx-deploy-init`). Draft MR instead of a local merge: `/andx-execute-and-review --mr` (pushes and babysits). Someone else's MR: `/andx-mr-review <url>`, then `/andx-mr-babysit <url>`.
 6. Optional: `/retro` after a run that escalated or needed ≥ 2 review rounds; `node ~/Dev/tools/andx-skills/scripts/spend-report.mjs --summary ~/.claude/projects` to track spend.
@@ -206,7 +228,7 @@ Bug instead of feature: `/andx-debug-and-fix <symptom>` (read-only analysis → 
 Three plans, three fresh chats, same repo: paste each plan's `Fresh chat:` line into its own chat. The runs execute (and review) in parallel, each in its own worktree. They ship one at a time, in the order they finish: a ready run waits in a background shell for the repo's ship queue (git refs under `refs/andx/ship/`), then `land` integrates the latest branch, re-runs the tests if that changed anything, and fast-forwards; deploy modes then push, deploy and check health before the next run starts. A run that fails before landing releases its turn; one that fails after landing (post-merge checks or final deploy) halts the queue, and the waiting chats stop and ask you. Fix HEAD, then:
 
 ```bash
-Q=~/.cursor/skills/andx-orchestration/scripts
+Q=~/.agents/skills/andx-orchestration/scripts
 node $Q/ship-queue.mjs status --repo .   # holder, waiters, halt reason
 node $Q/ship-queue.mjs resume --repo .   # then re-run the stopped chats
 node $Q/run.mjs show <slug> --repo .     # a run's ledger: phases, terminal state

@@ -2,7 +2,7 @@
 
 ## Inputs
 
-- Approved plan (`.cursor/plans/*.plan.md`)
+- Approved plan (`$PLANS_DIR/*.plan.md`, from `run.mjs dirs`)
 - Spec from [02-spec](../02-spec/CONTEXT.md)
 
 ## Process

@@ -46,6 +46,35 @@ test("ledgers lists run ledgers, skipping dotfiles and other files", () => {
   assert.deepEqual(ledgers(repo).sort(), [join(dir, "a.json"), join(dir, "b.json")]);
 });
 
+test("dirs: .andx default, existing plans folder wins, --ensure mirrors a .cursor ignore", () => {
+  assert.deepEqual(vars(ok("dirs")), { PLANS_DIR: join(repo, ".andx", "plans"), REVIEWS_DIR: join(repo, ".andx", "reviews") });
+  fs.mkdirSync(join(repo, "docs", "plans"), { recursive: true });
+  fs.mkdirSync(join(repo, ".cursor", "reviews"), { recursive: true });
+  assert.deepEqual(vars(ok("dirs")), { PLANS_DIR: join(repo, "docs", "plans"), REVIEWS_DIR: join(repo, ".cursor", "reviews") });
+  fs.mkdirSync(join(repo, ".cursor", "plans"));
+  assert.equal(vars(ok("dirs")).PLANS_DIR, join(repo, ".cursor", "plans"));
+
+  fs.writeFileSync(join(repo, ".gitignore"), "node_modules/");
+  ok("dirs", "--ensure");
+  assert.equal(fs.readFileSync(join(repo, ".gitignore"), "utf8"), "node_modules/", "no .cursor ignore, no .andx line");
+  fs.writeFileSync(join(repo, ".gitignore"), ".cursor/plans/");
+  ok("dirs", "--ensure");
+  ok("dirs", "--ensure");
+  assert.equal(fs.readFileSync(join(repo, ".gitignore"), "utf8"), ".cursor/plans/\n.andx/plans/\n", "reviews stay committable");
+  fs.writeFileSync(join(repo, ".gitignore"), ".cursor/\n");
+  ok("dirs", "--ensure");
+  assert.equal(fs.readFileSync(join(repo, ".gitignore"), "utf8"), ".cursor/\n.andx/plans/\n.andx/reviews/\n");
+  fs.rmSync(join(repo, ".cursor"), { recursive: true });
+  fs.rmSync(join(repo, "docs"), { recursive: true });
+  ok("dirs", "--ensure");
+  assert.ok(fs.statSync(join(repo, ".andx", "plans")).isDirectory() && fs.statSync(join(repo, ".andx", "reviews")).isDirectory());
+
+  git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "init");
+  const wt = join(repo, ".worktrees", "w");
+  git("worktree", "add", "-q", wt);
+  assert.equal(vars(run(["dirs"], wt).stdout).REVIEWS_DIR, join(wt, ".andx", "reviews"), "a worktree resolves in its own checkout");
+});
+
 test("start derives run variables and writes the ledger", () => {
   const v = vars(ok("start", "--slug", "feat", "--mode", "review"));
   assert.match(v.STAMP, /^\d{8}-\d{6}$/);

@@ -58,7 +58,7 @@ Nitpick severity: GitLab REST may not set UI nitpick badge — use `**nitpick:**
 ### Artifact on branch
 
 ```bash
-git show origin/feat/branch:.cursor/reviews/plan-slug.json
+git show origin/feat/branch:.andx/reviews/plan-slug.json   # or .cursor/reviews/ in older repos
 ```
 
 ## GitHub (`gh`)

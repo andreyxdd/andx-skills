@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Install optional companion skills (external; not symlinked from andx-skills).
+// Install optional companion skills (external; not symlinked from andx-skills) into ~/.agents/skills and ~/.claude/skills.
 //   react-best-practices: copied from vercel-labs/agent-skills
 //   Matt Pocock skills: symlinked from a pinned clone at ~/Dev/tools/mattpocock-skills (override: MATT_DIR)
 import fs from "node:fs";
@@ -76,10 +76,18 @@ function main() {
     const repo = path.join(tmp, "repo");
     git(["clone", "--depth", "1", "--filter=blob:none", "--sparse", REACT_REPO, repo]);
     git(["-C", repo, "sparse-checkout", "set", `skills/${REACT}`]);
-    for (const h of [".cursor", ".claude"]) installTarget(path.join(home, h, "skills"), path.join(repo, "skills", REACT), mattDir);
+    for (const h of [".agents", ".claude"]) installTarget(path.join(home, h, "skills"), path.join(repo, "skills", REACT), mattDir);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+  // Older installs wrote ~/.cursor/skills, which Cursor would now list beside ~/.agents/skills.
+  const old = path.join(home, ".cursor", "skills");
+  for (const n of MATT_SKILLS.map((p) => path.basename(p))) {
+    const p = path.join(old, n);
+    if (fs.lstatSync(p, { throwIfNoEntry: false })?.isSymbolicLink() && path.resolve(old, fs.readlinkSync(p)).startsWith(mattDir)) fs.unlinkSync(p);
+  }
+  const react = path.join(old, REACT, "SKILL.md");
+  if (fs.existsSync(react) && fs.readFileSync(react, "utf8").includes('paths: "**/*.tsx, **/*.jsx"')) fs.rmSync(path.dirname(react), { recursive: true });
 
   // Catalog cost per harness; a non-empty duplicates= list means a skill dir copy shadows an enabled plugin.
   spawnSync(process.execPath, [path.join(ROOT, "scripts", "check-skills.mjs"), "--budget"], { stdio: "inherit" });

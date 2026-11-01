@@ -24,7 +24,7 @@ Run when plan has **≥2 steps that can share a wave**: same wave, deps satisfie
 
 ## Algorithm
 
-1. Anchor plan — prefer `.cursor/plans/<slug>.plan.md` with `andx_ready: true`.
+1. Anchor plan — prefer `$PLANS_DIR/<slug>.plan.md` (`run.mjs dirs`) with `andx_ready: true`.
 2. Parse steps per PARSE.md (`depends`, `touch`).
 3. Topological waves:
    - Wave 1: `depends: []` (or missing deps on step-1)
@@ -34,11 +34,11 @@ Run when plan has **≥2 steps that can share a wave**: same wave, deps satisfie
 
 ## Artifact
 
-Write **`.cursor/plans/<slug>.EXEC-MATRIX.md`** beside the plan.
+Write **`<slug>.EXEC-MATRIX.md`** beside the plan.
 
 ```markdown
 ---
-plan: .cursor/plans/<slug>.plan.md
+plan: <PLANS_DIR>/<slug>.plan.md
 max_parallel: 2
 ---
 
@@ -56,13 +56,11 @@ max_parallel: 2
 …
 ```
 
-If plan lives outside `.cursor/plans/`, write `EXEC-MATRIX.md` beside that plan file.
-
 ## Parent spawn contract (for `/andx-execute`)
 
 When EXEC-MATRIX present, the run worktree from orch Step 1 (`EXEC_BRANCH`, `WORKTREE_DIR`) collects every wave; `ship-queue.mjs land` accepts only that worktree, so the run lands once.
 
-1. **Per wave:** single-step wave → its worker works in `WORKTREE_DIR`. Parallel wave → one `worktree.mjs create --slug "$SLUG" --wave N --step <step-id> --target "$EXEC_BRANCH"` per worker, run one after another; up to `max_parallel` workers with **disjoint** `touch`. Same workspace — no `move_agent_to_root` to worktrees.
+1. **Per wave:** single-step wave → its worker works in `WORKTREE_DIR`. Parallel wave → one `worktree.mjs create --slug "$SLUG" --wave N --step <step-id> --target "$EXEC_BRANCH"` per worker, run one after another; up to `max_parallel` workers with **disjoint** `touch`. Same workspace — never switch the workspace root (HARNESS) to a worktree.
 2. Workers implement only their assigned steps, commit on their own branch, return the handoff; **no merge**.
 3. After every worker in the wave passes: `git -C "$WORKTREE_DIR" merge --no-edit <step branch>` one at a time (conflict → abort, worker resolves in `WORKTREE_DIR`), Phase 3 there, then `worktree.mjs remove "$SLUG" --wave N --target "$EXEC_BRANCH"`.
 4. Next wave starts only after the prior wave merged and verified on `EXEC_BRANCH`. After the last wave: orch Step 4.

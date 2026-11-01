@@ -1,6 +1,6 @@
 # Andx Plan Format
 
-Execution-ready plans for `/andx-execute`. Written only to **`<project-root>/.cursor/plans/<slug>.plan.md`** — workspace root must be the target repo. Never `~/.cursor/plans`.
+Execution-ready plans for `/andx-execute`. Written only to **`$PLANS_DIR/<slug>.plan.md`** (`run.mjs dirs`) — workspace root must be the target repo. Never user-global.
 
 ## Full template (code feature)
 
@@ -49,13 +49,13 @@ verification: pnpm --filter web test src/pages/foo.test.tsx
 
 ## Next
 
-    Plan: <project>/.cursor/plans/<slug>.plan.md
+    Plan: <PLANS_DIR>/<slug>.plan.md
     Next:
     - (default) /andx-execute
     - /andx-execute-and-review
     - /andx-execute-and-deploy
     - /andx-execute-review-and-deploy
-    Fresh chat: /andx-execute <project>/.cursor/plans/<slug>.plan.md
+    Fresh chat: /andx-execute <PLANS_DIR>/<slug>.plan.md
     Reply go → run default on this plan.
 ```
 
@@ -73,14 +73,12 @@ Field reference and parsing rules: [PARSE.md](./PARSE.md).
 
 - kebab-case from feature name: `buyer-refund-request`
 - Avoid collisions: append `-2` if file exists
-- Path: `.cursor/plans/<slug>.plan.md` relative to the **project workspace root** only
+- Path: `$PLANS_DIR/<slug>.plan.md` inside the **project workspace root** only
 
 ## Git / repo hygiene
 
-- Default: ephemeral plans → add `.cursor/` (or at least `.cursor/plans/`) to the project's `.gitignore` if not already present.
+- Default: ephemeral plans → a hidden `$PLANS_DIR` is gitignored (`run.mjs dirs --ensure` mirrors a `.cursor/plans/` ignore to `.andx/plans/`); `docs/plans` / `plans` follow the project's convention.
 - Commit a plan only when the user explicitly wants it tracked (shared handoff, team execution).
-- Do not store plans in the user-global `~/.cursor/` tree.
-- Never stage `.cursor/**` unless the user explicitly asks to track the plan.
 
 ## Session-end Next (required in every plan file)
 

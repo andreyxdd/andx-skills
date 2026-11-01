@@ -2,7 +2,7 @@
 
 Single source of truth for routing companion skills into the andx stack. Entry `SKILL.md` files link here — do not duplicate full tables.
 
-**Principle:** invoke by path under `~/.cursor/skills/` or `~/.cursor/skills-cursor/` (built-ins only). Capture outputs in OKF `knowledge/` and plan frontmatter.
+**Principle:** invoke by path under `~/.agents/skills/` or `~/.cursor/skills-cursor/` (built-ins only). Capture outputs in OKF `knowledge/` and plan frontmatter.
 
 Harness spawn: [HARNESS.md](./HARNESS.md).
 
@@ -33,7 +33,7 @@ Frontmatter fields: [PARSE.md](../andx-plan/PARSE.md).
 
 | Skill | Trigger | Artifact |
 |-------|---------|----------|
-| `andx-schedule` | ≥2 steps can share a wave (disjoint `touch`, deps satisfied); skip if 1 step / overlap / `touch: unknown` | `.cursor/plans/<slug>.EXEC-MATRIX.md` |
+| `andx-schedule` | ≥2 steps can share a wave (disjoint `touch`, deps satisfied); skip if 1 step / overlap / `touch: unknown` | `$PLANS_DIR/<slug>.EXEC-MATRIX.md` |
 
 Before: `/andx-plan`. After: `/andx-execute` or `/andx-execute-and-review` (either `--deploy`). Parent spawn: up to `max_parallel` (default 2) workers per wave; waves merge into the run worktree, which lands once (orch Step 4).
 
@@ -56,16 +56,16 @@ Load `design_refs` as **immutable contract** in preflight + worker prompt.
 
 | Skill | Trigger | Name |
 |-------|---------|------|
-| `review-bugbot` → bugbot | Always | Bugbot |
+| bug review (HARNESS) | Always | Bugbot |
 | `andx-security-review` (gate) → agent `andx-security-reviewer` | Always; parent refutes each proposed critical/high with `andx-refuter`; Cursor `security-review` only under `--deep` | Security |
 | `ponytail-review` | Always — [resolve](./HARNESS.md#ponytail-resolve) | Ponytail |
-| agent `andx-spec-reviewer` | Always (only reviewer checking plan compliance). Docs-only plans: Bugbot + Spec only. Drop after 20 artifacts with `spec unique=0` from `node "$(dirname "$(realpath ~/.cursor/skills/andx-orchestration)")/scripts/review-stats.mjs" .cursor/reviews` | Spec |
+| agent `andx-spec-reviewer` | Always (only reviewer checking plan compliance). Docs-only plans: bug review + Spec only. Drop after 20 artifacts with `spec unique=0` from `node "$(dirname "$(realpath ~/.agents/skills/andx-orchestration)")/scripts/review-stats.mjs" "$REVIEWS_DIR"` | Spec |
 | `ponytail-audit` | Diff adds deps or new files under `touch` | Audit |
 | `react-best-practices` | Diff touches React paths | React |
 | `accessibility` | UI diff + a11y in plan | A11y |
 | UX/API contract pass | UI forms + API client paths | UX/API (advisory unless paired HIGH) |
 
-On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `.cursor/reviews/<plan-slug>.json` on `EXEC_BRANCH` before merge.
+On **PASS**, write [REVIEW-ARTIFACT](../andx-mr-review/FINDINGS-SCHEMA.md) to `$REVIEWS_DIR/<plan-slug>.json` on `EXEC_BRANCH` before merge.
 
 `design_refs` drift = **HIGH → BLOCKS**.
 

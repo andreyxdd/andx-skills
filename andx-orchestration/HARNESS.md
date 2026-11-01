@@ -1,55 +1,38 @@
 # Andx harness matrix
 
-Spawn details for Cursor (primary) and Claude Code. Never invent tool parameters.
+Skills name a capability with "(HARNESS)"; this maps it to tools. Never invent tool parameters. Install layout per harness: README. **Other** = Pi, Gemini, OpenCode, Copilot, Droid, Qwen, Amp, Windsurf, Cline, Goose (skills only).
 
-## Agents (`~/.claude/agents/` via `node install.mjs`; Cursor reads it too)
+| Capability | Cursor | Claude Code | Codex | Kimi Code | Other |
+|---|---|---|---|---|---|
+| **Spawn** named agent, blocking | `Task(subagent_type="andx-worker", run_in_background=false)` | `Agent` + agent name | named agent (`~/.codex/agents`) | `Agent` + agent name | `spawn.mjs --agent NAME` |
+| Parallel | several Task calls, one message | several Agent calls, one message | several agents, one turn | several Agent calls | one background `spawn.mjs` each, wait for all |
+| **Read-only** agent | `readonly: true` | `disallowedTools` | `spawn.mjs --cli codex --readonly` (agents inherit the sandbox) | `disallowedTools` | `spawn.mjs --readonly` |
+| **Resume** agent | `resume=<id>` | `SendMessage` | same thread | same agent | new `spawn.mjs`, prior handoff in the prompt |
+| **Long wait** (CI, deploy, queue) | Shell `block_until_ms: 0`, then `AwaitShell` | `Monitor` or background Bash | background exec, poll | background task | background shell, poll |
+| **Ask user** | `AskQuestion` | `AskUserQuestion` | `request_user_input`, else numbered options | numbered options | its question tool, else numbered options |
+| **Switch workspace root** | `move_agent_to_root` | restart in the repo | restart in the repo | restart in the repo | restart in the repo |
+| **Bug review** (slot `bugbot`) | `Task(subagent_type="bugbot")` per `~/.cursor/skills-cursor/review-bugbot/SKILL.md` | `/code-review` (GitLab `--comment` ≥ 2.1.257) | `andx-bug-reviewer`, read-only as above | `andx-bug-reviewer` | `spawn.mjs --agent andx-bug-reviewer --readonly` |
+| Stop-hook re-prompt | yes (Claude's hook, max 5) | yes | when `transcript_path` is set | unverified | none |
 
-| Agent | Role | Mode |
-|-------|------|------|
-| `andx-worker` | Implement in `WORKTREE_DIR`, return `## Handoff` | writes |
-| `andx-analyst` | Debug Phase B root cause, return `## Debug analyst handoff` | read-only (Cursor `readonly: true`, Claude `disallowedTools`) |
+`spawn.mjs --help` (`~/.agents/skills/andx-orchestration/scripts/`): agent body + prompt file to `claude -p`, `codex exec`, `pi -p` or `kimi -p`; CLI from `--cli` or `git config andx.spawnCli`; `--readonly` exits 3 if `git status` changed. Pi read-only has no shell: put the diff in the prompt file. After any read-only agent the parent checks `git -C <cwd> status --porcelain` is unchanged, else discards the result.
 
-## Spawning
+**Never on the default path:** Claude `isolation: worktree`, Cursor `best-of-n-runner`, cloud agents, forks (`Task(resume="self")`, Claude `subagent_type: "fork"`): their own branch fights andx landing, resume, cleanup, blind review. One nesting level; the parent spawns every worker, reviewer and refuter (one union, one ledger).
 
-| | Cursor | Claude Code |
-|---|--------|-------------|
-| Tool | `Task(subagent_type="andx-worker" \| "andx-analyst", run_in_background=false)` | `Agent` with the agent name |
-| Fallback (agent not listed) | `generalPurpose` + the agent file body in the prompt | same |
-| Parallel | several Task calls in one message | several Agent calls in one message |
-| Continue agent | `resume=<id>` | `SendMessage` to the agent |
-| Background | always `run_in_background=false` (background ends the parent turn) | Desktop/VS Code background subagents: wait for the handoff first |
-| Long wait (CI, deploy, ship queue) | Shell with `block_until_ms: 0`, then `AwaitShell` (queue: `GRANTED\|HALTED`) | `Monitor` or background Bash, then await the notification (same lines) |
-| Nesting | allowed (2.5+), one level deep | allowed (nested `Agent` calls) |
-| andx choice | parent spawns every worker, reviewer and refuter: blind reviewers, one union, one ledger | same |
-| Fork (breaks blind review) | never `Task(resume="self")` | never `subagent_type: "fork"` (on by default) |
-| Frontmatter | agent `model: inherit` or `claude-opus-5[effort=high]`, `readonly`, `is_background`; skill `paths:` globs, `disable-model-invocation` | `effort:`; agent `autoCompactWindow:` (≥ 2.1.312); skill `paths:` |
-| Discovery | skills: `~/.cursor/skills`, `~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`; agents: `~/.cursor/agents`, `~/.claude/agents` | `~/.claude/skills`, `~/.claude/agents` |
-| Subagent prompt cache | none documented | `"subagentPromptCacheTtl": "1h"` in `settings.json` (default 5m) |
-| Guard | `hooks/guard-primary.mjs` (`preToolUse`): during a non-terminal run, denies parent edits to the primary checkout outside `.worktrees/`, `.cursor/plans/`, `.cursor/reviews/`; fail-open | same hook (`PreToolUse`) |
+Frontmatter: agent `model: inherit` (install pins spec reviewer: Cursor `claude-sonnet-5-5`, Claude `sonnet`; Kimi ignores `model`). Claude: `"subagentPromptCacheTtl": "1h"` in `settings.json`.
 
-**Never on the default path:** Claude `isolation: worktree`, Cursor `best-of-n-runner`, cloud agents. Their own branch/worktree fights andx landing, `resume`, cleanup.
+## Reviewers
 
-## Reviewers (`/andx-execute-and-review`, `/andx-mr-review`)
-
-Fresh agents, no worker context, judge only `git diff $MERGE_BASE_SHA..$EXEC_HEAD`, never edit app source.
-
-| Role | Cursor | Claude Code |
-|------|--------|-------------|
-| Bugbot (always) | `Task(subagent_type="bugbot")` per `~/.cursor/skills-cursor/review-bugbot/SKILL.md` | built-in `/code-review` by the orchestrator (GitLab `--comment` needs ≥ 2.1.257); else `general-purpose` with the Bugbot prompt |
-| Security (always) | `Task(subagent_type="andx-security-reviewer")`; then parent spawns one `andx-refuter` per proposed critical/high in one message. `--deep` adds Cursor `security-review` | `Agent` with the same agent names |
-| Ponytail (always) | `generalPurpose` + [ponytail resolve](#ponytail-resolve) | same |
-| Spec (always) | `Task(subagent_type="andx-spec-reviewer")` with plan path + diff + verification table | `Agent` with the same name |
-| Model (mid-tier) | Spec: install pins `claude-sonnet-5-5` ([format](https://cursor.com/docs/context/subagents); id unverified (no live model list), Cursor may fall back: check the task card after install); Ponytail: `model="claude-sonnet-5-5-high"` | Spec `sonnet`, Ponytail `model: "sonnet"` |
-| Audit / React / A11y (conditional) | `generalPurpose` + skill path from [SKILL-MAP.md](./SKILL-MAP.md) | same |
+Fresh read-only agents, no worker context, judge only `git diff $MERGE_BASE_SHA..$EXEC_HEAD`. Bug review per the table (Claude fallback: `general-purpose` + Bugbot prompt). Security: `andx-security-reviewer`, then one `andx-refuter` per proposed critical/high, all at once; `--deep` adds Cursor `security-review`. Spec: `andx-spec-reviewer` + plan path, diff, verification table. Ponytail: [ponytail resolve](#ponytail-resolve), mid-tier model (Cursor `claude-sonnet-5-5-high`, Claude `sonnet`). Audit / React / A11y: skill path from [SKILL-MAP.md](./SKILL-MAP.md).
 
 ## Ponytail resolve
 
-First hit wins (same for `ponytail-audit`): `~/.cursor/skills/ponytail-review/SKILL.md`, then the newest `~/.claude/plugins/cache/ponytail/ponytail/*/skills/ponytail-review/SKILL.md`; none → fail with "install the ponytail plugin or symlink it into `~/.cursor/skills/`". Never `~/.cursor/skills-cursor/ponytail-*`.
+First hit (also `ponytail-audit`): `~/.agents/skills/ponytail-review/SKILL.md`, `~/.cursor/skills/ponytail-review/SKILL.md`, newest `~/.claude/plugins/cache/ponytail/ponytail/*/skills/ponytail-review/SKILL.md`; none → fail "install the ponytail plugin or symlink it into `~/.agents/skills/`". Never `~/.cursor/skills-cursor/ponytail-*`.
 
 ## Goals and continuation
 
-- Cursor (optional, parent only): call `CreateGoal` exactly once with `{"objective": "<mode-scoped Definition of done>"}` (MR mode never requires DEPLOYED). Call `UpdateGoal` with `{"status": "complete"}` only after a requirement-by-requirement audit with fresh output.
-- Stop hook `hooks/andx-continue.mjs` (both harnesses): re-prompts while the ledger written in this conversation is non-terminal, max 5 pushes. Never end DONE to silence it. Claude `/goal` is user-only.
+- Cursor goal (optional, parent only): `CreateGoal` once with `{"objective": "<mode-scoped Definition of done>"}` (MR mode never requires DEPLOYED); `UpdateGoal` `{"status": "complete"}` only after a requirement-by-requirement audit with fresh output. Claude `/goal` is user-only.
+- Stop hook `hooks/andx-continue.mjs`: re-prompts while the ledger written in this conversation is non-terminal, max 5. Never end DONE to silence it.
+- `hooks/guard-primary.mjs` (PreToolUse; parses Codex `apply_patch`): during a non-terminal run denies parent edits to the primary checkout outside `.worktrees/`, `.andx/`, plans/reviews dirs (`run.mjs dirs`); fail-open.
 
 ## Evidence rule
 

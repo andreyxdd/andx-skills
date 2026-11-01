@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Claude PreToolUse + Cursor preToolUse guard: while a non-terminal run ledger exists for a repo,
-// deny file edits in its primary checkout outside the .worktrees, .cursor/plans and .cursor/reviews folders.
+// PreToolUse guard (Claude, Codex, Kimi; Cursor preToolUse): while a non-terminal run ledger exists for a repo,
+// deny file edits in its primary checkout outside .worktrees, .andx and the plans/reviews folders (run.mjs dirs).
 // Edits inside linked worktrees always pass. Fail-open on any error.
 import fs from "node:fs";
 import path from "node:path";
@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const EDITS = new Set(["Write", "StrReplace", "Edit", "MultiEdit", "Delete", "NotebookEdit", "EditNotebook"]);
-const OPEN = [".worktrees", ".cursor/plans", ".cursor/reviews"];
+const OPEN = [".worktrees", ".andx", ".cursor/plans", ".cursor/reviews"];
 const RUN = fileURLToPath(new URL("../andx-orchestration/scripts/run.mjs", import.meta.url));
 
 const isDir = (p) => fs.statSync(p, { throwIfNoEntry: false })?.isDirectory() ?? false;
@@ -52,11 +52,28 @@ const revParse = (dir, ...args) => {
   return r.status === 0 ? r.stdout.trim().split("\n").map((l) => path.resolve(l)) : null;
 };
 
-function decide({ TERMINAL, STALE_MS, ledgers, readLedger }, input) {
-  if (!EDITS.has(String(input.tool_name ?? ""))) return null;
+// Paths an edit tool call writes. Codex apply_patch carries them inside the patch text.
+function targets(input) {
+  const tool = String(input.tool_name ?? "");
   const t = typeof input.tool_input === "string" ? JSON.parse(input.tool_input) : input.tool_input ?? {};
+  if (tool === "apply_patch") {
+    const patch = String(t?.command ?? t?.input ?? t?.patch ?? "");
+    return [...patch.matchAll(/^\*\*\* (?:(?:Add|Update|Delete) File|Move to): (.+?)\s*$/gm)].map((m) => m[1]);
+  }
+  if (!EDITS.has(tool)) return [];
   const raw = t?.file_path ?? t?.path ?? t?.notebook_path ?? t?.target_notebook;
-  if (typeof raw !== "string" || !raw) return null;
+  return typeof raw === "string" && raw ? [raw] : [];
+}
+
+function decide(run, input) {
+  for (const raw of targets(input)) {
+    const hit = decideOne(run, input, raw);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function decideOne({ TERMINAL, STALE_MS, ledgers, readLedger, dataDirs }, input, raw) {
   const file = land(path.resolve(String(input.cwd ?? [input.workspace_roots ?? []].flat()[0] ?? ".")), raw);
   if (!file) return null;
   let dir = path.dirname(file);
@@ -69,7 +86,7 @@ function decide({ TERMINAL, STALE_MS, ledgers, readLedger }, input) {
   const rel = path.relative(top, file);
   if (!rel || rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) return null;
   const posix = rel.split(path.sep).join("/");
-  if (OPEN.some((o) => posix === o || posix.startsWith(`${o}/`))) return null;
+  if ([...OPEN, ...Object.values(dataDirs(top))].some((o) => posix === o || posix.startsWith(`${o}/`))) return null;
 
   for (const p of ledgers(top)) {
     const data = readLedger(p);
@@ -83,7 +100,7 @@ function decide({ TERMINAL, STALE_MS, ledgers, readLedger }, input) {
 try {
   const hit = decide(await import(pathToFileURL(RUN).href), JSON.parse(fs.readFileSync(0, "utf8")));
   if (hit) {
-    const why = `Run '${hit.slug}' is active (${hit.ledger}): the primary checkout is read-only outside .worktrees/, .cursor/plans/ and .cursor/reviews/.`;
+    const why = `Run '${hit.slug}' is active (${hit.ledger}): the primary checkout is read-only outside .worktrees/, .andx/ and the plans/reviews folders (run.mjs dirs).`;
     const fix = `Edit in the run's worktree with absolute WORKTREE_DIR paths, or end the run: node "${RUN}" end ${hit.slug} --terminal ABORTED --repo "${hit.top}"`;
     console.log(JSON.stringify({ permission: "deny", user_message: why, agent_message: `Denied. ${why} ${fix}` }));
     console.error(`${why} ${fix}`);

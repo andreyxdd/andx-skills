@@ -1,6 +1,6 @@
 # CI/CD plan template
 
-Write this file in target app repo as `.cursor/plans/<slug>-cicd.plan.md`. Replace every placeholder with grill answers and discovered repository paths. Select only relevant steps: CI/CD need not use Docker Compose, Caddy, GHCR, SSH, or a VPS.
+Write this file in target app repo as `$PLANS_DIR/<slug>-cicd.plan.md` (`run.mjs dirs`). Replace every placeholder with grill answers and discovered repository paths. Select only relevant steps: CI/CD need not use Docker Compose, Caddy, GHCR, SSH, or a VPS.
 
 ```markdown
 ---

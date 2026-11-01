@@ -10,7 +10,7 @@ Protocol for **parent orchestrators**. Each lifecycle step is one CLI call whose
 Skill routing: [SKILL-MAP.md](./SKILL-MAP.md) · Harness: [HARNESS.md](./HARNESS.md)
 
 ```bash
-S=~/.cursor/skills/andx-orchestration/scripts   # run.mjs, worktree.mjs, ship-queue.mjs; run from REPO_ROOT
+S=~/.agents/skills/andx-orchestration/scripts   # run.mjs, worktree.mjs, ship-queue.mjs; run from REPO_ROOT
 ```
 
 ## Variables
@@ -37,7 +37,7 @@ First `node "$S/run.mjs" start --slug "$SLUG" --mode <composer's mode>`. Then, b
 
 Per [HARNESS.md](./HARNESS.md). Prompt: `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR`, `PORT` (not for the analyst); role file [WORKER.md](../andx-execute/WORKER.md) for workers, debug-and-fix Phase B for the analyst; anchored plan, verification table, bug/deploy evidence; companions per [SKILL-MAP.md](./SKILL-MAP.md); the Step 3 return schema.
 
-Resume (`resume=<id>`) in the same worktree; new spawn when the role changes (analyst → worker) or the worktree is gone. **Worker died** (`resource_exhausted`, rate limit, timeout): check `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, resume the **same** id ("continue from current worktree state"; Claude: `SendMessage`). After 2 resumes: new spawn only if the worktree is gone, else report the blocker.
+Resume the agent (HARNESS) in the same worktree; new spawn when the role changes (analyst → worker) or the worktree is gone. **Worker died** (`resource_exhausted`, rate limit, timeout): check `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, resume the **same** agent ("continue from current worktree state"). After 2 resumes: new spawn only if the worktree is gone, else report the blocker.
 
 ## Step 3 — Subagent handoff schema
 
@@ -49,7 +49,7 @@ After a pass handoff with Phase 3 green on `EXEC_BRANCH`. Queue, landing, releas
 
 1. **Queue** (not for push-to-MR runs), one background shell (HARNESS long wait): `node "$S/ship-queue.mjs" join "$SHIP_ID" --touch <plan touch> && node "$S/ship-queue.mjs" wait "$SHIP_ID"`. `GRANTED` → go; `HALTED` → stop, `node "$S/run.mjs" end "$SLUG" --terminal AWAITING_USER`, quote `node "$S/ship-queue.mjs" status "$SHIP_ID"`. Holder: `node "$S/ship-queue.mjs" heartbeat "$SHIP_ID"` at phase boundaries and around long waits (CI, deploy, health).
 2. **Land:** `node "$S/ship-queue.mjs" land "$SHIP_ID" --worktree "$WORKTREE_DIR" --test "<plan verification + regression>"`. `CONFLICT` (exit 6, also from `join`) → item 3. Exit 9 → follow its message; dirty primary → wait 2 min, retry ≤ 3, then report overlapping files + the user's recovery `git -C "$REPO_ROOT" merge --ff-only "$EXEC_BRANCH"`.
-3. **Conflicts:** the worker (never the parent) resolves them on `EXEC_BRANCH`, keeping both sides when compatible (irreconcilable → abort the merge, ask the user). Then Phase 3 on EXEC; review-gated parents run Bugbot on the resolution delta when product source changed.
+3. **Conflicts:** the worker (never the parent) resolves them on `EXEC_BRANCH`, keeping both sides when compatible (irreconcilable → abort the merge, ask the user). Then Phase 3 on EXEC; review-gated parents run bug review (HARNESS) on the resolution delta when product source changed.
 4. **Post-merge Phase 3** on `TARGET_BRANCH`, run by the parent: regression + lint (even docs-only) + every verification row. A fix after landing (lint red, deploy hotfix) can't use `land` (lock already landed; it takes only the run worktree): a worker in `node "$S/worktree.mjs" create --slug hotfix` (its `EXEC_BRANCH=` is `HOTFIX_BRANCH`) integrates `TARGET_BRANCH`, goes green, then `git -C "$REPO_ROOT" merge --ff-only "$HOTFIX_BRANCH"` (primary not on TARGET → stop) and `node "$S/worktree.mjs" remove hotfix`.
 5. **Cleanup:** `node "$S/worktree.mjs" remove "$SLUG"`; quote its before/after `git worktree list`. Push-to-MR runs: remove after the push, then `node "$S/worktree.mjs" sweep`.
 6. **Release:** `node "$S/ship-queue.mjs" release "$SHIP_ID" --after-deploy` (`--deploy` runs: andx-deploy releases after fresh health).
@@ -61,7 +61,7 @@ No partial merge unless asked; keep the worktree; report branches, `WORKTREE_DIR
 ## Guardrails
 
 - The parent never edits source, even a one-line lint fix (a worker does, in `.worktrees/`); it reads anything, runs read-only and deploy commands, writes plans, ledgers and chat.
-- The parent stays at `REPO_ROOT` (`move_agent_to_root(REPO_ROOT)` fixes drift); workers use absolute `$WORKTREE_DIR` paths.
+- The parent stays at `REPO_ROOT` (switch workspace root (HARNESS) back to it on drift); workers use absolute `$WORKTREE_DIR` paths.
 - The primary checkout changes only by `land` or item 4's `merge --ff-only`; never `git stash`, `reset`, `checkout` or `clean` there.
 - "Done" = landed + post-merge Phase 3 + quoted cleanup, all fresh. Push and deploy start after cleanup.
 

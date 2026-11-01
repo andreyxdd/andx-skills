@@ -21,8 +21,8 @@ Each companion doc is linked from the step that needs it; read it there, not up 
 
 | Flag | Effect |
 |------|--------|
-| (default) | Bugbot + `andx-security-reviewer` (+ refuters) + ponytail-review subagents |
-| `--fast` | Bugbot only |
+| (default) | bug review + `andx-security-reviewer` (+ refuters) + ponytail-review subagents |
+| `--fast` | bug review only |
 | `--deep` | Default + Cursor `security-review` + react-best-practices + accessibility when UI/React in diff |
 | `--append-snippet <note_id>` | Append fix block to existing note; preserve original text |
 
@@ -30,12 +30,12 @@ Each companion doc is linked from the step that needs it; read it there, not up 
 
 | Skill | Role |
 |-------|------|
-| [review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) | Bugbot subagent |
+| [review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) | Bug review on Cursor (others: HARNESS) |
 | [andx-security-review](../andx-security-review/SKILL.md) | Security reviewer (gate mode via `andx-security-reviewer`) |
 | [review-security](~/.cursor/skills-cursor/review-security/SKILL.md) | Cursor security-review, `--deep` only |
 | [ponytail-review](../andx-orchestration/HARNESS.md#ponytail-resolve) | Over-engineering (default always; resolve path via HARNESS) |
 | [react-best-practices](~/.claude/skills/react-best-practices/SKILL.md) | `--deep` when React in diff |
-| [accessibility](~/.cursor/skills/accessibility/SKILL.md) | `--deep` when UI in diff |
+| [accessibility](~/.agents/skills/accessibility/SKILL.md) | `--deep` when UI in diff |
 | [HOSTS.md](./HOSTS.md) | glab / gh / bitbucket commands |
 
 ---
@@ -57,10 +57,10 @@ Extract host (gitlab | github | bitbucket), `owner/repo`, MR iid. See [HOSTS.md]
 
 ```bash
 git fetch origin <source-branch>
-git show origin/<source-branch>:.cursor/reviews/*.json
+git ls-tree -r --name-only origin/<source-branch> .andx/reviews .cursor/reviews  # git show each
 ```
 
-For each artifact run `node ~/.cursor/skills/andx-mr-review/scripts/validate-review-artifact.mjs <file> --head <head_sha> --base <base_sha>`. If one prints `TRUSTED`:
+For each artifact run `node ~/.agents/skills/andx-mr-review/scripts/validate-review-artifact.mjs <file> --head <head_sha> --base <base_sha>`. If one prints `TRUSTED`:
 
 - **Skip step 5** (subagents)
 - Load findings into report + MR drafts
@@ -68,7 +68,7 @@ For each artifact run `node ~/.cursor/skills/andx-mr-review/scripts/validate-rev
 
 ### 4. Materialize diff
 
-Follow [review-bugbot](~/.cursor/skills-cursor/review-bugbot/SKILL.md) checkout rules:
+Checkout rules (same as Cursor's review-bugbot):
 
 - Fetch MR head branch
 - Checkout if needed; stash only after user confirms on conflict
@@ -82,11 +82,11 @@ Load per [workspace rules](../andx-orchestration/WORKSPACE-RULES.md) using the M
 
 Unless artifact mode or `--fast`:
 
-| Agent | subagent_type | When |
-|-------|---------------|------|
-| Bugbot | `bugbot` | always (incl. `--fast`) |
+| Role | Agent (HARNESS) | When |
+|------|-----------------|------|
+| Bug review | per HARNESS | always (incl. `--fast`) |
 | Security | `andx-security-reviewer`, then parent-spawned `andx-refuter` per proposed critical/high | default full (not `--fast`) |
-| Ponytail | readonly explore or ponytail-review skill | default full |
+| Ponytail | read-only + ponytail-review skill | default full |
 
 `--deep`: add react-best-practices + accessibility passes on UI diff paths.
 
@@ -96,7 +96,7 @@ Package the MR diff (step 4 refs, never the default branch) into a fresh reports
 ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; RUN_DIR="$ROOT/.worktrees/.andx-run/review-mr-<iid>-<head_sha>"
 rm -rf "$RUN_DIR"; mkdir -p "$RUN_DIR"
 git -C "$ROOT" check-ignore -q .worktrees/ || echo .worktrees/ >> "$(git -C "$ROOT" rev-parse --path-format=absolute --git-path info/exclude)"
-node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs package --base <base_sha> --head <head_sha> --out "$RUN_DIR/package.diff"
+node ~/.agents/skills/andx-execute-and-review/scripts/review.mjs package --base <base_sha> --head <head_sha> --out "$RUN_DIR/package.diff"
 ```
 
 Prompt shape per review-bugbot / review-security skills, plus (Bugbot: in `Custom Instructions`, with "review only `git diff <base_sha>..<head_sha>`"):
@@ -109,21 +109,21 @@ Rules: each High/Critical quotes its diff line (`code` or "> line"), else it cou
 End the report with a ## VERDICT block, one "- [SEV] <file:line> — <one line>" per finding.
 ```
 
-Spawn all reviewers in one message, foreground. `<reviewer>`: `bugbot`, `security`, `ponytail`, `react`, `a11y`. Save inline replies to that path verbatim. Save the refuters' JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none). Cursor `security-review` (`--deep`) is not a union reviewer; fold its findings by hand in step 7.
+Spawn all reviewers at once, blocking (HARNESS). `<reviewer>`: `bugbot` (the bug-review slot), `security`, `ponytail`, `react`, `a11y`. Save inline replies to that path verbatim. Save the refuters' JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none). Cursor `security-review` (`--deep`) is not a union reviewer; fold its findings by hand in step 7.
 
 ### 7. Synthesize
 
 ```bash
-node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs union --base <base_sha> --head <head_sha> \
+node ~/.agents/skills/andx-execute-and-review/scripts/review.mjs union --base <base_sha> --head <head_sha> \
   --reports "$RUN_DIR" --slug mr-<iid> --expect <reviewers spawned> --refuters "$RUN_DIR/refuters.json" > "$RUN_DIR/verdict.json"
 ```
 
-Union rules: `review.mjs --help`. Work from `verdict.json` only. A reviewer in `unparsed`: Bugbot → read its report and classify by hand (never re-request); others → re-request once, then report it as unreviewed.
+Union rules: `review.mjs --help`. Work from `verdict.json` only. A reviewer in `unparsed`: bug review → read its report and classify by hand (never re-request); others → re-request once, then report it as unreviewed.
 
 - Sort `blockers` + `advisory` + `deferred`: high → medium → low → nitpick
 - Enrich each with `ux_flow` / `api_note` (read i18n, apiSlice, types)
 - **Workspace gates:** each violated gate from step 5 → finding at the gate file severity.
-- **Harness jargon:** `node ~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs diff <base_sha> <head_sha>`; each hit → medium.
+- **Harness jargon:** `node ~/.agents/skills/andx-execute/scripts/jargon-gate.mjs diff <base_sha> <head_sha>`; each hit → medium.
 - Apply comment budget: inline = high/medium; nitpicks → separate bucket
 - Cap ~8 inline; overflow → summary table only
 
@@ -139,7 +139,7 @@ Present:
 2. Full chat report
 3. Per-comment previews with host line anchors
 
-Optional export: `<workspace>/.cursor/reviews/<mr-id>-report.md`
+Optional export: `$REVIEWS_DIR/<mr-id>-report.md` (`run.mjs dirs`)
 
 ### 9. Approval gate (default — draft in chat first)
 

@@ -85,6 +85,16 @@ test("active run: links and dot-dot steps out of an open folder are followed lik
   assert.deepEqual(guard(claude(`${repo}/.worktrees/exec-x/../exec-y/a.js`)), ALLOW);
 });
 
+test("active run: Codex apply_patch denied when any patched file is in the primary checkout", () => {
+  ledger();
+  const patch = (...files) => ({ cwd: repo, tool_name: "apply_patch", tool_input: { command: `*** Begin Patch\n${files.join("\n+x\n")}\n*** End Patch\n` } });
+  assert.deepEqual(guard(patch("*** Add File: .worktrees/exec-x/a.js")), ALLOW);
+  assert.equal(guard(patch("*** Add File: .worktrees/exec-x/a.js", "*** Update File: src/a.js")).code, 2);
+  assert.equal(guard(patch(`*** Update File: ${join(repo, ".andx", "plans", "p.md")}`, "*** Move to: src/b.js")).code, 2);
+  assert.equal(guard(patch("*** Delete File: README.md")).code, 2);
+  assert.deepEqual(guard({ cwd: repo, tool_name: "apply_patch", tool_input: { command: "not a patch" } }), ALLOW);
+});
+
 test("active run: Cursor payload with tool_input as a JSON string denied", () => {
   ledger();
   const r = guard({ cwd: repo, tool_name: "Write", tool_input: JSON.stringify({ path: join(repo, "a.js") }) });
@@ -105,6 +115,10 @@ test("active run: worktrees, plans, reviews and the ledger dir allowed", () => {
     assert.deepEqual(guard(claude(join(repo, ...rel))), ALLOW, rel.join("/"));
   }
   assert.equal(guard(claude(join(repo, ".cursor", "rules", "x.mdc"))).code, 2);
+  assert.deepEqual(guard(claude(join(repo, ".andx", "plans", "p.plan.md"))), ALLOW);
+  assert.equal(guard(claude(join(repo, "docs", "plans", "p.plan.md"))).code, 2, "docs/plans is not a plans dir until it exists");
+  mkdirSync(join(repo, "docs", "plans"), { recursive: true });
+  assert.deepEqual(guard(claude(join(repo, "docs", "plans", "p.plan.md"))), ALLOW);
 });
 
 test("active run: edit inside a linked worktree outside the repo allowed", () => {

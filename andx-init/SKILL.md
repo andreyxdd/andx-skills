@@ -33,8 +33,8 @@ All presets create:
 - `knowledge/index.md`, `knowledge/log.md`, `knowledge/domain/glossary.md`
 - `pipeline/<stage>/CONTEXT.md` (Inputs / Process / Outputs)
 - `pipeline/<stage>/output/.gitkeep` (tracked; other output contents gitignored)
-- `.cursor/plans/` directory
-- `.gitignore` lines: `pipeline/*/output/*`, `!pipeline/*/output/.gitkeep`, `.cursor/plans/`
+- `$PLANS_DIR` (`run.mjs dirs`; default `.andx/plans`)
+- `.gitignore` lines: `pipeline/*/output/*`, `!pipeline/*/output/.gitkeep`, a hidden `$PLANS_DIR/`
 
 `app` preset also creates:
 
@@ -45,12 +45,12 @@ Template gap notes: [templates/CHANGELOG-notes.md](./templates/CHANGELOG-notes.m
 
 ## Workflow
 
-1. **Confirm target repo** — workspace root must be the project. Use `move_agent_to_root` if needed.
+1. **Confirm target repo** — workspace root must be the project; else switch workspace root (HARNESS).
 2. **Choose preset** — `app` (default for software), `data`, or `content`. Ask once if unclear.
-3. **Run scaffold** — installed via `node install.mjs` (Claude Code: `~/.claude/skills/...`; from a clone: `/path/to/andx-skills/andx-init/scripts/scaffold.mjs`):
+3. **Run scaffold** — installed via `node install.mjs` (also at `~/.claude/skills/...`; from a clone: `/path/to/andx-skills/andx-init/scripts/scaffold.mjs`):
 
 ```bash
-node ~/.cursor/skills/andx-init/scripts/scaffold.mjs <preset> <repo_root>
+node ~/.agents/skills/andx-init/scripts/scaffold.mjs <preset> <repo_root>
 ```
 
 4. **Report** — list created vs skipped paths.
@@ -72,7 +72,7 @@ node ~/.cursor/skills/andx-init/scripts/scaffold.mjs <preset> <repo_root>
 ## Git policy
 
 - Scaffold output is **committed by default** (IDENTITY, AGENTS, ROUTING, knowledge skeleton, pipeline CONTEXT; `doc-sync-map` for `app`).
-- `pipeline/*/output/*` stays **gitignored** except tracked `.gitkeep` per stage; `.cursor/plans/` gitignored (ephemeral).
+- `pipeline/*/output/*` stays **gitignored** except tracked `.gitkeep` per stage; a hidden plans dir is gitignored (ephemeral).
 - Re-run scaffold safely on repos that already have partial layout — **additive only** (existing files never overwritten).
 
 ## Required companion skills
