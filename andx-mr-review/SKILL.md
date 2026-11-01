@@ -90,11 +90,12 @@ Unless artifact mode or `--fast`:
 
 `--deep`: add react-best-practices + accessibility passes on UI diff paths.
 
-Package the MR diff (step 4 refs, never the default branch). One reports dir per MR head, so reports for an earlier head are never read:
+Package the MR diff (step 4 refs, never the default branch) into a fresh reports dir per MR head:
 
 ```bash
 ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; RUN_DIR="$ROOT/.worktrees/.andx-run/review-mr-<iid>-<head_sha>"
-mkdir -p "$RUN_DIR"; git -C "$ROOT" check-ignore -q .worktrees/ || echo .worktrees/ >> "$(git rev-parse --git-path info/exclude)"
+rm -rf "$RUN_DIR"; mkdir -p "$RUN_DIR"
+git -C "$ROOT" check-ignore -q .worktrees/ || echo .worktrees/ >> "$(git -C "$ROOT" rev-parse --path-format=absolute --git-path info/exclude)"
 node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs package --base <base_sha> --head <head_sha> --out "$RUN_DIR/package.diff"
 ```
 
@@ -108,7 +109,7 @@ Rules: each High/Critical quotes its diff line (`code` or "> line"), else it cou
 End the report with a ## VERDICT block, one "- [SEV] <file:line> — <one line>" per finding.
 ```
 
-Spawn all reviewers in one message, foreground. `<reviewer>`: `bugbot`, `security`, `ponytail`, `react`, `a11y`. Save inline replies to that path verbatim. Save the refuters' JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none). Cursor `security-review` (`--deep`) is not a union reviewer; fold its findings in by hand in step 7.
+Spawn all reviewers in one message, foreground. `<reviewer>`: `bugbot`, `security`, `ponytail`, `react`, `a11y`. Save inline replies to that path verbatim. Save the refuters' JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none). Cursor `security-review` (`--deep`) is not a union reviewer; fold its findings by hand in step 7.
 
 ### 7. Synthesize
 
