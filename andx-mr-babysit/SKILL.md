@@ -55,7 +55,7 @@ Load MR metadata, head/base refs, pipeline/checks, open discussion threads.
 
 ### 3. Branch materialize
 
-Fetch MR head into a worktree, never the primary checkout: `git fetch origin <head_branch> && git worktree add --track -B <head_branch> "$REPO_ROOT/.worktrees/mr-<iid>" origin/<head_branch>` (if the branch is checked out in primary, ask the user before switching primary away). Fixes run there (spawn `andx-worker` with that `WORKTREE_DIR`). Record `base_sha` / `head_sha`. Remove the worktree at done/escalate when clean.
+Fetch MR head into a worktree, never the primary checkout (`worktree.mjs create` only branches from TARGET, so add it directly): `git fetch origin <head_branch> && git worktree add --track -B <head_branch> "$REPO_ROOT/.worktrees/mr-<iid>" origin/<head_branch>`. Branch already checked out in the primary checkout → stop and ask the user; never switch the primary checkout. Fixes run there (spawn `andx-worker` with that `WORKTREE_DIR`). Record `base_sha` / `head_sha`. At done/escalate: `git worktree remove` it when clean; leftovers show in `node ~/.cursor/skills/andx-orchestration/scripts/worktree.mjs sweep`.
 
 ### 4. Route: delegate vs andx-owned loop
 
@@ -64,7 +64,7 @@ Fetch MR head into a worktree, never the primary checkout: `git fetch origin <he
 1. Host is **GitHub**
 2. `~/.cursor/skills-cursor/autopilot/SKILL.md` exists
 
-Then: follow that skill for the conflict / comments / CI loop, with the **Thread rules** below layered on top. Keep this skill's checklist updated from its outcomes. Still use [HOSTS.md](../andx-mr-review/HOSTS.md) for any `gh` commands it implies.
+Then: follow that skill for the conflict / comments / CI loop, with the **Thread rules** below layered on top. Keep this skill's checklist updated from its outcomes; `gh` commands per HOSTS.
 
 ### Thread rules (both paths)
 
@@ -99,9 +99,7 @@ Intelligently resolve, preserving intent of both head and base. If intents confl
 - Fix failures **caused by this PR's changes**.
 - Never weaken CI checks/workflows just to pass; never unrelated refactors.
 - Merge-blocking failure looks unrelated → check if branch behind base; merge latest base (another PR may have fixed it).
-- Push scoped fixes, then run the host's blocking CI wait from [HOSTS.md](../andx-mr-review/HOSTS.md) in one background shell (Cursor `AwaitShell`; Claude Code `Monitor`). Green → next pass; red → fix or escalate.
-
-Host commands: [HOSTS.md](../andx-mr-review/HOSTS.md) (`glab mr …`, `gh pr checks`, etc.).
+- Push scoped fixes, then run the host's blocking CI wait from HOSTS in one background shell (Cursor `AwaitShell`; Claude Code `Monitor`). Green → next pass; red → fix or escalate.
 
 ### 6. Done / escalate
 

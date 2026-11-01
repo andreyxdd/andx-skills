@@ -24,7 +24,8 @@ Canonical **andx** agent skills for Cursor (primary) and Claude Code (symlinked)
 
 | File | Owns |
 |------|------|
-| `andx-orchestration/SKILL.md` | Worktree, spawn checklist, handoff, merge, cleanup |
+| `andx-orchestration/SKILL.md` | Worktree, spawn checklist, handoff, landing, cleanup |
+| `andx-orchestration/scripts/` | `run.mjs` (run ledger), `worktree.mjs` (create/remove/sweep), `ship-queue.mjs` (queue + landing); rules in each `--help` |
 | `andx-orchestration/HARNESS.md` | Cursor vs Claude Task mapping |
 | `andx-orchestration/SKILL-MAP.md` | Companion + reviewer routing |
 | `andx-plan/PLAN-FORMAT.md`, `PARSE.md` | Plan templates; frontmatter + parse rules |
@@ -61,7 +62,7 @@ node install.mjs
 node install-companions.mjs   # optional; React/Next companions
 ```
 
-Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/` (Windows: directory junctions, no admin needed). `node install.mjs --uninstall-hooks` removes only the hooks.
+Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/` (Windows: directory junctions, no admin needed) and registers the hooks in both harnesses, including `guard-primary.mjs`, which denies the parent's file edits in the primary checkout (outside `.worktrees/`, `.cursor/plans/`, `.cursor/reviews/`) while a run is active. `node install.mjs --uninstall-hooks` removes only the hooks.
 
 ## Edit workflow
 
@@ -71,7 +72,7 @@ Symlinks into `~/.cursor/skills/`, `~/.claude/skills/`, and `~/.codex/skills/` (
 ## Conventions (Cursor-primary)
 
 - Plans: project-local `.cursor/plans/` only.
-- Worktrees: `$REPO_ROOT/.worktrees/exec-<slug>-<stamp>` (orch slug naming).
+- Worktrees: `$REPO_ROOT/.worktrees/exec-<slug>[-w<N>[-<step>]]-<stamp>`, named and created only by `worktree.mjs create`.
 - `move_agent_to_root` only when workspace ≠ target **project** (`/andx-plan`, `/andx-init`). Never for exec worktrees — worker uses `WORKTREE_DIR` as tool cwd in the same workspace.
 - Flow: `/andx-plan` → optional `/andx-schedule` (multi-wave) → `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).
 - After `/andx-plan`: Next menu. Recommended: open a fresh chat (Claude Code: `/clear`) and paste its `Fresh chat: /andx-<default> <abs plan path>` line, so execution requests do not carry the grill transcript. Fallback: bare `go` runs the default skill in the same thread, grill context included.
@@ -170,7 +171,7 @@ Then install the other required companions above (impeccable for UI work, ponyta
 1. `/andx-init app` — once per repo: scaffold `IDENTITY.md`, `ROUTING.md`, `knowledge/` (optional, recommended).
 2. `/andx-plan add buyer refund requests` — answer the grill rounds (`yes` accepts each recommendation), approve the step list; the plan lands in `.cursor/plans/<slug>.plan.md`.
 3. Open a **fresh chat** (Claude Code: `/clear`) and paste the plan's `Fresh chat:` line, e.g. `/andx-execute-and-review /abs/repo/.cursor/plans/buyer-refund-request.plan.md`.
-4. The run works in `.worktrees/exec-<slug>-<stamp>`: worker implements per step with TDD, blind reviewers gate, then fast-forward merge to your branch and cleanup. It ends with `MERGED PASS | PUSHED … | MR … | DEPLOYED …`.
+4. The run works in `.worktrees/exec-<slug>-<stamp>`: worker implements per step with TDD, blind reviewers gate, then `ship-queue.mjs land` fast-forwards your branch (never switching branches in your checkout) and `worktree.mjs remove` cleans up. It ends with the `run.mjs end` line `MERGED PASS | PUSHED … | MR … | DEPLOYED …`.
 5. Ship: pick `/andx-execute-review-and-deploy` in step 3, or run `/andx-deploy` after the merge (first time: `/andx-deploy-init`). Draft MR instead of a local merge: `/andx-execute-and-review --mr` (pushes and babysits). Someone else's MR: `/andx-mr-review <url>`, then `/andx-mr-babysit <url>`.
 6. Optional: `/retro` after a run that escalated or needed ≥ 2 review rounds; `node ~/Dev/tools/andx-skills/scripts/spend-report.mjs --summary ~/.claude/projects` to track spend.
 
@@ -178,9 +179,12 @@ Bug instead of feature: `/andx-debug-and-fix <symptom>` (read-only analysis → 
 
 ## Parallel runs
 
-Three plans, three fresh chats, same repo: paste each plan's `Fresh chat:` line into its own chat. The runs execute (and review) in parallel, each in its own worktree. They ship one at a time, in the order they finish: a ready run waits in a background shell for the repo's ship queue, then integrates the latest branch, lands, and (deploy modes) pushes, deploys and checks health before the next run starts. A run that fails before landing releases its turn; one that fails after landing (post-merge checks or final deploy) halts the queue, and the waiting chats stop and ask you. Fix HEAD, then:
+Three plans, three fresh chats, same repo: paste each plan's `Fresh chat:` line into its own chat. The runs execute (and review) in parallel, each in its own worktree. They ship one at a time, in the order they finish: a ready run waits in a background shell for the repo's ship queue (git refs under `refs/andx/ship/`), then `land` integrates the latest branch, re-runs the tests if that changed anything, and fast-forwards; deploy modes then push, deploy and check health before the next run starts. A run that fails before landing releases its turn; one that fails after landing (post-merge checks or final deploy) halts the queue, and the waiting chats stop and ask you. Fix HEAD, then:
 
 ```bash
-node ~/.cursor/skills/andx-orchestration/scripts/ship-queue.mjs status --repo .   # holder, waiters, halt reason
-node ~/.cursor/skills/andx-orchestration/scripts/ship-queue.mjs resume --repo .   # then re-run the stopped chats
+Q=~/.cursor/skills/andx-orchestration/scripts
+node $Q/ship-queue.mjs status --repo .   # holder, waiters, halt reason
+node $Q/ship-queue.mjs resume --repo .   # then re-run the stopped chats
+node $Q/run.mjs show <slug> --repo .     # a run's ledger: phases, terminal state
+node $Q/worktree.mjs sweep .             # leftover worktrees; --apply removes clean, merged ones
 ```

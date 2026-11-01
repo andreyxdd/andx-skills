@@ -5,11 +5,11 @@ disable-model-invocation: true
 ---
 # Andx Schedule
 
-Plan → **EXEC-MATRIX** → parallel `/andx-execute` (or execute-and-review / execute-and-deploy / execute-review-and-deploy).
+Plan → **EXEC-MATRIX** → parallel waves in any `/andx-execute*` run.
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Orch: [/andx-orchestration](../andx-orchestration/SKILL.md) · Harness: [HARNESS.md](../andx-orchestration/HARNESS.md) · Fields: [PARSE.md](../andx-plan/PARSE.md)
 
-**Before:** `/andx-plan` (plan has `depends` + `touch`). **After:** `/andx-execute` | `/andx-execute-and-review` | `/andx-execute-and-deploy` | `/andx-execute-review-and-deploy`.
+**Before:** `/andx-plan` (plan has `depends` + `touch`). **After:** any `/andx-execute*`.
 
 ## When to run
 
@@ -34,7 +34,7 @@ Run when plan has **≥2 steps that can share a wave**: same wave, deps satisfie
 
 ## Artifact
 
-Write **`.cursor/plans/<slug>.EXEC-MATRIX.md`** next to the plan (same dir as `<slug>.plan.md`).
+Write **`.cursor/plans/<slug>.EXEC-MATRIX.md`** beside the plan.
 
 ```markdown
 ---
@@ -60,27 +60,17 @@ If plan lives outside `.cursor/plans/`, write `EXEC-MATRIX.md` beside that plan 
 
 ## Parent spawn contract (for `/andx-execute`)
 
-When EXEC-MATRIX present:
+When EXEC-MATRIX present, the run worktree from orch Step 1 (`EXEC_BRANCH`, `WORKTREE_DIR`) collects every wave; `ship-queue.mjs land` accepts only that worktree, so the run lands once.
 
-1. **Per wave:** spawn up to `max_parallel` workers, each with **disjoint** `touch` and a dedicated `WORKTREE_DIR` / `EXEC_BRANCH` (orch Step 1). Parallel workers in a wave MUST use `exec-${SLUG}-w${N}-${step-id}-${STAMP}` (not only `w${N}`). Single-step waves: `exec-${SLUG}-w${N}-${STAMP}`. Same workspace — no `move_agent_to_root` to worktrees.
-2. Workers implement only their assigned steps; commit on own `EXEC_BRANCH`; return handoff; **no merge**.
-3. **Sequential merge** of wave branches into `TARGET_BRANCH` (orch Step 4 concurrent-merge) after all workers in the wave pass + Phase 3 on each `EXEC_BRANCH`.
-4. **Cleanup each** `WORKTREE_DIR` / `EXEC_BRANCH` after that wave’s integration merge + post-merge Phase 3 (orch Step 4 cleanup). Subagents never pre-merge cleanup.
-5. Next wave starts only after prior wave merged + verified on `TARGET_BRANCH`.
-
-Single-step waves → one worker (same as classic execute).
+1. **Per wave:** single-step wave → its worker works in `WORKTREE_DIR`. Parallel wave → one `worktree.mjs create --slug "$SLUG" --wave N --step <step-id> --target "$EXEC_BRANCH"` per worker, run one after another; up to `max_parallel` workers with **disjoint** `touch`. Same workspace — no `move_agent_to_root` to worktrees.
+2. Workers implement only their assigned steps, commit on their own branch, return the handoff; **no merge**.
+3. After every worker in the wave passes: `git -C "$WORKTREE_DIR" merge --no-edit <step branch>` one at a time (conflict → abort, worker resolves in `WORKTREE_DIR`), Phase 3 there, then `worktree.mjs remove "$SLUG" --wave N --target "$EXEC_BRANCH"`.
+4. Next wave starts only after the prior wave merged and verified on `EXEC_BRANCH`. After the last wave: orch Step 4.
 
 ## Anti-patterns
 
 - Matrix when `touch: unknown` or overlapping touch claimed parallel
 - Spawning more workers than `max_parallel`
-- Merging wave branches out of order / before all wave handoffs pass
-- Skipping orch cleanup for any `WORKTREE_DIR` in the wave
+- Merging wave branches before all wave handoffs pass
+- Skipping cleanup for any worktree in the wave
 - Editing source in primary checkout (parent stays orchestrator)
-
-## Referenced by
-
-- [/andx-orchestration](../andx-orchestration/SKILL.md)
-- [/andx-execute](../andx-execute/SKILL.md)
-- [/andx-plan](../andx-plan/SKILL.md)
-- [PARSE.md](../andx-plan/PARSE.md)

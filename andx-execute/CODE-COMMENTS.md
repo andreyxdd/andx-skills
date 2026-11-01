@@ -44,22 +44,16 @@ Applies to **application source** workers write under `/andx-execute` (and lean-
 
 ## Pre-push gate (execute / mr-create)
 
-Before push, from `base...HEAD`:
-
-```bash
-git diff "$BASE"...HEAD | rg -n '^\+.*(ponytail:|shrink:|andx:|caveman|/andx-|andx/exec-)' && exit 1 || true
-```
-
-Fail closed: strip or rewrite hits, then push.
+Before push: `node ~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs diff "$BASE" HEAD` (added lines of `base...HEAD`; `--allow-skill-text` skips skill docs in a repo that is itself a skill repo). Fail closed: strip or rewrite hits, then push.
 
 ## MR and commit text gate
 
 Write MR title, MR description, and commit subjects/bodies for a reviewer who has never heard of these tools: no skill names, `andx/exec-*` branches, worktree paths or run ids, review-round talk. Operator chat is exempt.
 
 ```bash
-J='ponytail|shrink:|caveman|andx|\.worktrees/|exec-[a-z0-9-]*20[0-9]{6}'
-git log --format='%s%n%b' "$BASE"..HEAD | rg -in "$J" && exit 1 || true
-rg -in "$J" /tmp/mr-title.txt /tmp/mr-body.md && exit 1 || true   # draft text before create/edit
+G=~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs
+git log --format='%s%n%b' "$BASE"..HEAD | node "$G" text -
+cat /tmp/mr-title.txt /tmp/mr-body.md | node "$G" text -   # draft text before create/edit
 ```
 
 Hits in commits not yet pushed → `git commit --amend` / interactive reword on EXEC only. Already pushed → fix MR text; leave history.

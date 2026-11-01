@@ -13,14 +13,14 @@ Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Hotfix: [/andx-or
 
 Code committed; need prod deploy + health. Features → `/andx-execute` / `/andx-execute-and-deploy` / `/andx-execute-review-and-deploy`. First CI/CD → [/andx-deploy-init](../andx-deploy-init/SKILL.md).
 
-## Preflight
+## Preflight (Phase A′)
 
-Entered from `/andx-execute-and-deploy` or `/andx-execute-review-and-deploy` (Phase A′): start only after their cleanup evidence is quoted, from `REPO_ROOT` on `TARGET_BRANCH`, and always push in step 2 (no origin → skip and note it). The run still holds the ship queue lock under the ledger's `ship_id` (orch Step 4): `ship-queue.mjs heartbeat "$SHIP_ID" --repo "$REPO_ROOT"` right before and after each push, CI watch, deploy, and health check.
+Entered from `/andx-execute-and-deploy` or `/andx-execute-review-and-deploy`: start only after their cleanup evidence is quoted, from `REPO_ROOT` on `TARGET_BRANCH`; always push in step 2 (no origin → skip and note it); record `run.mjs phase "$SLUG" A′` (phase calls apply only from a composer). The run still holds the ship queue lock under `SHIP_ID`: `ship-queue.mjs heartbeat "$SHIP_ID"` right before and after each push, CI watch, deploy, and health check.
 
 1. Anchor: `git rev-parse HEAD`, branch, dirty/unpushed.
 2. Push when `origin` exists **and** deploy needs remote: `git remote get-url origin && git push -u origin HEAD`. Force-push of main/master only on explicit ask. Push failed and deploy needs remote → fix before deploying.
 3. Parent: deploy commands + health only — never edit app source.
-4. **Migration gate:** if this revision touches goose/EF migrations, `WithAllowMissing`, or `DB_MIGRATIONS_ALLOW_MISSING`, load workspace `agents/rules/goose-migration-review-gates.md` (when present). Unconditional AllowMissing or gap-ordered migrations → **block deploy** until fixed (GitOps still via workspace gitops rule). Do not fork gate text here. Entered from a composer (already landed, lock held), a gate block is a stop after landing: `ship-queue.mjs halt "$SHIP_ID" --repo "$REPO_ROOT" --reason "<gate>"`, ledger `terminal: AWAITING_USER`.
+4. **Migration gate:** if this revision touches goose/EF migrations, `WithAllowMissing`, or `DB_MIGRATIONS_ALLOW_MISSING`, load workspace `agents/rules/goose-migration-review-gates.md` (when present). Unconditional AllowMissing or gap-ordered migrations → **block deploy** until fixed (GitOps still via workspace gitops rule). Do not fork gate text here. From a composer this is a stop after landing: `ship-queue.mjs halt "$SHIP_ID" --reason "<gate>"`, end `AWAITING_USER`.
 
 ## Phase B — Discover (every run)
 
@@ -34,36 +34,30 @@ Read this repo fresh — do not cache prior-session commands. If unclear, read `
 | `Makefile` / `package.json` deploy scripts | Wrapped commands |
 | `.cursor/rules/*deploy*` | Project-local deploy policy |
 
-Classify one primary method: `ssh` | `gh-actions` | `other`. If ambiguous, ask once.
-
-Record: **Method**, **Commands** (from docs), **Deploy success criterion** (falsifiable).
+Classify one primary method: `ssh` | `gh-actions` | `other`. If ambiguous, ask once. Record **Method**, **Commands** (from docs), **Deploy success criterion** (falsifiable), then `run.mjs phase "$SLUG" B`.
 
 ## Phase C — Deploy
 
-Run documented production sequence only. Respect backup/migrate rules. No secrets in chat.
+Run documented production sequence only. Respect backup/migrate rules. No secrets in chat. Then `run.mjs phase "$SLUG" C`.
 
 ## Phase D — Verify
 
-Fresh checks after deploy (HTTP health, process active, revision). Evidence rule: [HARNESS.md](../andx-orchestration/HARNESS.md).
-
-Entered from a composer: after fresh health output, `ship-queue.mjs release "$SHIP_ID" --repo "$REPO_ROOT"` (the next queued run lands only now).
+Fresh checks after deploy (HTTP health, process active, revision). Evidence rule: [HARNESS.md](../andx-orchestration/HARNESS.md). Healthy → `run.mjs phase "$SLUG" D`; from a composer, `ship-queue.mjs release "$SHIP_ID" --after-deploy` (the next queued run lands only now).
 
 ### Failure loop
 
 ```
-FAIL → diagnose → (source fix?) orchestration worktree worker
-     → orch Step 4 concurrent-merge + post-merge verify + cleanup → re-deploy
+FAIL → diagnose → (source fix?) hotfix worker in a new worktree
+     → ff land + post-merge verify + cleanup → re-deploy
      (max 3; then stop with blocker)
 ```
 
-The hotfix gets its own `EXEC_BRANCH` but keeps `SHIP_ID` (ledger `ship_id`) and the held lock (no `announce`/`join`/`wait`). From a composer, the run already landed, so any stop in this loop (third failure, or a hotfix that hits an unresolvable conflict, fails Phase 3, or is aborted) runs `ship-queue.mjs halt "$SHIP_ID" --repo "$REPO_ROOT" --reason "<blocker>"`, never `release`, ledger `terminal: AWAITING_USER`. Queued runs stop with `HALTED`; the user runs `ship-queue.mjs resume` once HEAD is healthy.
-
-Parent never patches source inline.
+The hotfix keeps `SHIP_ID` and the held lock (no `announce`/`join`/`wait`) and lands as a fix after landing (orch Step 4 item 4). From a composer the run already landed, so any stop in this loop is `ship-queue.mjs halt "$SHIP_ID" --reason "<blocker>"` (rules: `ship-queue.mjs --help`), end `AWAITING_USER`.
 
 ## Anti-patterns
 
 - Guessing host/workflow from another repo
 - Skipping required backup/migrate
 - Health claims without fresh output
-- Re-deploy from `EXEC_BRANCH` without merge to `TARGET_BRANCH`
-- Leaving hotfix worktree after merge
+- Re-deploy from `EXEC_BRANCH` without landing on `TARGET_BRANCH`
+- Leaving the hotfix worktree after landing

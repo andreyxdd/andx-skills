@@ -28,19 +28,13 @@ Diagnose → fix criterion → implement → re-run (max 3 attempts) → stop wi
 
 ## Phase 3 — Final on EXEC_BRANCH
 
-Full regression + lint (even docs) + doc verifier if needed + every table row. Fresh evidence.
+Full regression + lint (even docs) + doc verifier if needed + every table row, fresh.
 
-**Comment hygiene gate:** [CODE-COMMENTS.md](./CODE-COMMENTS.md) — read it only when this fails:
-
-```bash
-git diff "$TARGET_BRANCH"...HEAD | rg -n '^\+.*(ponytail:|shrink:|andx:|caveman|/andx-|andx/exec-)' && exit 1 || true
-```
-
-Rewrite hits to plain English / public branch pins before Phase 4.
+**Jargon gate:** `G=~/.cursor/skills/andx-execute/scripts/jargon-gate.mjs; node "$G" diff "$TARGET_BRANCH" HEAD` (`--allow-skill-text` in a skill repo). Hits → read [CODE-COMMENTS.md](./CODE-COMMENTS.md), rewrite to plain English / public branch pins.
 
 ## Phase 4 — Commit and hand off
 
-Stage plan scope; conventional commits; clean `git status`. Commit messages pass the [MR and commit text gate](./CODE-COMMENTS.md#mr-and-commit-text-gate). Return exactly:
+Stage plan scope; conventional commits; clean `git status`. Commit messages pass `git log --format='%s%n%b' "$TARGET_BRANCH"..HEAD | node "$G" text -`. Return exactly:
 
 ```markdown
 ## Handoff
