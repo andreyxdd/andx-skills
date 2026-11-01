@@ -15,8 +15,32 @@ export const REQUIRED = {
   "review-deploy": ["A", "A′", "B", "C", "D"],
   debug: ["A", "B", "C", "D"],
 };
+// A non-terminal ledger untouched this long belongs to a crashed run: hooks stop acting on it.
+export const STALE_MS = 24 * 3600 * 1000;
 const STATUS = ["NOT_REQUESTED", "PASS", "FAIL", "BLOCKED", "-"];
 const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
+
+export const ledgerDir = (root) => path.join(root, ".worktrees", ".andx-run");
+
+// Ledger files of one primary checkout; dotfiles are half-written temp files.
+export function ledgers(root) {
+  try {
+    return fs.readdirSync(ledgerDir(root)).filter((f) => f.endsWith(".json") && !f.startsWith(".")).map((f) => path.join(ledgerDir(root), f));
+  } catch {
+    return [];
+  }
+}
+
+// Local time, YYYYMMDD-HHMMSS.
+export function newStamp(now = new Date()) {
+  return new Date(now - now.getTimezoneOffset() * 60000).toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
+}
+
+// The one naming rule for run branches and worktrees: exec-<slug>[-w<wave>[-<step>]]-<stamp>.
+export function runNames({ root, slug, wave, step, stamp }) {
+  const name = ["exec", slug, wave && `w${wave}`, step, stamp].filter(Boolean).join("-");
+  return { EXEC_BRANCH: `andx/${name}`, WORKTREE_DIR: path.join(root, ".worktrees", name) };
+}
 
 const USAGE = `run: one ledger per run at <primary checkout>/.worktrees/.andx-run/<slug>.json
 
@@ -87,23 +111,15 @@ function main(args) {
   const g = git(o.repo ?? ".", "rev-parse", "--path-format=absolute", "--git-common-dir");
   if (g.status !== 0) fail(2, g.stderr || `not a git repo: ${o.repo ?? "."}`);
   const root = path.resolve(path.dirname(g.stdout.trim()));
-  const file = path.join(root, ".worktrees", ".andx-run", `${slug}.json`);
+  const file = path.join(ledgerDir(root), `${slug}.json`);
 
   if (cmd === "start") {
     if (!Object.hasOwn(REQUIRED, o.mode ?? "")) fail(2, `bad mode: ${o.mode ?? ""} (${Object.keys(REQUIRED).join("|")})`);
     const target = git(root, "branch", "--show-current").stdout?.trim();
     if (!target) fail(2, `primary checkout ${root} is not on a branch`);
-    const now = new Date();
-    const stamp = new Date(now - now.getTimezoneOffset() * 60000).toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
-    const branch = `andx/exec-${slug}-${stamp}`;
-    const vars = {
-      REPO_ROOT: root,
-      TARGET_BRANCH: target,
-      STAMP: stamp,
-      EXEC_BRANCH: branch,
-      WORKTREE_DIR: path.join(root, ".worktrees", `exec-${slug}-${stamp}`),
-      SHIP_ID: branch,
-    };
+    const stamp = newStamp();
+    const { EXEC_BRANCH: branch, WORKTREE_DIR } = runNames({ root, slug, stamp });
+    const vars = { REPO_ROOT: root, TARGET_BRANCH: target, STAMP: stamp, EXEC_BRANCH: branch, WORKTREE_DIR, SHIP_ID: branch };
     fs.mkdirSync(path.dirname(file), { recursive: true });
     writeLedger(file, {
       slug, mode: o.mode, ship_id: branch, phase: null, phases: [], required_phases: REQUIRED[o.mode],

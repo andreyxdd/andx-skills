@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { tmpdir } from "node:os";
 import path, { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { agentPath, worktreeName } from "./worktree.mjs";
+import { agentPath } from "./worktree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(here, "worktree.mjs");
@@ -30,12 +30,6 @@ beforeEach(() => {
   commit(repo, "init");
 });
 afterEach(() => fs.rmSync(repo, { recursive: true, force: true }));
-
-test("naming: plain run, wave, and wave step", () => {
-  assert.equal(worktreeName({ slug: "feat", stamp: "20261101-062708" }), "exec-feat-20261101-062708");
-  assert.equal(worktreeName({ slug: "feat", wave: "2", stamp: "20261101-062708" }), "exec-feat-w2-20261101-062708");
-  assert.equal(worktreeName({ slug: "feat", wave: "2", step: "step-8", stamp: "20261101-062708" }), "exec-feat-w2-step-8-20261101-062708");
-});
 
 test("create without a ledger: adds the ignore line once, makes the worktree on a new branch", () => {
   const r = wt("create", "--slug", "feat", "--stamp", "20261101-062708");

@@ -5,59 +5,65 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const EDITS = new Set(["Write", "StrReplace", "Edit", "MultiEdit", "Delete", "NotebookEdit", "EditNotebook"]);
 const OPEN = [".worktrees", ".cursor/plans", ".cursor/reviews"];
-// Same cutoff as the Stop hook, so a crashed run does not lock the checkout for good.
-const STALE_MS = 24 * 3600 * 1000;
 const RUN = fileURLToPath(new URL("../andx-orchestration/scripts/run.mjs", import.meta.url));
 
 const isDir = (p) => fs.statSync(p, { throwIfNoEntry: false })?.isDirectory() ?? false;
 
-function decide({ TERMINAL, readLedger }, input, now = Date.now()) {
+// Where an edit really lands: symlinks resolved (a dangling one through its link text), missing tail kept.
+function real(p, hops = 0) {
+  const rest = [];
+  for (;;) {
+    try {
+      return path.join(fs.realpathSync.native(p), ...rest);
+    } catch {}
+    if (hops > 40) return null;
+    if (fs.lstatSync(p, { throwIfNoEntry: false })?.isSymbolicLink()) return real(path.join(path.resolve(path.dirname(p), fs.readlinkSync(p)), ...rest), hops + 1);
+    const up = path.dirname(p);
+    if (up === p) return null;
+    rest.unshift(path.basename(p));
+    p = up;
+  }
+}
+
+const revParse = (dir, ...args) => {
+  const r = spawnSync("git", ["-C", dir, "rev-parse", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  return r.status === 0 ? r.stdout.trim().split("\n").map((l) => path.resolve(l)) : null;
+};
+
+function decide({ TERMINAL, STALE_MS, ledgers, readLedger }, input) {
   if (!EDITS.has(String(input.tool_name ?? ""))) return null;
   const t = input.tool_input ?? {};
   const raw = t.file_path ?? t.path ?? t.notebook_path ?? t.target_notebook;
   if (typeof raw !== "string" || !raw) return null;
-  let file = path.resolve(String(input.cwd ?? [input.workspace_roots ?? []].flat()[0] ?? "."), raw);
-
-  // Real path of the deepest existing folder, so /var and /private/var compare equal to git's paths.
+  const file = real(path.resolve(String(input.cwd ?? [input.workspace_roots ?? []].flat()[0] ?? "."), raw));
+  if (!file) return null;
   let dir = path.dirname(file);
-  const rest = [path.basename(file)];
-  while (!isDir(dir)) {
-    const up = path.dirname(dir);
-    if (up === dir) return null;
-    rest.unshift(path.basename(dir));
-    dir = up;
-  }
-  dir = fs.realpathSync.native(dir);
-  file = path.join(dir, ...rest);
+  while (!isDir(dir)) dir = path.dirname(dir);
 
-  const g = spawnSync("git", ["-C", dir, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-  if (g.status !== 0) return null;
-  const [top, gitDir, common] = g.stdout.trim().split("\n").map((l) => path.resolve(l));
-  if (gitDir !== common) return null;
+  const dirs = revParse(dir, "--path-format=absolute", "--git-dir", "--git-common-dir");
+  if (!dirs || dirs[0] !== dirs[1]) return null;
+  // --show-toplevel fails inside the git dir itself; its parent is the checkout then.
+  const top = revParse(dir, "--show-toplevel")?.[0] ?? path.dirname(dirs[1]);
   const rel = path.relative(top, file);
-  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  if (!rel || rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) return null;
   const posix = rel.split(path.sep).join("/");
   if (OPEN.some((o) => posix === o || posix.startsWith(`${o}/`))) return null;
 
-  const runDir = path.join(top, ".worktrees", ".andx-run");
-  if (!isDir(runDir)) return null;
-  for (const f of fs.readdirSync(runDir)) {
-    if (!f.endsWith(".json") || f.startsWith(".")) continue;
-    const p = path.join(runDir, f);
+  for (const p of ledgers(top)) {
     const data = readLedger(p);
     if (!data || TERMINAL.includes(String(data.terminal ?? ""))) continue;
-    if (now - fs.statSync(p).mtimeMs > STALE_MS) continue;
-    return { slug: String(data.slug ?? f.slice(0, -5)), ledger: p, top };
+    if (Date.now() - fs.statSync(p).mtimeMs > STALE_MS) continue;
+    return { slug: String(data.slug ?? path.basename(p, ".json")), ledger: p, top };
   }
   return null;
 }
 
 try {
-  const hit = decide(await import("../andx-orchestration/scripts/run.mjs"), JSON.parse(fs.readFileSync(0, "utf8")));
+  const hit = decide(await import(pathToFileURL(RUN).href), JSON.parse(fs.readFileSync(0, "utf8")));
   if (hit) {
     const why = `Run '${hit.slug}' is active (${hit.ledger}): the primary checkout is read-only outside .worktrees/, .cursor/plans/ and .cursor/reviews/.`;
     const fix = `Edit in the run's worktree with absolute WORKTREE_DIR paths, or end the run: node "${RUN}" end ${hit.slug} --terminal ABORTED --repo "${hit.top}"`;
