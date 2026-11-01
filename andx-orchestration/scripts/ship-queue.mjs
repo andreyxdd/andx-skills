@@ -10,6 +10,7 @@ import { readLedger } from "./run.mjs";
 const RUN = path.join(path.dirname(fileURLToPath(import.meta.url)), "run.mjs");
 const NS = "refs/andx/ship";
 const LOCK = `${NS}/lock`, HALT = `${NS}/halted`;
+const GIT_MIN = "2.38+ (for-each-ref %(raw) since 2.36, merge-tree --write-tree since 2.38)";
 
 const USAGE = `ship-queue: one run lands and deploys at a time; others wait in join order.
 
@@ -23,7 +24,9 @@ const USAGE = `ship-queue: one run lands and deploys at a time; others wait in j
   leave <id>                     drop this run's ticket
   heartbeat <id>                 holder only: refresh the lock; run before and after every long blocking wait
   land <id> --test CMD --worktree DIR
-                                 holder only, lock kept on every outcome: merge TARGET into DIR's branch (conflict:
+                                 holder only, lock kept on every outcome. Before touching anything it checks that DIR
+                                 is a linked worktree (the ledger's WORKTREE_DIR when there is one; else exit 2) and
+                                 that TARGET can land as below (else exit 9). Then: merge TARGET into DIR's branch (conflict:
                                  abort, CONFLICT f1,f2, exit 6); if that changed HEAD, run the shell command CMD in DIR
                                  (non-zero: exit 8); then land without switching branches: primary checkout on TARGET
                                  -> merge --ff-only; primary detached and TARGET checked out nowhere -> update-ref
@@ -46,6 +49,7 @@ rerunning join + wait keeps the run's place unless its ticket went stale.
 State: git refs ${NS}/{lock,halted,ticket/<id>,announce/<id>}, shared by every worktree, each pointing at
 a JSON blob; every write is a compare-and-swap through git update-ref. In ref names <id> is the hex of its
 UTF-8 bytes, which keeps any id a valid ref name and distinct on case-insensitive filesystems.
+Needs git ${GIT_MIN}.
 Exit: 0 ok, 1 git error, 2 usage or not joined, 3 halted, 5 not holder or stale generation, 6 conflict,
 7 release after land, 8 test failed, 9 cannot land without a branch switch.`;
 
@@ -65,13 +69,16 @@ export function refs(repo) {
   const git = (args, input) => spawnSync("git", args, { cwd: repo, encoding: "utf8", input });
   const snapshot = () => {
     const r = git(["for-each-ref", "--format=%(refname) %(objectname) %(raw)", `${NS}/`]);
-    if (r.status !== 0) fail(1, r.stderr);
+    if (r.status !== 0) fail(1, `${r.stderr}ship-queue needs git ${GIT_MIN}`);
     const s = { lock: null, halted: null, ticket: [], announce: [] };
     for (const line of r.stdout.split("\n").filter(Boolean)) {
       const [ref, oid] = line.split(" ", 2);
+      const raw = line.slice(ref.length + oid.length + 2);
+      // Every blob written here is non-empty JSON, so an empty field means this git does not expand %(raw).
+      if (!raw) fail(2, `git for-each-ref printed no %(raw) for ${ref}: ship-queue needs git ${GIT_MIN}`);
       let data = null;
       try {
-        data = JSON.parse(line.slice(ref.length + oid.length + 2));
+        data = JSON.parse(raw);
       } catch {}
       const kind = ref.slice(NS.length + 1).split("/")[0];
       if (Array.isArray(s[kind])) s[kind].push({ ref, oid, data });
@@ -222,10 +229,13 @@ function main(args) {
           if (l?.holder) console.log(`reclaimed stale lock ${l.holder}`);
           const h = get(HALT);
           // halt writes the halt ref before freeing the lock, so this catches a halt between our read and our swap.
-          if (h) cas(LOCK, { gen, holder: null, released_at: stamp() }, oid), halted(h);
-          drop(ticketRef(id));
-          console.log(`GRANTED ${id} gen ${gen}`);
-          process.exit(0);
+          // If freeing loses its swap, the next poll decides again.
+          if (!h) {
+            drop(ticketRef(id));
+            console.log(`GRANTED ${id} gen ${gen}`);
+            process.exit(0);
+          }
+          if (cas(LOCK, free({ gen }), oid)) halted(h);
         }
       }
       setTimeout(poll, pollMs);
@@ -243,11 +253,33 @@ function main(args) {
     const led = ledger();
     const target = o.target ?? led?.vars?.TARGET_BRANCH;
     if (!target) fail(2, `land needs --target: no run ledger has ship_id ${id}`);
-    const wt = path.resolve(o.worktree);
+    const real = (p) => {
+      try {
+        return fs.realpathSync.native(p);
+      } catch {
+        return path.resolve(p);
+      }
+    };
+    const wt = real(o.worktree);
+    const [gitDir, commonDir] = out(at(wt, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")).split("\n").map(real);
+    if (!gitDir || gitDir === commonDir || wt === real(root) || real(path.dirname(commonDir)) !== real(root)) {
+      fail(2, `--worktree ${wt} must be a linked worktree of ${root}, not the primary checkout`);
+    }
+    if (led?.vars?.WORKTREE_DIR && real(led.vars.WORKTREE_DIR) !== wt) fail(2, `--worktree ${wt} is not the ledger's WORKTREE_DIR ${led.vars.WORKTREE_DIR}`);
     const exec = out(at(wt, "branch", "--show-current"));
     if (!exec) fail(2, `--worktree ${wt} is not on a branch`);
     const old = rev(root, `refs/heads/${target}`);
     if (!old) fail(2, `no branch ${target}`);
+    // Checked before the integrate so a run that cannot land leaves its worktree untouched, and again before the write.
+    const landMode = () => {
+      const primary = out(at(root, "branch", "--show-current"));
+      if (primary === target) return "ff";
+      if (primary) fail(9, `primary checkout ${root} is on ${primary}, not ${target}: nothing landed, no branch switch`);
+      const elsewhere = out(at(root, "worktree", "list", "--porcelain")).split("\n\n").find((b) => b.split("\n").includes(`branch refs/heads/${target}`));
+      if (elsewhere) fail(9, `${target} checked out elsewhere: ${elsewhere.split("\n")[0].replace(/^worktree /, "")}`);
+      return "ref";
+    };
+    const mode = landMode();
     const before = rev(wt, "HEAD");
     const m = at(wt, "merge", "--no-edit", target);
     if (m.status !== 0) {
@@ -262,18 +294,17 @@ function main(args) {
       const t = spawnSync(o.test, { cwd: wt, shell: true, stdio: ["ignore", 2, 2] });
       if (t.status !== 0) fail(8, `TEST FAILED (exit ${t.status ?? t.signal}) after integrating ${target}: ${o.test}`);
     }
-    const primary = out(at(root, "branch", "--show-current"));
-    if (primary === target) {
-      const f = at(root, "merge", "--ff-only", exec);
-      if (f.status !== 0) fail(9, `merge --ff-only ${exec} refused in ${root}: nothing landed\n${f.stderr}`);
-    } else if (primary) {
-      fail(9, `primary checkout ${root} is on ${primary}, not ${target}: nothing landed, no branch switch`);
-    } else {
-      const elsewhere = out(at(root, "worktree", "list", "--porcelain")).split("\n\n").find((b) => b.split("\n").includes(`branch refs/heads/${target}`));
-      if (elsewhere) fail(9, `${target} checked out elsewhere: ${elsewhere.split("\n")[0].replace(/^worktree /, "")}`);
-      if (at(root, "merge-base", "--is-ancestor", old, head).status !== 0 || at(root, "update-ref", `refs/heads/${target}`, head, old).status !== 0) {
-        fail(9, `${target} moved during land: nothing landed; run land again`);
-      }
+    setLock((cur) => {
+      if (cur.gen !== l.gen) fail(5, `stale generation: ${id} started land at gen ${l.gen}, the lock is at gen ${cur.gen}`);
+      return { ...cur, heartbeat: stamp() };
+    });
+    if (landMode() !== mode) fail(9, `primary checkout ${root} changed during land: nothing landed`);
+    if (mode === "ff") {
+      // The tested sha lands, not whatever the branch points at now; the reflog still names the branch.
+      const f = spawnSync("git", ["merge", "--ff-only", head], { cwd: root, encoding: "utf8", env: { ...process.env, GIT_REFLOG_ACTION: `merge ${exec}` } });
+      if (f.status !== 0) fail(9, `merge --ff-only ${head} refused in ${root}: nothing landed\n${f.stderr}`);
+    } else if (at(root, "merge-base", "--is-ancestor", old, head).status !== 0 || at(root, "update-ref", `refs/heads/${target}`, head, old).status !== 0) {
+      fail(9, `${target} moved during land: nothing landed; run land again`);
     }
     const sha = rev(root, `refs/heads/${target}`);
     setLock((cur) => ({ ...cur, landed: sha, heartbeat: stamp() }));

@@ -287,6 +287,33 @@ test("land: a failing test after a changing integrate exits 8, lock kept, nothin
   assert.match(ok("status"), /^holder: feat gen 1 held 0m$/m);
 });
 
+test("land refuses a --worktree that is the primary checkout with exit 2 and changes nothing", () => {
+  branch("feat", "f.txt", "f\n");
+  const main = git(repo, "rev-parse", "main");
+  hold("feat");
+  for (const dir of [repo, join(repo, ".")]) {
+    const r = q("land", "feat", "--worktree", dir, "--target", "main", "--test", TEST_OK);
+    assert.equal(r.status, 2, r.stderr);
+    assert.match(r.stderr, /linked worktree/);
+  }
+  assert.equal(git(repo, "rev-parse", "HEAD"), main);
+  assert.equal(git(repo, "status", "--porcelain", "--untracked-files=no"), "");
+  assert.match(ok("status"), /^holder: feat gen 1 held 0m$/m);
+});
+
+test("land: a lock lost while the test runs exits 5 and nothing lands", () => {
+  const dir = branch("feat", "f.txt", "f\n");
+  fs.writeFileSync(join(repo, "m.txt"), "m\n");
+  git(repo, "add", "-A");
+  git(repo, "commit", "-q", "-m", "main moved");
+  const main = git(repo, "rev-parse", "main");
+  hold("feat");
+  const steal = `"${process.execPath}" "${SCRIPT}" release feat --repo "${repo}"`;
+  const r = q("land", "feat", "--worktree", dir, "--target", "main", "--test", steal);
+  assert.equal(r.status, 5, r.stdout + r.stderr);
+  assert.equal(git(repo, "rev-parse", "main"), main);
+});
+
 test("land fast-forwards the primary checkout on target, records the ledger, then release needs --after-deploy", () => {
   const vars = Object.fromEntries(spawnSync(process.execPath, [RUN, "start", "--slug", "s", "--mode", "execute", "--repo", repo], { encoding: "utf8" })
     .stdout.trim().split("\n").map((l) => l.split("=")));
@@ -297,6 +324,10 @@ test("land fast-forwards the primary checkout on target, records the ledger, the
   const id = vars.SHIP_ID;
   hold(id);
   assert.equal(q("release", id, "--after-deploy").status, 2);
+  const other = branch("other", "o.txt", "o\n");
+  const wrong = q("land", id, "--worktree", other, "--test", TEST_OK);
+  assert.equal(wrong.status, 2);
+  assert.match(wrong.stderr, /WORKTREE_DIR/);
   const marker = join(repo, ".worktrees", "tested");
   const out = ok("land", id, "--worktree", vars.WORKTREE_DIR, "--test", `node -e "require('fs').writeFileSync('${marker.replace(/\\/g, "/")}', '')"`);
   const sha = git(repo, "rev-parse", "main");
