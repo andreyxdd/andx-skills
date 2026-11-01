@@ -93,8 +93,8 @@ Unless artifact mode or `--fast`:
 Package the MR diff (refs from step 4, never the default branch) into a per-MR reports dir:
 
 ```bash
-RUN_DIR=.worktrees/.andx-run/review-mr-<iid>; mkdir -p "$RUN_DIR"
-git check-ignore -q .worktrees/ || echo .worktrees/ >> "$(git rev-parse --git-common-dir)/info/exclude"
+ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; RUN_DIR="$ROOT/.worktrees/.andx-run/review-mr-<iid>"
+mkdir -p "$RUN_DIR"; git -C "$ROOT" check-ignore -q .worktrees/ || echo .worktrees/ >> "$ROOT/.git/info/exclude"
 node ~/.cursor/skills/andx-execute-and-review/scripts/review.mjs package --base <base_sha> --head <head_sha> --out "$RUN_DIR/package.diff"
 ```
 
@@ -103,9 +103,8 @@ Prompt shape per review-bugbot / review-security skills, plus (Bugbot: in `Custo
 ```
 Package: <RUN_DIR>/package.diff. Review only that diff. MR context: <title, description>.
 Focus: UX/API for forms + API clients. Workspace gates: <titles from step 5 or none>.
-Report: write your full report to <RUN_DIR>/andx-review-mr-<iid>-<reviewer>.txt and reply with one line:
-  that path and your status. If you cannot write files, reply with the full report instead.
-Rules: every High/Critical quotes the offending diff line (`code` or a "> " line), else it counts as Medium.
+Report: write it to <RUN_DIR>/andx-review-mr-<iid>-<reviewer>.txt, reply "<path> <status>"; cannot write → reply with it.
+Rules: each High/Critical quotes its diff line (`code` or "> line"), else it counts as Medium.
 End the report with a ## VERDICT block, one "- [SEV] <file:line> — <one line>" per finding.
 ```
 
