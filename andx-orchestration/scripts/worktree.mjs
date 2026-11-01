@@ -156,21 +156,26 @@ function seedFrom(root, dir, bin, existingBranch) {
   };
   const entries = ignored.map((e) => e.replace(/\/$/, "")).filter(inside);
   let n = 0;
-  for (const e of entries) {
-    const dst = path.join(dir, e);
-    // A symlinked dir in the checkout would route the copy outside the worktree.
+  // A symlinked dir in the checkout, at the entry or anywhere below it, would route the copy outside the worktree.
+  const safeDest = (dst) => {
     let a = dst;
     while (!fs.lstatSync(a, { throwIfNoEntry: false })) a = path.dirname(a);
-    let safe = false;
     try {
-      safe = within(dir, a);
-    } catch {} // a dangling link: its target is unknown, so it is not safe
-    if (!safe) {
-      console.log(`SEED skip ${e}: destination resolves outside the worktree`);
+      return within(dir, a);
+    } catch {
+      return false; // a dangling link: its target is unknown
+    }
+  };
+  const skip = (dst) => console.log(`SEED skip ${path.relative(dir, dst)}: destination resolves outside the worktree`);
+  for (const e of entries) {
+    const dst = path.join(dir, e);
+    if (!safeDest(dst)) {
+      skip(dst);
       continue;
     }
     fs.cpSync(path.join(root, e), dst, {
       recursive: true, mode: fs.constants.COPYFILE_FICLONE, verbatimSymlinks: true, force: false, preserveTimestamps: true,
+      filter: (_, d) => safeDest(d) || (skip(d), false),
     });
     n++;
   }
@@ -209,6 +214,8 @@ function create(root, o) {
   const reason = `andx ${o.slug} ${branch}`;
   let hooks;
   if (bin) {
+    // wt switch reuses a worktree already at dir ("existing"); this call must only ever lock or roll back its own.
+    if (fs.lstatSync(dir, { throwIfNoEntry: false })) fail(2, `${dir} already exists: remove it first (worktree.mjs remove ${o.slug}) or pick another slug`);
     if (o.track) {
       const t = git(root, "branch", "-f", "--track", branch, o.track);
       if (t.status !== 0) fail(3, `${t.stderr}git branch --track ${branch} ${o.track} failed; stop and report.`);
@@ -216,19 +223,28 @@ function create(root, o) {
     // The JSON on stdout says whether the worktree exists, even when a hook made wt exit non-zero.
     const pick = o.branch ? [branch] : ["--create", branch, "--base", target];
     hooks = runWt(bin, ["-C", root, "switch", ...pick, "--path", dir, "--no-cd", "--format", "json"]);
-    if (!wtJson(hooks)?.path) {
+    const res = wtJson(hooks);
+    if (!res?.path) {
       if (/approv/i.test(hooks.stderr)) {
         fail(4, `${hooks.stderr}worktrunk project hooks (.config/wt.toml) are not approved; never pass --yes. Review them, then run: wt -C '${root}' config approvals add`);
       }
       fail(3, `${hooks.stderr}wt switch failed: no checkout fallback; stop and report.`);
     }
+    const real = (p) => {
+      try {
+        return key(fs.realpathSync(p));
+      } catch {
+        return null;
+      }
+    };
+    if (res.action !== "created" || !real(dir) || real(res.path) !== real(dir)) fail(3, `wt switch did not create ${dir} (${JSON.stringify(res)}); nothing removed. Stop and report.`);
     const lock = git(root, "worktree", "lock", "--reason", reason, dir);
     if (lock.status !== 0) {
-      // An unlocked run worktree is what sweep may delete mid-run, so it does not outlive this failure.
-      // It was created a moment ago by this call, so a foreign lock on it (git needs -f twice) protects nothing.
-      git(root, "worktree", "remove", "--force", "--force", dir);
-      if (!o.branch) git(root, "branch", "-D", branch);
-      fail(3, `${lock.stderr}git worktree lock failed; removed ${dir} again. Stop and report.`);
+      // An unlocked run worktree is what sweep may delete mid-run, so the one this call made does not outlive the
+      // failure. A single --force: git still refuses if someone else locked it meanwhile.
+      const rm = git(root, "worktree", "remove", "--force", dir);
+      if (rm.status === 0 && !o.branch) git(root, "branch", "-D", branch);
+      fail(3, `${lock.stderr}${rm.stderr}git worktree lock failed; ${rm.status === 0 ? `removed ${dir} again` : `left ${dir} in place`}. Stop and report.`);
     }
   } else {
     const pick = !o.branch ? ["-b", branch, dir, target] : o.track ? ["--track", "-B", branch, dir, o.track] : [dir, branch];

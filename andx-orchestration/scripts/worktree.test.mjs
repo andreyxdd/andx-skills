@@ -487,13 +487,50 @@ test("seeding never writes through a symlinked dir in the checkout", { skip: pro
   fs.rmSync(outside, { recursive: true, force: true });
 });
 
-test("wt backend: a failed lock removes the new worktree and branch again", () => {
+test("wt backend: a failed lock rolls back with a single --force, so a foreign lock still wins", () => {
   git("config", "andx.worktreeBackend", "wt");
   const r = fakeWt({ FAKE_WT_LOCK: "1" }).run("create", "--slug", "feat");
   assert.equal(r.status, 3, r.stdout + r.stderr);
-  assert.match(r.stderr, /git worktree lock failed; removed /);
-  assert.doesNotMatch(git("worktree", "list"), /exec-feat/);
-  assert.doesNotMatch(git("branch"), /exec-feat/);
+  assert.match(r.stderr, /git worktree lock failed; left .* in place/);
+  assert.match(git("worktree", "list"), /exec-feat/);
+});
+
+test("wt backend: create on an existing worktree folder refuses before calling wt", () => {
+  git("config", "andx.worktreeBackend", "wt");
+  git("branch", "mr-head");
+  const f = fakeWt();
+  const d = vars(f.run("create", "--slug", "mr-7", "--branch", "mr-head").stdout).WORKTREE_DIR;
+  fs.writeFileSync(join(d, "edit.txt"), "unsaved work");
+  const switches = () => f.calls().filter((c) => c[2] === "switch").length;
+  const before = switches();
+  const r = f.run("create", "--slug", "mr-7", "--branch", "mr-head");
+  assert.equal(r.status, 2, r.stdout + r.stderr);
+  assert.match(r.stderr, /already exists/);
+  assert.equal(switches(), before, "no wt call");
+  assert.equal(fs.readFileSync(join(d, "edit.txt"), "utf8"), "unsaved work");
+  assert.ok(porcelain().includes("locked andx mr-7 mr-head"));
+});
+
+test("seeding never follows a symlink below a dir the checkout already has", { skip: process.platform === "win32" && "git checks out symlinks as files there" }, () => {
+  const outside = fs.mkdtempSync(join(tmpdir(), "worktree-outside-"));
+  fs.writeFileSync(join(repo, ".gitignore"), "cache/\n");
+  run("git", ["add", ".gitignore"]);
+  commit(repo, "ignore cache");
+  git("switch", "-q", "-c", "linked");
+  fs.mkdirSync(join(repo, "cache"));
+  fs.writeFileSync(join(repo, "cache", "keep.txt"), "k");
+  fs.symlinkSync(outside, join(repo, "cache", "sub"));
+  run("git", ["add", "-f", "cache"]);
+  commit(repo, "cache/sub links outside");
+  git("switch", "-q", "main");
+  fs.mkdirSync(join(repo, "cache", "sub"), { recursive: true });
+  fs.writeFileSync(join(repo, "cache", "sub", "data.txt"), "x");
+  fs.writeFileSync(join(repo, ".worktreeinclude"), "cache/\n");
+  const r = wt("create", "--slug", "feat", "--target", "linked");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, new RegExp(`^SEED skip ${join("cache", "sub")}: destination resolves outside the worktree$`, "m"));
+  assert.deepEqual(fs.readdirSync(outside), []);
+  fs.rmSync(outside, { recursive: true, force: true });
 });
 
 test("create refuses a symlinked .worktrees", () => {
