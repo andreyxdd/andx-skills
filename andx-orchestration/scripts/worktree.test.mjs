@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path, { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { agentPath, findWt, wtCandidates } from "./worktree.mjs";
+import { runNames } from "./run.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(here, "worktree.mjs");
@@ -48,7 +49,7 @@ test("create without a ledger: adds the ignore line once, makes the worktree on 
   assert.equal(v.EXEC_BRANCH, "andx/exec-feat-20261101-062708");
   assert.equal(v.WORKTREE_DIR, join(repo, ".worktrees", "exec-feat-20261101-062708"));
   assert.equal(v.TARGET_BRANCH, "main");
-  // printf %s andx/exec-feat-20261101-062708 | shasum -a 256 -> fab7201d...; 10000 + 0xfab7201d % 10000
+  // shasum -a 256 of that branch name starts fab7201d; 10000 + 0xfab7201d % 10000
   assert.equal(v.PORT, "15309");
   assert.match(r.stdout, /^IGNORE added \.worktrees\/ to .*exclude$/m);
   assert.match(fs.readFileSync(join(repo, ".git", "info", "exclude"), "utf8"), /^\.worktrees\/$/m);
@@ -198,8 +199,8 @@ test("sweep --target selects the merge base branch", () => {
 const porcelain = () => git("worktree", "list", "--porcelain");
 
 test("create locks the worktree so git itself refuses to remove it; remove unlocks and removes", () => {
-  const v = vars(wt("create", "--slug", "feat", "--stamp", "20261101-062708").stdout);
-  assert.ok(porcelain().includes(`locked andx feat andx/exec-feat-20261101-062708`), porcelain());
+  const v = vars(wt("create", "--slug", "feat").stdout);
+  assert.ok(porcelain().includes(`locked andx feat ${v.EXEC_BRANCH}`), porcelain());
   assert.notEqual(spawnSync("git", ["worktree", "remove", v.WORKTREE_DIR], { cwd: repo }).status, 0);
   assert.equal(wt("remove", "feat").status, 0);
   assert.ok(!fs.existsSync(v.WORKTREE_DIR));
@@ -240,7 +241,7 @@ test("a squash-merged branch counts as integrated: sweep removes it, remove dele
   const v = vars(wt("create", "--slug", "feat").stdout);
   change(v.WORKTREE_DIR, "feature", "a.txt", "same change\n");
   change(repo, "squash of feature", "a.txt", "same change\n");
-  git("worktree", "add", "-q", "-b", "wt/exec-squash", ".worktrees/exec-squash", v.EXEC_BRANCH);
+  git("worktree", "add", "-q", "-b", "wt/exec-squash", join(".worktrees", "exec-squash"), v.EXEC_BRANCH);
   assert.match(sweep(repo), /^remove {2}clean {2}integrated wt\/exec-squash /m);
   const r = wt("remove", "feat");
   assert.equal(r.status, 0, r.stdout);
@@ -316,12 +317,11 @@ test("wt backend: create runs wt switch from the primary checkout, then locks; r
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const v = vars(r.stdout);
   assert.equal(v.BACKEND, "wt");
-  assert.equal(v.EXEC_BRANCH, "andx/exec-feat-20261101-062708");
-  assert.equal(v.WORKTREE_DIR, join(repo, ".worktrees", "exec-feat-20261101-062708"));
+  assert.deepEqual({ EXEC_BRANCH: v.EXEC_BRANCH, WORKTREE_DIR: v.WORKTREE_DIR }, runNames({ root: repo, slug: "feat", stamp: "20261101-062708" }));
   assert.equal(v.TARGET_BRANCH, "main");
   assert.equal(v.PORT, "12345", "wt's own hash_port");
   assert.ok(f.calls().some((c) => c.join(" ") === `-C ${v.WORKTREE_DIR} step eval {{ branch | hash_port }}`));
-  assert.ok(porcelain().includes("locked andx feat andx/exec-feat-20261101-062708"), porcelain());
+  assert.ok(porcelain().includes(`locked andx feat ${v.EXEC_BRANCH}`), porcelain());
   assert.ok(f.calls().some((c) => c.join(" ") === `-C ${repo} switch --create ${v.EXEC_BRANCH} --base main --path ${v.WORKTREE_DIR} --no-cd --format json`), JSON.stringify(f.calls()));
   assert.ok(!f.calls().some((c) => c[2] === "step" && c[3] === "copy-ignored"), "no .worktreeinclude, no copy");
 

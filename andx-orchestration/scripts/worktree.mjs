@@ -13,18 +13,18 @@ const USAGE = `worktree: run worktrees under <primary checkout>/.worktrees/
       Name exec-S[-wN[-ID]]-STAMP: branch andx/<name>, folder .worktrees/<name>, started from TARGET_BRANCH
       (default: the run ledger's, else the primary checkout's branch). Without --wave and --stamp the run
       ledger's STAMP is reused, so the names equal what run.mjs start printed.
-      Makes sure .worktrees/ is git-ignored (adds it to info/exclude and says so), seeds the worktree from
-      the primary checkout's .worktreeinclude (gitignore syntax, shared with Claude Code and worktrunk: only
-      untracked entries that are also git-ignored; copy-on-write, symlinks verbatim, existing files kept;
-      prints SEED <n> entries <ms>ms), runs the primary checkout's .cursor/worktrees.json setup in the new
-      worktree, then --baseline, and records seed, setup and baseline in the run ledger.
+      Makes sure .worktrees/ is git-ignored (adds it to info/exclude and says so), runs the primary checkout's
+      .cursor/worktrees.json setup in the new worktree, then --baseline, and records both in the run ledger.
+      Before setup it seeds the worktree from the primary checkout's .worktreeinclude (gitignore syntax,
+      shared with Claude Code and worktrunk: only untracked entries that are also git-ignored; copy-on-write,
+      symlinks verbatim, existing files kept); prints SEED <n> entries <ms>ms, ledger seed.
       Prints EXEC_BRANCH=, WORKTREE_DIR=, TARGET_BRANCH=, PORT= lines; PORT (10000-19999, stable per branch,
       in the ledger) is what dev servers in this worktree bind to. A failed worktree add stops the run:
       there is no checkout fallback. The worktree is locked (reason "andx S <branch>") until remove, so no
       sweep or other tool deletes it mid-run. A symlinked .worktrees is refused (exit 2).
   create --slug S --branch B [--name N] [--track REMOTE/B]
-      Worktree for an existing branch (an MR head) at .worktrees/N (default S), with the same lock, seed,
-      setup and ledger entry; --track first resets B to REMOTE/B and tracks it. B checked out in the
+      Worktree for an existing branch (an MR head) in folder N (default S) beside the run worktrees, with
+      the same lock, seed, setup and ledger entry; --track first resets B to REMOTE/B and tracks it. B checked out in the
       primary checkout: exit 2, stop and ask the user (never switch the primary checkout).
   remove <slug> [--wave N [--step ID]] [--target BRANCH]
       Unlocks the slug's own locks, removes its worktrees (run ones by name, --branch ones by lock; git

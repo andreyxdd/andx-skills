@@ -152,7 +152,7 @@ test("phase and end set the wt list marker on every run branch; DONE clears it",
     return r.status === 0 ? JSON.parse(r.stdout) : null;
   };
   const v = vars(ok("start", "--slug", "feat", "--mode", "execute"));
-  const wave = "andx/exec-feat-w1-step-2-20261101-062708";
+  const wave = runNames({ root: repo, slug: "feat", wave: "1", step: "step-2", stamp: v.STAMP }).EXEC_BRANCH;
   const file = join(repo, ".worktrees", ".andx-run", "feat.json");
   fs.writeFileSync(file, JSON.stringify({ ...ledger("feat"), worktrees: { w: { EXEC_BRANCH: wave } } }));
   ok("phase", "feat", "A");
