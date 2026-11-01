@@ -13,20 +13,38 @@ const RUN = fileURLToPath(new URL("../andx-orchestration/scripts/run.mjs", impor
 
 const isDir = (p) => fs.statSync(p, { throwIfNoEntry: false })?.isDirectory() ?? false;
 
-// Where an edit really lands: symlinks resolved (a dangling one through its link text), missing tail kept.
-function real(p, hops = 0) {
-  const rest = [];
-  for (;;) {
-    try {
-      return path.join(fs.realpathSync.native(p), ...rest);
-    } catch {}
-    if (hops > 40) return null;
-    if (fs.lstatSync(p, { throwIfNoEntry: false })?.isSymbolicLink()) return real(path.join(path.resolve(path.dirname(p), fs.readlinkSync(p)), ...rest), hops + 1);
-    const up = path.dirname(p);
-    if (up === p) return null;
-    rest.unshift(path.basename(p));
-    p = up;
+const split = (p) => p.slice(path.parse(p).root.length).split(/[\\/]+/).filter(Boolean);
+
+// Where an edit really lands. Walks segment by segment like the OS: a symlink (dangling too) is
+// replaced by its target read from the real folder, and ".." steps up from that real folder,
+// so neither a link nor a lexical ".." can carry a path into an open folder it does not reach.
+function land(base, raw) {
+  let [cur, segs] = path.isAbsolute(raw) ? [path.parse(raw).root, split(raw)] : [path.parse(base).root, [...split(base), ...split(raw)]];
+  for (let hops = 0; segs.length; ) {
+    const s = segs.shift();
+    if (s === ".") continue;
+    if (s === "..") {
+      cur = path.dirname(cur);
+      continue;
+    }
+    const next = path.join(cur, s);
+    if (!fs.lstatSync(next, { throwIfNoEntry: false })?.isSymbolicLink()) {
+      cur = next;
+      continue;
+    }
+    if (++hops > 40) return null;
+    const t = fs.readlinkSync(next);
+    if (path.isAbsolute(t)) cur = path.parse(t).root;
+    segs = [...split(t), ...segs];
   }
+  // Real path of the existing part fixes letter case so it compares equal to git's paths.
+  const rest = [];
+  while (!fs.existsSync(cur)) {
+    if (path.dirname(cur) === cur) return null;
+    rest.unshift(path.basename(cur));
+    cur = path.dirname(cur);
+  }
+  return path.join(fs.realpathSync.native(cur), ...rest);
 }
 
 const revParse = (dir, ...args) => {
@@ -36,10 +54,10 @@ const revParse = (dir, ...args) => {
 
 function decide({ TERMINAL, STALE_MS, ledgers, readLedger }, input) {
   if (!EDITS.has(String(input.tool_name ?? ""))) return null;
-  const t = input.tool_input ?? {};
-  const raw = t.file_path ?? t.path ?? t.notebook_path ?? t.target_notebook;
+  const t = typeof input.tool_input === "string" ? JSON.parse(input.tool_input) : input.tool_input ?? {};
+  const raw = t?.file_path ?? t?.path ?? t?.notebook_path ?? t?.target_notebook;
   if (typeof raw !== "string" || !raw) return null;
-  const file = real(path.resolve(String(input.cwd ?? [input.workspace_roots ?? []].flat()[0] ?? "."), raw));
+  const file = land(path.resolve(String(input.cwd ?? [input.workspace_roots ?? []].flat()[0] ?? ".")), raw);
   if (!file) return null;
   let dir = path.dirname(file);
   while (!isDir(dir)) dir = path.dirname(dir);

@@ -75,6 +75,23 @@ test("active run: a symlink in an open folder is judged by its target", { skip: 
   assert.deepEqual(guard(claude(join(repo, ".cursor", "plans", "real.md"))), ALLOW);
 });
 
+test("active run: links and dot-dot steps out of an open folder are followed like the OS does", { skip: process.platform === "win32" }, () => {
+  ledger();
+  mkdirSync(join(repo, "src"));
+  symlinkSync(join("..", "src"), join(repo, ".worktrees", "L"));
+  symlinkSync(join("..", "x", "new"), join(repo, "src", "dangle"));
+  assert.equal(guard(claude(join(repo, ".worktrees", "L", "dangle"), "Write")).code, 2);
+  assert.equal(guard(claude(`${repo}/.worktrees/L/../a.js`)).code, 2);
+  assert.deepEqual(guard(claude(`${repo}/.worktrees/exec-x/../exec-y/a.js`)), ALLOW);
+});
+
+test("active run: Cursor payload with tool_input as a JSON string denied", () => {
+  ledger();
+  const r = guard({ cwd: repo, tool_name: "Write", tool_input: JSON.stringify({ path: join(repo, "a.js") }) });
+  assert.equal(r.code, 2);
+  assert.equal(JSON.parse(r.out).permission, "deny");
+});
+
 test("active run: dot-dot names inside the repo and the git dir are denied", () => {
   ledger();
   assert.equal(guard(claude(join(repo, "..env"))).code, 2);

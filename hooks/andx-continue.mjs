@@ -34,7 +34,7 @@ function ledgerPaths(ledgers, dirs) {
   return [...found];
 }
 
-function decide({ TERMINAL, STALE_MS, ledgers, readLedger, writeLedger }, input, now = Date.now()) {
+function decide({ TERMINAL, STALE_MS, ledgers, readLedger, writeLedger }, input) {
   const transcript = String(input.transcript_path ?? "");
   if (!transcript || !fs.statSync(transcript, { throwIfNoEntry: false })?.isFile()) return null;
   const log = fs.readFileSync(transcript, "utf8");
@@ -45,7 +45,7 @@ function decide({ TERMINAL, STALE_MS, ledgers, readLedger, writeLedger }, input,
     const continues = Number.parseInt(data.continues ?? 0, 10) || 0;
     if (TERMINAL.includes(String(data.terminal ?? ""))) continue;
     if (continues >= MAX_CONTINUES) continue;
-    if (now - fs.statSync(p).mtimeMs > STALE_MS) continue;
+    if (Date.now() - fs.statSync(p).mtimeMs > STALE_MS) continue;
     const base = path.basename(p);
     if (!log.includes(`.andx-run/${base}`) && !log.includes(`.andx-run\\${base}`)) continue;
     data.continues = continues + 1;

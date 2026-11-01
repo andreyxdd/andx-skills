@@ -24,8 +24,9 @@ export const ledgerDir = (root) => path.join(root, ".worktrees", ".andx-run");
 
 // Ledger files of one primary checkout; dotfiles are half-written temp files.
 export function ledgers(root) {
+  const dir = ledgerDir(root);
   try {
-    return fs.readdirSync(ledgerDir(root)).filter((f) => f.endsWith(".json") && !f.startsWith(".")).map((f) => path.join(ledgerDir(root), f));
+    return fs.readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith(".")).map((f) => path.join(dir, f));
   } catch {
     return [];
   }
