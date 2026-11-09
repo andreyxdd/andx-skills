@@ -180,12 +180,19 @@ test("start --plan reads push_policy and execution_location; end enforces the pu
   assert.match(run(["end", "loc", "--terminal", "DONE", "--pushed", "PASS"]).stderr, /push_policy disabled/);
   ok("end", "loc", "--terminal", "DONE", "--merged", "PASS");
 
-  ok("start", "--slug", "req", "--mode", "execute", "--plan", plan("push_policy: required"));
-  for (const p of ["A", "F"]) ok("phase", "req", p);
+  ok("start", "--slug", "exe", "--mode", "execute", "--plan", plan("push_policy: required"));
+  for (const p of ["A", "F"]) ok("phase", "exe", p);
+  ok("end", "exe", "--terminal", "DONE");
+
+  ok("start", "--slug", "req", "--mode", "review-mr", "--plan", plan("push_policy: required"));
+  for (const p of ["A", "C", "D", "MR"]) ok("phase", "req", p);
   assert.match(run(["end", "req", "--terminal", "DONE"]).stderr, /push_policy required needs --pushed PASS/);
   ok("end", "req", "--terminal", "DONE", "--pushed", "PASS");
 
+  const v2 = vars(ok("start", "--slug", "cmt", "--mode", "execute", "--plan", plan("push_policy: disabled # no remote\nexecution_location: 'local'")));
+  assert.deepEqual([v2.PUSH_POLICY, v2.EXECUTION_LOCATION], ["disabled", "local"]);
   assert.equal(run(["start", "--slug", "bad", "--mode", "execute", "--plan", plan("push_policy: sometimes")]).status, 2);
+  assert.equal(run(["start", "--slug", "bad", "--mode", "execute", "--plan", plan("push_policy: disabled, please")]).status, 2);
   assert.equal(run(["start", "--slug", "bad", "--mode", "execute", "--plan", join(repo, "missing.plan.md")]).status, 2);
 });
 

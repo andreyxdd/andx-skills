@@ -23,14 +23,17 @@ const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
 // Plan frontmatter policy; the first value is the default when the key is absent.
 const POLICY = { push_policy: ["optional", "disabled", "required"], execution_location: ["any", "local"] };
 const DEPLOY_MODES = ["deploy", "review-deploy"];
+const PUSH_MODES = [...DEPLOY_MODES, "review-mr"];
 const CHECK_KINDS = ["auto", "manual"];
 const CHECK_STATUS = ["PASS", "FAIL", "PENDING"];
 const CHECK_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
 
+// A present key whose value is not one bare allowed word fails, so a typo never falls back to the default.
 export function planPolicy(text = "") {
-  const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? "";
+  const fm = text.replace(/^\uFEFF/, "").match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? "";
   return Object.fromEntries(Object.entries(POLICY).map(([k, allowed]) => {
-    const v = fm.match(new RegExp(`^${k}:[ \\t]*["']?([\\w-]+)["']?[ \\t]*$`, "m"))?.[1] ?? allowed[0];
+    const line = fm.match(new RegExp(`^${k}:(.*)$`, "m"));
+    const v = line ? line[1].replace(/\s+#.*$/, "").trim().replace(/^(["'])(.*)\1$/, "$2") : allowed[0];
     if (!allowed.includes(v)) throw new Error(`${k} must be one of ${allowed.join("|")}, got: ${v}`);
     return [k.toUpperCase(), v];
   }));
@@ -84,7 +87,8 @@ const USAGE = `run: one ledger per run at <primary checkout>/.worktrees/.andx-ru
                              T: ${TERMINAL.join("|")}; S: ${STATUS.join("|")} (default NOT_REQUESTED, --mr default -)
                              DONE needs every required phase of the mode; ${DEPLOY_MODES.join("/")} DONE also needs
                              --deployed PASS; --deployed PASS needs an auto check and every check PASS;
-                             --pushed PASS is refused under push_policy disabled, DONE needs it under required;
+                             --pushed PASS is refused under push_policy disabled; under required, DONE in a
+                             pushing mode (${PUSH_MODES.join("/")}) needs it;
                              prints the final status line; marker 💬 AWAITING_USER, ❌ ABORTED/ESCALATED, cleared on DONE
   show <slug>                print the ledger
   dirs [--ensure]            print PLANS_DIR and REVIEWS_DIR (absolute, in --repo's own checkout): the first existing of
@@ -243,7 +247,7 @@ function main(args) {
       const missing = req.filter((p) => !(data.phases ?? []).includes(p));
       if (missing.length) fail(5, `DONE refused for ${slug}: missing required phases: ${missing.join(", ")}`);
       if (DEPLOY_MODES.includes(data.mode) && s.deployed !== "PASS") fail(5, `DONE refused for ${slug}: mode ${data.mode} needs --deployed PASS`);
-      if (push === "required" && s.pushed !== "PASS") fail(5, `DONE refused for ${slug}: push_policy required needs --pushed PASS`);
+      if (push === "required" && PUSH_MODES.includes(data.mode) && s.pushed !== "PASS") fail(5, `DONE refused for ${slug}: push_policy required needs --pushed PASS`);
     }
     data.terminal = o.terminal;
     data.status = s;
