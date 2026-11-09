@@ -182,6 +182,26 @@ test("a nearby lower-severity confirmation keeps the prior blocker's severity", 
   assert.deepEqual([v.status, v.blockers.map((f) => [f.id, f.severity])], ["BLOCK", [["x-panic", "high"]]]);
 });
 
+test("a refuter decision on the prior blocker's id applies to the finding that confirms it", () => {
+  const r = repo();
+  const prior = join(tmp(), "prior.json");
+  fs.writeFileSync(prior, JSON.stringify({
+    status: "BLOCK", round: 1, base_sha: r.base, head_sha: r.head,
+    blockers: [{ id: "x-panic", status: "confirmed", severity: "high", location: "src/x.go:10", finding: "index out of range panic", reviewers: ["bugbot"] }],
+  }));
+  const fix = commit(r.dir, { "src/x.go": lines(30, (i) => (i === 10 ? "v := items[1]" : `line ${i}`)) }, "fix");
+  const report = { "bugbot": "## VERDICT\nstatus: PASS\nadvisory:\n  - [LOW] src/x.go:11 — index panic cleared, edge case left\n" };
+  const decide = (d) => {
+    const refuters = join(tmp(), "ref.json");
+    fs.writeFileSync(refuters, JSON.stringify([{ id: "x-panic", reason: "edge only", ...d }]));
+    return union({ ...r, base: r.head, head: fix }, report, ["--round", "2", "--prior", prior, "--refuters", refuters]);
+  };
+  const low = decide({ decision: "confirmed", severity: "low" });
+  assert.deepEqual([low.status, low.blockers, low.deferred.map((f) => [f.id, f.severity])], ["PASS", [], [["x-panic", "low"]]]);
+  const gone = decide({ decision: "rejected" });
+  assert.deepEqual([gone.status, gone.blockers, gone.rejected.map((f) => f.id)], ["PASS", [], ["x-panic"]]);
+});
+
 test("a/ diff prefix stripped once; a reviewer's b/ prefix is tolerated", () => {
   const v = union(repo(), { "bugbot": verdict("BLOCK", "[HIGH] a/deep.go:5 — deep bug", "[HIGH] b/src/x.go:10 — prefixed by reviewer") });
   assert.deepEqual(v.blockers.map((f) => f.location), ["a/deep.go:5", "b/src/x.go:10"]);

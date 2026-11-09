@@ -31,7 +31,8 @@ union, in order:
                fingerprints; reviewers[] merged
   per finding  ids rejected in V.json drop as prior-rejected; refuter decisions in R.json
                [{id|fingerprint, decision, reason, severity?, blockers?, validation_plan?}] apply to the
-               finding with that id: rejected -> rejected, needs_validation or a bad decision -> advisory,
+               finding with that id (or, for a finding that confirms a prior blocker, that blocker's id):
+               rejected -> rejected, needs_validation or a bad decision -> advisory,
                confirmed keeps (severity overrides); the rest of its group stays
   prior        a finding on a prior blocker's root, or a High/Critical from one of its reviewers in its
                file, confirms it and keeps the higher severity (refuter-decided ones excepted); an
@@ -205,8 +206,17 @@ export function union({ reports, files, names, expect = [], refuters = [], round
       ?? (SEV[f.severity] >= 3 ? priorBlockers.find((b) => !confirmed.has(b.id) && b.file === f.file && b.reviewers?.some((r) => f.reviewers.includes(r))) : null);
     if (p) {
       Object.assign(f, { id: p.id, confirms: true });
-      if (f.status === "confirmed" && !f.refuted && SEV[p.severity] > SEV[f.severity]) f.severity = p.severity;
       confirmed.add(p.id);
+      // verdict.json shows the inherited id, so a refuter decision may name it rather than a member id
+      const pd = !f.refuted && decisions.get(p.id);
+      if (pd?.decision === "rejected") {
+        delete f.severity;
+        g.forEach((m) => (m.settled = true));
+        out.rejected.push({ ...pub(f), status: "rejected", reason: pd.reason });
+        continue;
+      }
+      if (pd) decide(f, pd);
+      if (f.status === "confirmed" && !f.refuted && SEV[p.severity] > SEV[f.severity]) f.severity = p.severity;
     }
     const lines = files.get(f.file);
     const reason = f.confirms ? null

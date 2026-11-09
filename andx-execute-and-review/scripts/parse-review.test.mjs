@@ -51,11 +51,16 @@ test("JSON reports are schema-checked and fail closed", () => {
     "{not json",
     JSON.stringify({ status: "pass", findings: [] }),
     JSON.stringify({ status: "PASS" }),
-    JSON.stringify({ status: "PASS", findings: [], extra: 1 }),
-    JSON.stringify({ status: "PASS", findings: [{ ...f, severity: "info" }] }),
+    JSON.stringify({ status: "PASS", findings: [{ ...f, severity: "bogus" }] }),
     JSON.stringify({ status: "PASS", findings: [{ ...f, location: "" }] }),
     JSON.stringify({ status: "PASS", findings: [{ ...f, reviewer: "spoof" }] }),
   ]) assert.equal(parse("spec", null, bad).status, "UNPARSED", bad);
+});
+
+test("top-level metadata is ignored and info reads as nitpick", () => {
+  const f = { severity: "info", location: "a.js:1", finding: "cleared prior blocker" };
+  const r = parse("a11y", null, JSON.stringify({ status: "PASS", findings: [f], passed: ["lang"], notes: "x" }));
+  assert.deepEqual([r.status, r.findings.map((x) => x.severity)], ["PASS", ["nitpick"]]);
 });
 
 test("security needs_validation is kept but not blocking (stdin)", () => {

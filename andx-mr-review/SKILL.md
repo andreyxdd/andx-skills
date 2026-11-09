@@ -104,12 +104,12 @@ Prompt shape per review-bugbot / review-security skills, plus (Bugbot: in `Custo
 ```
 Package: <RUN_DIR>/package.diff. Review only that diff. MR context: <title, description>.
 Focus: UX/API for forms + API clients. Workspace gates: <titles from step 5 or none>.
-Report: write it to <RUN_DIR>/andx-review-mr-<iid>-<reviewer>.txt, reply "<path> <status>"; cannot write → reply with it.
+Final message = only the report.
 Rules: each High/Critical quotes its diff line (`code` or "> line"), else it counts as Medium.
 End the report with a ## VERDICT block, one "- [SEV] <file:line> — <one line>" per finding.
 ```
 
-Spawn all reviewers at once, blocking (HARNESS). `<reviewer>`: `bugbot` (the bug-review slot), `security`, `ponytail`, `react`, `a11y`. Save inline replies to that path verbatim. Save the refuters' JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none). Cursor `security-review` (`--deep`) is not a union reviewer; fold its findings by hand in step 7.
+Spawn all reviewers at once, blocking (HARNESS). `<reviewer>`: `bugbot` (the bug-review slot), `security`, `ponytail`, `react`, `a11y`. Save each reply verbatim to `<RUN_DIR>/andx-review-mr-<iid>-<reviewer>.txt`. Save the refuters' JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none). Cursor `security-review` (`--deep`) is not a union reviewer; fold its findings by hand in step 7.
 
 ### 7. Synthesize
 

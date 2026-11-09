@@ -47,13 +47,13 @@ Fresh agents only; read-only; blocking, all at once (HARNESS). Each gets this pr
 ```
 Package: <RUN_DIR>/package.diff (commits, stat, diff). Review only that diff.
 Plan: <plan path>. Evidence: <worker verification table>. Workspace gates: <titles or none>.
-Report: only JSON {"status":"PASS|BLOCK","findings":[{"severity":"high","location":"f:1","finding":"…","evidence":"> line"}]}
-to <RUN_DIR>/andx-review-<SLUG>-<reviewer>.json (Bugbot, Security: native format, .txt), reply "<path> <status>"; cannot write → reply with it.
-Rules: severity critical|high|medium|low; each High/Critical quotes its diff line in evidence, else Medium.
+Final message = only the report: JSON {"status":"PASS|BLOCK","findings":[{"severity":"high","location":"f:1","finding":"…","evidence":"> line"}]}
+(Bugbot, Security: native format).
+Rules: severity critical|high|medium|low; each High/Critical quotes its diff line in evidence, else Medium; BLOCK needs a High.
 Round 2+: confirm or clear prior blockers <list>; a new finding must sit on a line this round added.
 ```
 
-`<reviewer>`: `bugbot security ponytail spec audit react a11y ux-api`. Parent saves inline reports to that path verbatim.
+Parent saves each reply verbatim to `<RUN_DIR>/andx-review-<SLUG>-<reviewer>.json` (Bugbot, Security: `.txt`); `<reviewer>`: `bugbot security ponytail spec audit react a11y ux-api`.
 
 **Security refutation:** one `andx-refuter` per security candidate with `status: proposed` (critical/high), foreground, one message. Save their JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none).
 **Harness jargon (parent):** `node ~/.agents/skills/andx-execute/scripts/jargon-gate.mjs diff "$MERGE_BASE_SHA" "$EXEC_HEAD" --repo "$WORKTREE_DIR"`; each hit is a MEDIUM (skill repos add `--allow-skill-text`).
