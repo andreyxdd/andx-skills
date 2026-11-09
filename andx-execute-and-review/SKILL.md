@@ -27,7 +27,7 @@ F   PASS → review.mjs artifact → orch Step 4 (ship-queue land) + cleanup
 
 ## Phase A–B — Execute
 
-[/andx-execute](../andx-execute/SKILL.md) Preflight + Phase A, but `node "$S/run.mjs" start --slug "$SLUG" --mode review` (`--mr`: `review-mr`; `--deploy`: `review-deploy`). **Do not merge.** Worker fail → stop (no review).
+[/andx-execute](../andx-execute/SKILL.md) Preflight + Phase A, but `node "$S/run.mjs" start --slug "$SLUG" --mode review --plan "$PLAN"` (`--mr`: `review-mr`; `--deploy`: `review-deploy`). **Do not merge.** Worker fail → stop (no review).
 
 ## Phase C — Review (parallel, blind)
 
@@ -47,10 +47,10 @@ Fresh agents only; read-only; blocking, all at once (HARNESS). Each gets this pr
 ```
 Package: <RUN_DIR>/package.diff (commits, stat, diff). Review only that diff.
 Plan: <plan path>. Evidence: <worker verification table>. Workspace gates: <titles or none>.
-Report: write it to <RUN_DIR>/andx-review-<SLUG>-<reviewer>.txt, reply "<path> <status>"; cannot write → reply with it.
-Rules: each High/Critical quotes its diff line (`code` or "> line"), else it counts as Medium.
+Report: only JSON {"status":"PASS|BLOCK","findings":[{"severity":"high","location":"f:1","finding":"…","evidence":"> line"}]}
+to <RUN_DIR>/andx-review-<SLUG>-<reviewer>.json (Bugbot, Security: native format, .txt), reply "<path> <status>"; cannot write → reply with it.
+Rules: severity critical|high|medium|low; each High/Critical quotes its diff line in evidence, else Medium.
 Round 2+: confirm or clear prior blockers <list>; a new finding must sit on a line this round added.
-End with ## VERDICT: status BLOCK|PASS; blockers, advisory as "- [SEV] <file:line> — <one line>".
 ```
 
 `<reviewer>`: `bugbot security ponytail spec audit react a11y ux-api`. Parent saves inline reports to that path verbatim.
@@ -72,7 +72,7 @@ Route from `verdict.json` only, never raw reports. Final `PASS` (after any fix l
 
 **MEDIUM:** fix in the same round when it is in plan scope and reproducible from the diff. Defer only speculative, style-only, or out-of-scope items, each with a one-line reason. The final reply lists every deferred item and asks "fix now?", plus each `rejected` critical/high with the refuter's reason.
 
-Resume the worker (HARNESS) with `blockers` + in-scope `advisory` + jargon hits; Phase 3 on EXEC_BRANCH; next round re-reviews only the fix delta with bug review plus the reviewers whose blockers or MEDIUMs this round fixed. Add Spec only when the delta touches paths outside the plan `touch`. A reviewer whose findings were all PASS/advisory is not re-spawned.
+Resume the worker (HARNESS) with `blockers` + in-scope `advisory` + jargon hits; Phase 3 on EXEC_BRANCH; next round re-reviews only the fix delta with bug review plus the reviewers whose blockers or MEDIUMs this round fixed. Add Spec only when the delta touches paths outside the plan `touch`.
 
 **Round cap:** after round 3 still BLOCK → ask the user (HARNESS) with exactly: "one more round" / "merge, deferring only MEDIUM/LOW" / "abort". Critical/High are never deferred. `run.mjs end --terminal AWAITING_USER` while waiting.
 
@@ -102,7 +102,7 @@ Replaces Phase F's merge with a draft MR. Never merges to the default branch.
 
 ## Definition of done
 
-Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; no open High; merged + post-merge green + cleanup + queue release (`--deploy`: by andx-deploy after health); `run.mjs end --terminal DONE`; reply ends with its status line.
+Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; no open High; merged + post-merge green + cleanup + queue release (`--deploy`: by andx-deploy); `run.mjs end --terminal DONE` (`--deploy`: `--deployed PASS`); reply ends with its status line.
 
 ## Anti-patterns
 

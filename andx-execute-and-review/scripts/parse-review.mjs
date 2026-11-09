@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Normalize one reviewer's raw output into {status, findings[]}.
 // Usage: node parse-review.mjs <reviewer-name> [file]   (stdin when no file)
+// Preferred input: a JSON report {"status":"PASS|BLOCK","findings":[{"severity","location","finding","evidence"?}]};
+// any other shape, extra key or unknown severity in JSON is UNPARSED. Text reports below stay supported.
 // status: BLOCK (VERDICT says BLOCK, or any critical/high incl. table rows) | FIX (medium only) | PASS | UNPARSED
 // UNPARSED also: more than one real VERDICT; a Critical/High line with no VERDICT; bugbot XML with more
 // than one <answer>, an unclosed one, a <bug> that did not parse, or an unknown severity.
@@ -20,7 +22,30 @@ const tag = (xml, name) => (xml.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}
 const withEvidence = (f, ev) => (ev ? { ...f, evidence: ev } : f);
 const count = (text, s) => text.split(s).length - 1;
 
+const JSON_SEV = ["critical", "high", "medium", "low", "nitpick", "needs_validation"];
+const str = (v) => typeof v === "string" && v.trim() !== "";
+const only = (o, keys) => Object.keys(o).every((k) => keys.includes(k));
+
+export function parseJson(text, reviewer) {
+  let r;
+  try {
+    r = JSON.parse(text);
+  } catch {
+    return UNPARSED;
+  }
+  if (!r || typeof r !== "object" || Array.isArray(r) || !only(r, ["status", "findings"])) return UNPARSED;
+  if (!["PASS", "BLOCK"].includes(r.status) || !Array.isArray(r.findings)) return UNPARSED;
+  const ok = (f) => f && typeof f === "object" && !Array.isArray(f) && only(f, ["severity", "location", "finding", "evidence"])
+    && JSON_SEV.includes(f.severity) && str(f.location) && str(f.finding) && (f.evidence === undefined || str(f.evidence));
+  if (!r.findings.every(ok)) return UNPARSED;
+  const findings = r.findings.map((f) => ({ reviewer, ...f }));
+  return { status: r.status === "BLOCK" ? "BLOCK" : statusFor(findings), findings };
+}
+
 export function parse(text, reviewer) {
+  // One ```json fence around the whole reply is tolerated; any other prose around JSON is not.
+  const bare = text.trim().replace(/^```(?:json)?\r?\n([\s\S]*?)\r?\n```$/, "$1");
+  if (bare.startsWith("{")) return parseJson(bare, reviewer);
   // 1) Bugbot native XML: <answer></answer> = no bugs.
   if (reviewer === "bugbot" && (text.includes("<answer>") || text.includes("</answer>"))) {
     if (count(text, "<answer>") !== 1 || count(text, "</answer>") !== 1) return UNPARSED;
@@ -38,7 +63,7 @@ export function parse(text, reviewer) {
   const unquoted = text.replace(/^[ \t]*>.*$/gm, "").replace(/`(PASS|BLOCK)`/gi, "$1");
   const plain = unquoted.replace(/`[^`\n]*`/g, "");
   const real = plain.replace(/(?:PASS|BLOCK)\s*\|\s*(?:PASS|BLOCK)/gi, "");
-  const verdicts = [...real.matchAll(/VERDICT\W*(?:status:\s*)?[*_\s]*(PASS|BLOCK)(?![A-Za-z0-9])/gi)].map((m) => m[1]);
+  const verdicts = [...real.matchAll(/VERDICT\W*(?:status\s*:?\s*)?[*_\s]*(PASS|BLOCK)(?![A-Za-z0-9])/gi)].map((m) => m[1]);
   if (verdicts.length > 1) return UNPARSED;
   const findings = [...text.matchAll(/^\s*-\s*\[(CRITICAL|HIGH|MEDIUM|LOW|NEEDS_VALIDATION)\]\s*(\S+)\s*[—-]\s*(.+)((?:\n[ \t]*>.*)*)/gim)].map(
     ([, sev, loc, msg, ev]) => withEvidence({ reviewer, severity: sev.toLowerCase(), location: loc, finding: msg.trim() }, ev.trim()));

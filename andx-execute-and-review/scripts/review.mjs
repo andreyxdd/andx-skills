@@ -11,7 +11,8 @@ const USAGE = `review: package a diff for reviewers, union their reports, write 
 
   package --base B --head H --out F         commit list, --stat and a -U10 diff of B..H into F;
                                             exit 3 when B..H is empty or H does not descend from B
-  union --base B --head H --reports DIR     verdict JSON on stdout from DIR/andx-review-<S>-<reviewer>.txt
+  union --base B --head H --reports DIR     verdict JSON on stdout from DIR/andx-review-<S>-<reviewer>.json|.txt
+                                            (.json wins when a reviewer has both)
         --slug S --expect r1,r2 [--refuters R.json] [--round N --prior V.json]
   artifact --verdict V.json --plan P --out F [--target main] [--source andx-execute-and-review]
                                             v2 REVIEW-ARTIFACT, validated; INVALID prints reasons, exit 1, no file
@@ -64,7 +65,7 @@ const sha = (repo, ref) => {
 const diff = (repo, base, head, ...a) =>
   git(repo, ["diff", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", ...a, `${base}..${head}`]).stdout;
 export const reviewerOf = (name) => {
-  const n = name.toLowerCase().replace(/\.txt$/, "").replace(/-review(er)?$/, "").replace(/^andx-/, "");
+  const n = name.toLowerCase().replace(/\.(txt|json)$/, "").replace(/-review(er)?$/, "").replace(/^andx-/, "");
   return REVIEWERS.includes(n) ? n : undefined;
 };
 
@@ -288,11 +289,14 @@ if (import.meta.main) {
     if (!Number.isInteger(round) || round < 1 || (round >= 2 && !o.prior)) fail(2, "union: --round N >= 2 needs --prior");
     const [base, head] = [sha(repo, o.base), sha(repo, o.head)];
     const prefix = `andx-review-${o.slug}-`;
-    const reports = fs.readdirSync(o.reports).filter((n) => n.endsWith(".txt") && n.startsWith(prefix)).sort().flatMap((n) => {
+    // A reviewer's .json report wins over its .txt one, so a re-requested JSON verdict replaces the prose.
+    const byReviewer = new Map();
+    for (const n of fs.readdirSync(o.reports).filter((n) => /\.(txt|json)$/.test(n) && n.startsWith(prefix)).sort()) {
       const reviewer = reviewerOf(n.slice(prefix.length));
-      if (!reviewer) return console.error(`skipped ${n}: unknown reviewer`), [];
-      return [{ reviewer, text: fs.readFileSync(path.join(o.reports, n), "utf8") }];
-    });
+      if (!reviewer) console.error(`skipped ${n}: unknown reviewer`);
+      else if (!byReviewer.has(reviewer) || n.endsWith(".json")) byReviewer.set(reviewer, { reviewer, text: fs.readFileSync(path.join(o.reports, n), "utf8") });
+    }
+    const reports = [...byReviewer.values()];
     const prior = o.prior ? readJson(o.prior) : undefined;
     const refuters = o.refuters ? readJson(o.refuters) : [];
     if (!Array.isArray(refuters) || !refuters.every((r) => r && typeof r === "object")) fail(2, "union: --refuters must be a JSON array of objects");

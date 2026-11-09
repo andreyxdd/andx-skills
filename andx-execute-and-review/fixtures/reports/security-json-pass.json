@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "findings": [
+    {
+      "severity": "medium",
+      "location": "bot/options.py:168",
+      "finding": "compressed response expansion occurs before the byte-limit check (remote-options-unbounded-response-body)"
+    },
+    {
+      "severity": "needs_validation",
+      "location": "bot/options.py:79",
+      "finding": "provider trust boundary needs a live check"
+    }
+  ]
+}

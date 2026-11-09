@@ -59,6 +59,8 @@ verification: pnpm --filter web test src/pages/foo.test.tsx
     Reply go → run default on this plan.
 ```
 
+**Multi-repo umbrella:** frontmatter adds `multi_repo`, `child_plans` ([PARSE.md](./PARSE.md)); body is a completion contract plus `## Next`, no steps.
+
 Outside the plan file: mark exactly one `(default)` per andx-plan session-end rules; chat reply must end with the same Next block. The `Fresh chat` line names the `(default)` skill and the absolute plan path (Claude Code: run it after `/clear`); `go` is the same-thread fallback that keeps the grill context.
 
 ## Docs workstream (delta from the template above)

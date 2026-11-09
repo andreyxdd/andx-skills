@@ -1,0 +1,9 @@
+## VERDICT: status BLOCK
+
+- [High] `api/internal/support/v1/activities.js:94` — `if (req.headers?.['if-none-match'] === etag) return res.status(304).end();` runs before cursor is considered, so page-2+ requests that reuse `If-None-Match` get an empty 304 instead of the next slice; breaks pagination when a user has more than `limit` activities (design has both `cursor` and 304).
+
+**Lower (not gating):** `generated_at` calls `now()` again after `getActivities` used another `now()` — timestamps can skew by a tick; unlikely to matter for Regina.
+
+**Looks sound:** dual `user_id` lookup matches `join-access.js`; `fetchAllRows` + chunked course loads; constant-time Bearer check; nginx 404 on public prefix; `support_visible` in allowlist + optional-field retry; tests cover main paths.
+
+**Deploy reminder:** apply `docs/support-activity-catalog.sql` before restart — otherwise catalog queries 503 and admin may save without `support_visible` until migration lands.

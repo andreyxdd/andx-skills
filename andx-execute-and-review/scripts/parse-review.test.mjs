@@ -28,6 +28,36 @@ test("every fixture classifies", () => {
   for (const [file, want] of Object.entries(expected)) assert.equal(parse("bugbot", join(DIR, file)).status, want, file);
 });
 
+test("real reports that used the prompt's own `## VERDICT: status X` line parse", () => {
+  const REPORTS = join(here, "..", "fixtures", "reports");
+  const block = parse("bugbot", join(REPORTS, "bugbot-status-no-colon-block.txt"));
+  assert.deepEqual([block.status, block.findings.map((f) => f.severity)], ["BLOCK", ["high"]]);
+  const pass = parse("spec", join(REPORTS, "spec-prose-status-no-colon-pass.txt"));
+  assert.deepEqual([pass.status, pass.findings.map((f) => f.severity)], ["FIX", ["medium", "medium", "medium", "low", "low"]]);
+  const json = parse("security", join(REPORTS, "security-json-pass.json"));
+  assert.deepEqual([json.status, json.findings[0]], ["FIX", {
+    reviewer: "security", severity: "medium", location: "bot/options.py:168",
+    finding: "compressed response expansion occurs before the byte-limit check (remote-options-unbounded-response-body)",
+  }]);
+});
+
+test("JSON reports are schema-checked and fail closed", () => {
+  const f = { severity: "high", location: "a.js:1", finding: "bug" };
+  assert.equal(parse("spec", null, JSON.stringify({ status: "PASS", findings: [f] })).status, "BLOCK");
+  assert.equal(parse("spec", null, JSON.stringify({ status: "BLOCK", findings: [] })).status, "BLOCK");
+  assert.equal(parse("spec", null, JSON.stringify({ status: "PASS", findings: [] })).status, "PASS");
+  assert.equal(parse("spec", null, `\`\`\`json\n${JSON.stringify({ status: "PASS", findings: [f] })}\n\`\`\`\n`).status, "BLOCK");
+  for (const bad of [
+    "{not json",
+    JSON.stringify({ status: "pass", findings: [] }),
+    JSON.stringify({ status: "PASS" }),
+    JSON.stringify({ status: "PASS", findings: [], extra: 1 }),
+    JSON.stringify({ status: "PASS", findings: [{ ...f, severity: "info" }] }),
+    JSON.stringify({ status: "PASS", findings: [{ ...f, location: "" }] }),
+    JSON.stringify({ status: "PASS", findings: [{ ...f, reviewer: "spoof" }] }),
+  ]) assert.equal(parse("spec", null, bad).status, "UNPARSED", bad);
+});
+
 test("security needs_validation is kept but not blocking (stdin)", () => {
   const text = "## VERDICT\nstatus: PASS\nsecrets_scan: NOT_RUN\nadvisory:\n  - [NEEDS_VALIDATION] b.js:2 — proxy trust (xff-trust)\n";
   const r = parse("security", null, text);

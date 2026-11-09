@@ -1,6 +1,6 @@
 ---
 name: andx-spec-reviewer
-description: "andx always-on reviewer: read-only check that a diff implements the plan steps' success/verification, nothing missing, nothing extra. Returns VERDICT."
+description: "andx always-on reviewer: read-only check that a diff implements the plan steps' success/verification, nothing missing, nothing extra. Returns a JSON verdict."
 model: inherit
 readonly: true
 is_background: false
@@ -20,13 +20,4 @@ Report, quoting the plan line for each item:
 2. Behavior in the diff that no step asked for (scope creep), including files outside `touch`.
 3. Requirements implemented wrongly, or whose verification would pass without the behavior (tautological or mis-targeted test).
 
-Severity: missing/wrong core `success` → HIGH; scope creep that changes behavior → HIGH; partial, cosmetic creep, or weak verification → MEDIUM. No edits, no subagents. Reply with the full report; the parent saves it verbatim to the report path. Under 400 words. End with:
-
-```
-## VERDICT
-status: BLOCK | PASS
-blockers:
-  - [HIGH] <file:line> — <one line> (plan: step-N)
-advisory:
-  - [MEDIUM|LOW] <file:line> — <one line>
-```
+Severity: missing/wrong core `success` → HIGH; scope creep that changes behavior → HIGH; partial, cosmetic creep, or weak verification → MEDIUM. No edits, no subagents. Reply with only the JSON the parent's prompt shows; each finding ends `(plan: step-N)`.

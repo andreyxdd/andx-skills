@@ -85,6 +85,8 @@ test("start derives run variables and writes the ledger", () => {
     EXEC_BRANCH: `andx/exec-feat-${v.STAMP}`,
     WORKTREE_DIR: join(repo, ".worktrees", `exec-feat-${v.STAMP}`),
     SHIP_ID: `andx/exec-feat-${v.STAMP}`,
+    PUSH_POLICY: "optional",
+    EXECUTION_LOCATION: "any",
   });
   const l = ledger("feat");
   assert.deepEqual(
@@ -139,8 +141,52 @@ test("review-deploy DONE needs the review pass R and the landing F, not just dep
   assert.equal(r.status, 5);
   assert.match(r.stderr, /missing required phases: F$/m);
   ok("phase", "feat", "F");
-  ok(...end);
+  assert.match(run(end).stderr, /needs --deployed PASS/);
+  ok("check", "feat", "health", "--kind", "auto", "--status", "PASS", "--evidence", "200 ok");
+  ok(...end, "--deployed", "PASS");
   assert.equal(ledger("feat").terminal, "DONE");
+});
+
+test("deployed PASS needs an auto check and every check PASS; pending manual acceptance waits", () => {
+  ok("start", "--slug", "feat", "--mode", "deploy");
+  for (const p of ["A", "F", "A′", "B", "C", "D"]) ok("phase", "feat", p);
+  const done = ["end", "feat", "--terminal", "DONE", "--deployed", "PASS"];
+  assert.match(run(done).stderr, /needs at least one auto check/);
+  ok("check", "feat", "telegram-e2e", "--kind", "manual", "--status", "PENDING");
+  assert.match(run(done).stderr, /needs at least one auto check/);
+  assert.equal(ok("check", "feat", "health", "--kind", "auto", "--status", "PASS"), "CHECK feat health auto PASS\n");
+  const r = run(done);
+  assert.equal(r.status, 5);
+  assert.match(r.stderr, /checks not PASS: telegram-e2e \(manual PENDING\)/);
+  assert.equal(ledger("feat").terminal, null);
+  assert.equal(ok("end", "feat", "--terminal", "AWAITING_USER", "--deployed", "PENDING"), "MERGED NOT_REQUESTED | PUSHED NOT_REQUESTED | MR - | DEPLOYED PENDING\n");
+  ok("check", "feat", "telegram-e2e", "--kind", "manual", "--status", "PASS", "--evidence", "user confirmed topic + relay");
+  assert.equal(ledger("feat").checks["telegram-e2e"].evidence, "user confirmed topic + relay");
+  ok(...done);
+  assert.equal(ledger("feat").terminal, "DONE");
+  for (const bad of [["x/y", "--kind", "auto", "--status", "PASS"], ["h", "--kind", "smoke", "--status", "PASS"], ["h", "--kind", "auto", "--status", "OK"]])
+    assert.equal(run(["check", "feat", ...bad]).status, 2, bad.join(" "));
+});
+
+test("start --plan reads push_policy and execution_location; end enforces the push policy", () => {
+  const plan = (body) => {
+    const p = join(repo, "p.plan.md");
+    fs.writeFileSync(p, `---\nname: x\n${body}\n---\n\n# x\n`);
+    return p;
+  };
+  const v = vars(ok("start", "--slug", "loc", "--mode", "execute", "--plan", plan("push_policy: disabled\nexecution_location: local")));
+  assert.deepEqual([v.PUSH_POLICY, v.EXECUTION_LOCATION], ["disabled", "local"]);
+  for (const p of ["A", "F"]) ok("phase", "loc", p);
+  assert.match(run(["end", "loc", "--terminal", "DONE", "--pushed", "PASS"]).stderr, /push_policy disabled/);
+  ok("end", "loc", "--terminal", "DONE", "--merged", "PASS");
+
+  ok("start", "--slug", "req", "--mode", "execute", "--plan", plan("push_policy: required"));
+  for (const p of ["A", "F"]) ok("phase", "req", p);
+  assert.match(run(["end", "req", "--terminal", "DONE"]).stderr, /push_policy required needs --pushed PASS/);
+  ok("end", "req", "--terminal", "DONE", "--pushed", "PASS");
+
+  assert.equal(run(["start", "--slug", "bad", "--mode", "execute", "--plan", plan("push_policy: sometimes")]).status, 2);
+  assert.equal(run(["start", "--slug", "bad", "--mode", "execute", "--plan", join(repo, "missing.plan.md")]).status, 2);
 });
 
 test("phase records an ASCII apostrophe as the prime in A′", () => {

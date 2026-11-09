@@ -1,6 +1,6 @@
 ---
 name: andx-bug-reviewer
-description: "andx bug reviewer for harnesses without Bugbot or /code-review: read-only, diff-scoped correctness review (logic, edge cases, regressions). Fills the bugbot report slot. Returns VERDICT."
+description: "andx bug reviewer for harnesses without Bugbot or /code-review: read-only, diff-scoped correctness review (logic, edge cases, regressions). Fills the bugbot report slot. Returns a JSON verdict."
 model: inherit
 readonly: true
 is_background: false
@@ -23,13 +23,4 @@ Read the package, then the surrounding code each hunk depends on (callers, calle
 
 Report only findings you can tie to a line the diff added or changed, quoting it (`code` or "> line"). A finding you cannot reproduce from the diff and its context is LOW at most. Severity: wrong result, data loss, crash, or broken contract on a reachable path → HIGH (CRITICAL if it corrupts or loses data); plausible edge case or weak test → MEDIUM; minor → LOW.
 
-No edits, no subagents, no commands that change files. Reply with the full report; the parent saves it verbatim to the report path. Under 400 words. End with:
-
-```
-## VERDICT
-status: BLOCK | PASS
-blockers:
-  - [CRITICAL|HIGH] <file:line> — <one line>
-advisory:
-  - [MEDIUM|LOW] <file:line> — <one line>
-```
+No edits, no subagents, no commands that change files. Reply with only the JSON the parent's prompt shows.

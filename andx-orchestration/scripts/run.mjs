@@ -18,8 +18,23 @@ export const REQUIRED = {
 };
 // A non-terminal ledger untouched this long belongs to a crashed run: hooks stop acting on it.
 export const STALE_MS = 24 * 3600 * 1000;
-const STATUS = ["NOT_REQUESTED", "PASS", "FAIL", "BLOCKED", "-"];
+const STATUS = ["NOT_REQUESTED", "PASS", "PENDING", "FAIL", "BLOCKED", "-"];
 const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
+// Plan frontmatter policy; the first value is the default when the key is absent.
+const POLICY = { push_policy: ["optional", "disabled", "required"], execution_location: ["any", "local"] };
+const DEPLOY_MODES = ["deploy", "review-deploy"];
+const CHECK_KINDS = ["auto", "manual"];
+const CHECK_STATUS = ["PASS", "FAIL", "PENDING"];
+const CHECK_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/i;
+
+export function planPolicy(text = "") {
+  const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? "";
+  return Object.fromEntries(Object.entries(POLICY).map(([k, allowed]) => {
+    const v = fm.match(new RegExp(`^${k}:[ \\t]*["']?([\\w-]+)["']?[ \\t]*$`, "m"))?.[1] ?? allowed[0];
+    if (!allowed.includes(v)) throw new Error(`${k} must be one of ${allowed.join("|")}, got: ${v}`);
+    return [k.toUpperCase(), v];
+  }));
+}
 
 export const ledgerDir = (root) => path.join(root, ".worktrees", ".andx-run");
 
@@ -54,15 +69,23 @@ export function runNames({ root, slug, wave, step, stamp }) {
 
 const USAGE = `run: one ledger per run at <primary checkout>/.worktrees/.andx-run/<slug>.json
 
-  start --slug S --mode M    write a fresh ledger and print REPO_ROOT, TARGET_BRANCH, STAMP,
-                             EXEC_BRANCH, WORKTREE_DIR, SHIP_ID as KEY=value lines
+  start --slug S --mode M [--plan P]
+                             write a fresh ledger and print REPO_ROOT, TARGET_BRANCH, STAMP, EXEC_BRANCH,
+                             WORKTREE_DIR, SHIP_ID, PUSH_POLICY, EXECUTION_LOCATION as KEY=value lines;
+                             the policies come from P's frontmatter (push_policy ${POLICY.push_policy.join("|")},
+                             execution_location ${POLICY.execution_location.join("|")}; first value is the default)
   phase <slug> <id>          set the current phase and add it to the recorded phases (' is read as ′);
                              marks every run branch 🤖 in wt list (git config worktrunk.state.<branch>.marker)
   landed <slug> <sha>        record the commit that landed on TARGET_BRANCH
+  check <slug> <id> --kind K --status C [--evidence E]
+                             record one deploy verification check (K: ${CHECK_KINDS.join("|")}; C: ${CHECK_STATUS.join("|")});
+                             a manual check is PASS only after the user confirmed it; re-recording an id replaces it
   end <slug> --terminal T [--merged S] [--pushed S] [--mr URL] [--deployed S]
                              T: ${TERMINAL.join("|")}; S: ${STATUS.join("|")} (default NOT_REQUESTED, --mr default -)
-                             DONE needs every required phase of the mode; prints the final status line;
-                             marker 💬 AWAITING_USER, ❌ ABORTED/ESCALATED, cleared on DONE
+                             DONE needs every required phase of the mode; ${DEPLOY_MODES.join("/")} DONE also needs
+                             --deployed PASS; --deployed PASS needs an auto check and every check PASS;
+                             --pushed PASS is refused under push_policy disabled, DONE needs it under required;
+                             prints the final status line; marker 💬 AWAITING_USER, ❌ ABORTED/ESCALATED, cleared on DONE
   show <slug>                print the ledger
   dirs [--ensure]            print PLANS_DIR and REVIEWS_DIR (absolute, in --repo's own checkout): the first existing of
                              ${DATA.PLANS_DIR.join(", ")} / ${DATA.REVIEWS_DIR.join(", ")}, else the .andx one;
@@ -71,7 +94,7 @@ const USAGE = `run: one ledger per run at <primary checkout>/.worktrees/.andx-ru
 
 Required phases: ${Object.entries(REQUIRED).map(([m, p]) => `${m} [${p.join(",")}]`).join(", ")}
 Common: --repo DIR (default cwd; any worktree of the repo). Slug: [a-z0-9-], max 40.
-Exit: 0 ok, 2 usage or no ledger, 5 DONE refused.`;
+Exit: 0 ok, 2 usage or no ledger, 5 end refused.`;
 
 const fail = (code, msg) => {
   console.error(msg);
@@ -122,7 +145,7 @@ function main(args) {
       args,
       allowPositionals: true,
       options: Object.fromEntries([
-        ...["repo", "slug", "mode", "terminal", "merged", "pushed", "mr", "deployed"].map((k) => [k, { type: "string" }]),
+        ...["repo", "slug", "mode", "plan", "terminal", "merged", "pushed", "mr", "deployed", "kind", "status", "evidence"].map((k) => [k, { type: "string" }]),
         ["help", { type: "boolean", short: "h" }],
         ["ensure", { type: "boolean" }],
       ]),
@@ -161,9 +184,15 @@ function main(args) {
     if (!Object.hasOwn(REQUIRED, o.mode ?? "")) fail(2, `bad mode: ${o.mode ?? ""} (${Object.keys(REQUIRED).join("|")})`);
     const target = git(root, "branch", "--show-current").stdout?.trim();
     if (!target) fail(2, `primary checkout ${root} is not on a branch`);
+    let policy;
+    try {
+      policy = planPolicy(o.plan ? fs.readFileSync(o.plan, "utf8") : "");
+    } catch (e) {
+      fail(2, `start --plan ${o.plan}: ${e.message}`);
+    }
     const stamp = newStamp();
     const { EXEC_BRANCH: branch, WORKTREE_DIR } = runNames({ root, slug, stamp });
-    const vars = { REPO_ROOT: root, TARGET_BRANCH: target, STAMP: stamp, EXEC_BRANCH: branch, WORKTREE_DIR, SHIP_ID: branch };
+    const vars = { REPO_ROOT: root, TARGET_BRANCH: target, STAMP: stamp, EXEC_BRANCH: branch, WORKTREE_DIR, SHIP_ID: branch, ...policy };
     fs.mkdirSync(path.dirname(file), { recursive: true });
     writeLedger(file, {
       slug, mode: o.mode, ship_id: branch, phase: null, phases: [], required_phases: REQUIRED[o.mode],
@@ -189,15 +218,32 @@ function main(args) {
     data.landed = arg;
     writeLedger(file, data);
     console.log(`LANDED ${slug} ${arg}`);
+  } else if (cmd === "check") {
+    if (!CHECK_ID.test(arg ?? "")) fail(2, `check needs an <id> matching ${CHECK_ID}, got: ${arg ?? ""}`);
+    if (!CHECK_KINDS.includes(o.kind)) fail(2, `--kind must be one of ${CHECK_KINDS.join("|")}`);
+    if (!CHECK_STATUS.includes(o.status)) fail(2, `--status must be one of ${CHECK_STATUS.join("|")}`);
+    data.checks = { ...data.checks, [arg]: { kind: o.kind, status: o.status, evidence: o.evidence ?? "", at: new Date().toISOString() } };
+    writeLedger(file, data);
+    console.log(`CHECK ${slug} ${arg} ${o.kind} ${o.status}`);
   } else if (cmd === "end") {
     if (!TERMINAL.includes(o.terminal)) fail(2, `--terminal must be one of ${TERMINAL.join("|")}`);
     const s = { merged: o.merged ?? "NOT_REQUESTED", pushed: o.pushed ?? "NOT_REQUESTED", mr: o.mr || "-", deployed: o.deployed ?? "NOT_REQUESTED" };
     for (const k of ["merged", "pushed", "deployed"]) if (!STATUS.includes(s[k])) fail(2, `--${k} must be one of ${STATUS.join("|")}`);
+    const push = data.vars?.PUSH_POLICY ?? "optional";
+    if (push === "disabled" && s.pushed === "PASS") fail(5, `end refused for ${slug}: --pushed PASS under push_policy disabled`);
+    if (s.deployed === "PASS") {
+      const checks = Object.entries(data.checks ?? {});
+      if (!checks.some(([, c]) => c.kind === "auto")) fail(5, `end refused for ${slug}: --deployed PASS needs at least one auto check (run.mjs check)`);
+      const open = checks.filter(([, c]) => c.status !== "PASS").map(([id, c]) => `${id} (${c.kind} ${c.status})`);
+      if (open.length) fail(5, `end refused for ${slug}: --deployed PASS with checks not PASS: ${open.join(", ")}`);
+    }
     if (o.terminal === "DONE") {
       const req = Array.isArray(data.required_phases) ? data.required_phases : Object.hasOwn(REQUIRED, data.mode ?? "") ? REQUIRED[data.mode] : null;
       if (!req) fail(5, `DONE refused for ${slug}: no required phases for mode ${data.mode ?? ""}`);
       const missing = req.filter((p) => !(data.phases ?? []).includes(p));
       if (missing.length) fail(5, `DONE refused for ${slug}: missing required phases: ${missing.join(", ")}`);
+      if (DEPLOY_MODES.includes(data.mode) && s.deployed !== "PASS") fail(5, `DONE refused for ${slug}: mode ${data.mode} needs --deployed PASS`);
+      if (push === "required" && s.pushed !== "PASS") fail(5, `DONE refused for ${slug}: push_policy required needs --pushed PASS`);
     }
     data.terminal = o.terminal;
     data.status = s;

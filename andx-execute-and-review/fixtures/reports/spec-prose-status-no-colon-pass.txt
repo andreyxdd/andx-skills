@@ -1,0 +1,53 @@
+# Spec review: regina-support-activity-provider (step-1)
+
+Scope: `package.diff` (commit bd29d7e) against the plan and `support-activities.design.md`. I did not re-run the evidence you listed.
+
+## Requirements coverage
+- **Editor toggle.**
+  - Plan: "An authorized course editor can toggle `support_visible`". Met.
+  - `support_visible` is in `ALLOWED_FIELDS`, and `sanitizePatch` keeps only booleans.
+  - The editor loads the flag from `select('*')` and saves it, and the test goes through the update seam.
+- **Personal source.**
+  - Plan: distinct unexpired active-entitlement courses for the Telegram identity. Met.
+  - Both keys are used (`telegramId` and the profile UUID), with `status='active'` and `expires_at > now`.
+  - Results are de-duplicated by `id`, and personal courses ignore publish and archive state.
+  - `entitlements.expires_at` is always written by `grantEntitlement`, so the `.gt` filter drops no lifetime grants.
+- **Fallback.**
+  - Plan: published, non-archived `support_visible` courses when none resolve. Met.
+  - `fetchAllRows` is used with a truncation check, which respects the CLAUDE.md invariant on 1000-row truncation.
+- **Contract.**
+  - Plan: "only stable id and label" and "documented status/error/cache contract". Met.
+  - Output is `id` and `label` only. The status codes, error envelope, `Retry-After`, `Cache-Control`, `Vary`, `ETag` and `304` all match the design.
+  - The OpenAPI file lists 200, 304, 400, 401, 405, 500 and 503.
+  - Auth is constant-time through SHA-256 digests plus `timingSafeEqual`, and an empty secret is rejected.
+- **Pagination.**
+  - Plan: "paginated". Met.
+  - `limit` is 1–20, the cursor is opaque base64url, and it is bound to source and revision. The ordering is consistent between the sort and the `>` cursor filter.
+- **nginx.** `location ^~ /api/internal/support/ { return 404; }` sits before `location /`, so other API traffic is untouched. Covered only by a regex test; `nginx -t` and the deployment contract checks belong to the deploy step.
+- **Accessibility.** The checkbox is a native input wrapped in its `<label>`, with an `aria-hidden` icon.
+- **Deployment prerequisites.** The additive SQL migration, `.env.example`, ARCHITECTURE and knowledge docs are all present.
+
+## Findings
+1. `api/internal/support/v1/activities.js:~425` (MEDIUM) — the ETag is the whole-result revision, so every page and `limit` of the same result shares one ETag.
+   - Quote: `` const etag = `"${revision}"`; ``
+   - A client that sends a page-1 ETag with a page-2 request gets `304` and keeps stale page-1 data.
+   - Normal URL-keyed HTTP caches are fine. The OpenAPI wording "Current page has the revision" is inaccurate, and no test covers the cross-page case.
+   - Fix: include `cursor` and `limit` in the ETag, or reword the docs.
+2. `admin/course-edit.html:~1131` (MEDIUM, scope creep) — the access-drawer title changes from 18px to 20px, which no plan step asked for and which has no behavioural effect.
+   - Quote: `> +<h3 id="drawer-access-client-name" style="margin: 0; font-size: 20px; ...`
+   - Revert it, or justify it as an accessibility fix.
+3. `api/admin/courses.js:~OPTIONAL_FIELDS` (MEDIUM) — if the migration has not been applied, an update that includes `support_visible` retries without it and returns `200 ok:true`, so the toggle looks saved but is not.
+   - The deployment order (migration first) mitigates this. The silent behaviour is untested and unmentioned in the docs.
+4. `test/support-activities.test.js` (LOW) — nothing tests the cursor-staleness 400, the cross-source cursor, or the optional-field retry. The accessibility test is regex-only.
+5. `api/courses.js` (LOW) — the public `select('*')` now also returns `support_visible`. It is a harmless boolean, but it is a public-schema change that the docs do not mention.
+
+## VERDICT: status PASS
+blockers:
+- none
+
+advisory:
+- [MEDIUM] api/internal/support/v1/activities.js:425 — ETag is not page-specific, so a `304` is possible across different pages.
+- [MEDIUM] admin/course-edit.html:1131 — drawer title font-size change is outside the plan scope.
+- [MEDIUM] api/admin/courses.js:OPTIONAL_FIELDS — missing `support_visible` column is stripped silently and reported as success.
+- [LOW] test/support-activities.test.js — no test for stale-cursor, cross-source cursor, or the optional-field retry.
+- [LOW] api/courses.js:33 — `support_visible` now appears in the public course payload.

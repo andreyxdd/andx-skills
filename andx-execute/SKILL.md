@@ -9,20 +9,22 @@ Approved plan → verified code on `TARGET_BRANCH`: parent per [/andx-orchestrat
 
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md)
 
-Vague acceptance → `/andx-plan` / `/grill-me`. One falsifiable check per step, fresh output, minimum that passes, tracer bullets first.
+Vague acceptance → `/andx-plan`. One falsifiable check per step, fresh output, minimum that passes, tracer bullets first.
 
 ## Definition of done
 
-Handoff **pass**; landed; post-merge Phase 3 green; cleanup quoted; lock released (`--deploy`: by andx-deploy after health); `run.mjs end --terminal DONE`, its status line ends the reply.
+Handoff **pass**; landed; post-merge Phase 3 green; cleanup quoted; lock released (`--deploy`: by andx-deploy); `run.mjs end --terminal DONE` (`--deploy`: `--deployed PASS`), its status line ends the reply.
+
+**Umbrella** (`multi_repo: true`): check each child is ready, its repo clean (bar `dirs --ensure`'s line); run each alone, in order, to `DONE` with the user's flags, switching root (HARNESS); stop at a failure.
 
 ## Preflight (read-only)
 
 1. Anchor plan: `$PLANS_DIR/*.plan.md` (`run.mjs dirs`) with `andx_ready: true`; missing `depends`/`touch`/`verification` → `/andx-plan`.
 2. Parse steps per [PARSE.md](../andx-plan/PARSE.md). **`DOCS_ONLY`** when `workstream: docs` or every step `kind: docs`.
-3. Load `knowledge_refs` / `design_refs` (immutable contract) / `pipeline/<stage>/CONTEXT.md` into the worker prompt.
+3. Load `knowledge_refs` / `design_refs` / `pipeline/<stage>/CONTEXT.md` into the worker prompt.
 4. Toolchain (test/lint/build/e2e/doc verifier) → verification table per plan `verification` / CI.
 5. **`REACT_STACK`:** true (unless `stack: none` or docs) when stack ∈ {react,react-next,next}, package.json has react/next, or touch matches `.tsx|.jsx|app|pages|components|src/`. Flag impeccable / react-best-practices (SKILL-MAP).
-6. Orch Step 1: `node "$S/run.mjs" start --slug "$SLUG" --mode execute` (`--deploy`: `deploy`).
+6. Orch Step 1: `node "$S/run.mjs" start --slug "$SLUG" --mode execute --plan "$PLAN"` (`--deploy`: `deploy`); `EXECUTION_LOCATION=local` → no cloud agents.
 
 ## Phase A — Execute
 
@@ -32,4 +34,4 @@ Orch Step 2 with plan, `REACT_STACK`, `DOCS_ONLY`, OKF block (worker reads [WORK
 
 ## Phase F — Land
 
-Orch Step 4 (ship-queue land; post-merge Phase 3 + doc verifier if docs changed), then ledger phase `F` (every mode). `--deploy`: skip its release (lock held); [/andx-deploy](../andx-deploy/SKILL.md) Preflight → D pushes (`A′`), records `B`–`D`, releases after fresh health, or halts.
+Orch Step 4 (ship-queue land; post-merge Phase 3 + doc verifier if docs changed), then ledger phase `F` (every mode). `--deploy`: keep the lock; [/andx-deploy](../andx-deploy/SKILL.md) records `A′`–`D`, releases or halts.

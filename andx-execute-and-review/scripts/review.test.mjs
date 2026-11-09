@@ -57,11 +57,11 @@ function repo() {
   return { dir, base, head };
 }
 
-// keys without .txt are reviewer names, written as andx-review-s-<name>.txt for --slug s;
+// keys without .txt/.json are reviewer names, written as andx-review-s-<name>.txt for --slug s;
 // --expect defaults to the reviewers those keys name
 function union(r, reports, extra = []) {
   const dir = tmp();
-  for (const [name, body] of Object.entries(reports)) fs.writeFileSync(join(dir, name.endsWith(".txt") ? name : `andx-review-s-${name}.txt`), body);
+  for (const [name, body] of Object.entries(reports)) fs.writeFileSync(join(dir, /\.(txt|json)$/.test(name) ? name : `andx-review-s-${name}.txt`), body);
   const expect = [...new Set(Object.keys(reports).map((k) => reviewerOf(k.replace(/^andx-review-s-/, ""))).filter(Boolean))];
   const args = extra.includes("--expect") ? extra : ["--expect", expect.join(","), ...extra];
   const out = run(["union", "--base", r.base, "--head", r.head, "--reports", dir, "--repo", r.dir, "--slug", "s", ...args]);
@@ -150,6 +150,15 @@ test("--slug is required and reads only that run's reports", () => {
   });
   assert.deepEqual([v.status, v.unparsed], ["PASS", []]);
   assert.equal(run(["union", "--base", r.base, "--head", r.head, "--reports", tmp(), "--repo", r.dir, "--expect", "bugbot"]).status, 2);
+});
+
+test("a reviewer's .json report replaces its prose .txt report", () => {
+  const r = repo();
+  const v = union(r, {
+    "andx-review-s-spec.txt": "unparseable prose",
+    "andx-review-s-spec.json": JSON.stringify({ status: "PASS", findings: [] }),
+  }, ["--expect", "spec"]);
+  assert.deepEqual([v.status, v.unparsed], ["PASS", []]);
 });
 
 test("--expect is required, canonical, and a missing report blocks", () => {

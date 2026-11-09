@@ -13,8 +13,8 @@ Read by `/andx-execute`, `/andx-schedule`, and `/andx-plan`. Templates: [PLAN-FO
 | `design_pass` | when Phase 1.5 applies | `true` \| `skipped` |
 | `workstream` | yes | `code` \| `docs` \| `mixed` — drives TDD vs doc-verify in `/andx-execute` |
 | `pipeline_stage` | when OKF layout present | ICM stage id from `ROUTING.md` (e.g. `03-build`, `02-draft`) |
-| `knowledge_refs` | when OKF layout present | Bracket list of `knowledge/` paths cited by this plan (must include all `design_refs`) |
-| `design_refs` | when Phase 1.5 ran | Bracket list of `knowledge/apis/*.md` and `knowledge/modules/*.md` |
+| `knowledge_refs` | when OKF layout present | Cited `knowledge/` paths and plan sidecars (⊇ `design_refs`) |
+| `design_refs` | when Phase 1.5 ran | `knowledge/apis|modules/*.md` or `$PLANS_DIR/*.design.md` |
 | `companion_skills` | when companion skills invoked | Bracket list, e.g. `[api-design, codebase-design, accessibility]` |
 | `stack` | no | `react-next` \| `react` \| `next` \| `none` — drives `REACT_STACK` in `/andx-execute` (`none` disables) |
 | `source` | yes | `thread` \| `plan-mode` \| issue URL |
@@ -23,6 +23,10 @@ Read by `/andx-execute`, `/andx-schedule`, and `/andx-plan`. Templates: [PLAN-FO
 | `mr_iids` | no | Bracket list of existing MR/PR ids the run may update |
 | `base_sha` | for `--mr` stacks | Base commit; findings outside `base_sha..head` are rejected |
 | `isProject` | yes | `false` for feature plans |
+| `push_policy` | no | `optional` \| `disabled` \| `required` |
+| `execution_location` | no | `any` \| `local` (no cloud agents) |
+| `multi_repo` | umbrella | `true`: no steps |
+| `child_plans` | umbrella | Ordered absolute plan paths, one repo each |
 
 ## Step block fields
 
@@ -49,21 +53,12 @@ Step ids must match `step-\d+` (e.g. `step-1`, `step-2`).
 ## Parsing rules
 
 1. Prefer plans with `andx_ready: true`.
-2. Parse `workstream`, `pipeline_stage`, `knowledge_refs`, `design_refs`, `companion_skills`, and `stack` from frontmatter when present.
-3. When `workstream: docs` or all steps are `kind: docs`, set **`DOCS_ONLY`** for worker (skip TDD; doc verifier in Phase 3).
-4. Parse each `### step-N` block into the verification table.
-5. Missing `depends` on step-N (N>1) → treat as `depends: [step-{N-1}]` (sequential chain).
-6. Missing `kind` → ask once; default `backend` only if user confirms.
-7. `touch: unknown` in a wave → force sequential execution (`/andx-schedule` uses same rule).
-8. Topological sort on `depends` → log computed waves; with EXEC-MATRIX, `/andx-execute` may spawn parallel workers per wave.
-
-## Wave computation
-
-```
-Wave 1: all steps with depends: []
-Wave 2: steps whose depends are satisfied by Wave 1
-…
-```
+2. When `workstream: docs` or all steps are `kind: docs`, set **`DOCS_ONLY`** for worker (skip TDD; doc verifier in Phase 3).
+3. Parse each `### step-N` block into the verification table.
+4. Missing `depends` on step-N (N>1) → treat as `depends: [step-{N-1}]` (sequential chain).
+5. Missing `kind` → ask once; default `backend` only if user confirms.
+6. `touch: unknown` in a wave → force sequential execution (`/andx-schedule` uses same rule).
+7. Waves: wave 1 = steps with `depends: []`, wave N = steps whose depends sit in earlier waves; log them.
 
 Within a wave, steps with disjoint `touch` sets may run in parallel when `/andx-schedule` writes EXEC-MATRIX (`max_parallel` default 2). See [/andx-schedule](../andx-schedule/SKILL.md).
 
