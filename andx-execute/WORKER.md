@@ -6,7 +6,7 @@ You implement inside `WORKTREE_DIR` on `EXEC_BRANCH`; the parent owns merge, pus
 
 - Every read, edit and shell call uses absolute `$WORKTREE_DIR/...` paths or `$WORKTREE_DIR` as working directory. A relative path resolves to the primary checkout.
 - Stay in the parent's workspace (never switch workspace root).
-- Commit on `EXEC_BRANCH` only. Push only when the prompt says so. Leave the worktree and branch in place for the parent.
+- Commit on `EXEC_BRANCH` only. Push only when the prompt says so.
 - Dev servers: bind to `PORT`.
 
 ## Phase 0 — Verification table
@@ -35,7 +35,7 @@ Full regression + lint (even docs) + doc verifier if needed + every table row, f
 
 ## Phase 4 — Commit and hand off
 
-Stage plan scope; conventional commits; clean `git status`. Commit messages pass `git log --format='%s%n%b' "$TARGET_BRANCH"..HEAD | node "$G" text -`. Return exactly:
+Stage plan scope; conventional commits; clean `git status`. Commit messages pass `git log --format='%s%n%b' "$TARGET_BRANCH"..HEAD | node "$G" text -`. Final message opens with this block:
 
 ```markdown
 ## Handoff

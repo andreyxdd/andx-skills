@@ -5,8 +5,6 @@ effort: medium
 ---
 # Andx Execute and Review
 
-**Blind reviewers** gate the worker's merge to `TARGET_BRANCH`.
-
 Routing: [SKILL-MAP.md](../andx-orchestration/SKILL-MAP.md) · Spawn: [HARNESS.md](../andx-orchestration/HARNESS.md)
 
 **Required:** [/andx-orchestration](../andx-orchestration/SKILL.md), [/andx-execute](../andx-execute/SKILL.md). Roster + severity → SKILL-MAP. Review module (package, union, artifact; union rules in its help): `node ~/.agents/skills/andx-execute-and-review/scripts/review.mjs --help`.
@@ -49,11 +47,11 @@ Package: <RUN_DIR>/package.diff (commits, stat, diff). Review only that diff.
 Plan: <plan path>. Evidence: <worker verification table>. Workspace gates: <titles or none>.
 Final message = only the report: JSON {"status":"PASS|BLOCK","findings":[{"severity":"high","location":"f:1","finding":"…","evidence":"> line"}]}
 (Bugbot, Security: native format).
-Rules: severity critical|high|medium|low; each High/Critical quotes its diff line in evidence, else Medium; BLOCK needs a High.
-Round 2+: confirm or clear prior blockers <list>; a new finding must sit on a line this round added.
+Rules: severity critical|high|medium|low; each High/Critical quotes one exact file line (no diff +/-) in evidence, else Medium; BLOCK needs a High.
+Round 2+: confirm or clear prior blockers <list>; only open or new findings; a new one must sit on a line this round added.
 ```
 
-Parent saves each reply verbatim to `<RUN_DIR>/andx-review-<SLUG>-<reviewer>.json` (Bugbot, Security: `.txt`); `<reviewer>`: `bugbot security ponytail spec audit react a11y ux-api`.
+Parent saves each reply to `<RUN_DIR>/andx-review-<SLUG>-<reviewer>.json` (Bugbot, Security: `.txt`); `<reviewer>`: `bugbot security ponytail spec audit react a11y ux-api`. Cursor: `review.mjs collect --agent <id> --reviewer <r> --slug "$SLUG" --reports "$RUN_DIR"`.
 
 **Security refutation:** one `andx-refuter` per security candidate with `status: proposed` (critical/high), foreground, one message. Save their JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none).
 **Harness jargon (parent):** `node ~/.agents/skills/andx-execute/scripts/jargon-gate.mjs diff "$MERGE_BASE_SHA" "$EXEC_HEAD" --repo "$WORKTREE_DIR"`; each hit is a MEDIUM (skill repos add `--allow-skill-text`).
@@ -107,7 +105,5 @@ Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; n
 ## Anti-patterns
 
 - Reviewer shares worker context
-- Merge with open High
 - Parent "just fixes" source
 - Whole-repo ponytail-audit (use `touch`)
-- Treating `shrink:` as blocker

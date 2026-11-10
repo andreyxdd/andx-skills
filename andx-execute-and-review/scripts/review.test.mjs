@@ -170,6 +170,50 @@ test("--expect is required, canonical, and a missing report blocks", () => {
   assert.equal(run([...base, "--expect", "bugbot,ponytail-review"]).status, 2);
 });
 
+test("a pasted diff line (+ marker) or a bare evidence line counts as quoted", () => {
+  const r = repo();
+  const high = (location, evidence) => ({ severity: "high", location, finding: "index panic", evidence });
+  const v = union(r, {
+    "andx-review-s-a11y.json": JSON.stringify({ status: "BLOCK", findings: [high("src/x.go:10", "> +v := items[0]\n> +more")] }),
+    "andx-review-s-react.json": JSON.stringify({ status: "BLOCK", findings: [high("src/provider.ts:42", "init(provider)")] }),
+  });
+  assert.deepEqual(v.blockers.map((f) => f.severity), ["high", "high"]);
+  assert.deepEqual(v.unparsed, []);
+});
+
+test("a Low near a prior blocker is a note, so the blocker moves to fixed", () => {
+  const r = repo();
+  const prior = join(tmp(), "prior.json");
+  fs.writeFileSync(prior, JSON.stringify({
+    status: "BLOCK", round: 1, base_sha: r.base, head_sha: r.head,
+    blockers: [{ id: "x-panic", status: "confirmed", severity: "high", location: "src/x.go:10", finding: "index out of range panic", reviewers: ["react"] }],
+  }));
+  const fix = commit(r.dir, { "src/x.go": lines(30, (i) => (i === 10 ? "v := items[1]" : `line ${i}`)) }, "fix");
+  const note = JSON.stringify({ status: "PASS", findings: [{ severity: "low", location: "src/x.go:10", finding: "index fix costs one more panic check" }] });
+  const v = union({ ...r, base: r.head, head: fix }, { "andx-review-s-react.json": note }, ["--round", "2", "--prior", prior]);
+  assert.deepEqual([v.status, v.fixed.map((f) => f.id), v.deferred.map((f) => f.severity)], ["PASS", ["x-panic"], ["low"]]);
+});
+
+test("collect copies a subagent's final message, as .json when it is a JSON report", () => {
+  const root = tmp();
+  const subs = join(root, "proj", "agent-transcripts", "parent", "subagents");
+  fs.mkdirSync(subs, { recursive: true });
+  const say = (text) => JSON.stringify({ role: "assistant", message: { content: [{ type: "text", text }] } });
+  const report = JSON.stringify({ status: "PASS", findings: [] });
+  fs.writeFileSync(join(subs, "a1.jsonl"), [say("thinking aloud"), say(report), JSON.stringify({ type: "turn_ended" })].join("\n"));
+  fs.writeFileSync(join(subs, "b2.jsonl"), say("## VERDICT\nstatus: PASS\n"));
+  const dir = tmp();
+  fs.writeFileSync(join(dir, "andx-review-s-spec.txt"), "stale");
+  const go = (agent, reviewer) => run(["collect", "--agent", agent, "--reviewer", reviewer, "--slug", "s", "--reports", dir, "--transcripts", root]);
+  assert.equal(go("a1", "spec").status, 0);
+  assert.equal(fs.readFileSync(join(dir, "andx-review-s-spec.json"), "utf8"), `${report}\n`);
+  assert.equal(fs.existsSync(join(dir, "andx-review-s-spec.txt")), false);
+  assert.equal(go("b2", "security").status, 0);
+  assert.match(fs.readFileSync(join(dir, "andx-review-s-security.txt"), "utf8"), /status: PASS/);
+  assert.equal(go("missing", "spec").status, 2);
+  assert.equal(go("a1", "nobody").status, 2);
+});
+
 test("a nearby lower-severity confirmation keeps the prior blocker's severity", () => {
   const r = repo();
   const prior = join(tmp(), "prior.json");

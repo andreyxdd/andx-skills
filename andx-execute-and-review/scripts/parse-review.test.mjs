@@ -57,6 +57,13 @@ test("JSON reports are schema-checked and fail closed", () => {
   ]) assert.equal(parse("spec", null, bad).status, "UNPARSED", bad);
 });
 
+test("file+line, title/issue and side keys fold into the canonical finding", () => {
+  const drift = { severity: "high", file: "a.tsx", line: 157, wcag: "2.4.3", title: "Focus lost", detail: "button unmounts", evidence: "> x" };
+  const r = parse("a11y", null, JSON.stringify({ status: "BLOCK", findings: [drift, { severity: "low", file: "b.go", issue: "slow", fix: "cache", plan: "step-6" }] }));
+  assert.deepEqual(r.findings.map((f) => [f.location, f.finding]), [["a.tsx:157", "Focus lost: button unmounts"], ["b.go", "slow"]]);
+  assert.equal(parse("a11y", null, JSON.stringify({ status: "PASS", findings: [{ severity: "low", file: "b.go", issue: "x", reviewer: "spoof" }] })).status, "UNPARSED");
+});
+
 test("top-level metadata is ignored and info reads as nitpick", () => {
   const f = { severity: "info", location: "a.js:1", finding: "cleared prior blocker" };
   const r = parse("a11y", null, JSON.stringify({ status: "PASS", findings: [f], passed: ["lang"], notes: "x" }));

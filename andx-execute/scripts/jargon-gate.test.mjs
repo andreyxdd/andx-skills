@@ -67,7 +67,9 @@ function repo() {
   put(root, "skill/NOTES.md", `see ${W.slash}\n`);
   put(root, "skill/run.mjs", `// ${W.terse}\n`);
   put(root, "docs/guide.md", `ok\n${W.branch}\n`);
-  git(root, "add", ".");
+  put(root, ".andx/reviews/run.json", `{"finding": "${W.later} quoted from a reviewer"}\n`);
+  put(root, ".andx/reviews/notes.md", `${W.later}\n`);
+  git(root, "add", "-f", ".");
   git(root, "commit", "-qm", "feature");
   return root;
 }
@@ -78,7 +80,7 @@ test("diff reports only added lines as path:line of the new file", () => {
     const r = gate(["diff", "main", "feature", "--repo", root]);
     assert.equal(r.status, 1, r.stderr);
     const hits = r.stdout.split("\n").filter(Boolean).map((l) => l.split(":").slice(0, 2).join(":")).sort();
-    assert.deepEqual(hits, ["docs/guide.md:2", "skill/NOTES.md:1", "skill/run.mjs:1", "src/new.js:3", "src/old.js:3", "src/old.js:5", "src/with space.js:1"]);
+    assert.deepEqual(hits, [".andx/reviews/notes.md:1", "docs/guide.md:2", "skill/NOTES.md:1", "skill/run.mjs:1", "src/new.js:3", "src/old.js:3", "src/old.js:5", "src/with space.js:1"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

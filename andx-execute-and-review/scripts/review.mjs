@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // One review round: build the diff package, union reviewer reports into a verdict, write the REVIEW-ARTIFACT.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
@@ -16,6 +17,11 @@ const USAGE = `review: package a diff for reviewers, union their reports, write 
         --slug S --expect r1,r2 [--refuters R.json] [--round N --prior V.json]
   artifact --verdict V.json --plan P --out F [--target main] [--source andx-execute-and-review]
                                             v2 REVIEW-ARTIFACT, validated; INVALID prints reasons, exit 1, no file
+  collect --agent ID --reviewer R --slug S --reports DIR [--transcripts ROOT]
+                                            Cursor: copies subagent ID's final message from
+                                            ROOT/*/agent-transcripts/*/subagents/ID.jsonl (ROOT default ~/.cursor/projects)
+                                            to DIR/andx-review-<S>-<R>.json when it is a JSON report, else .txt,
+                                            removing R's other-extension report; exit 2 when not found
 
 Common: --repo DIR (default cwd)
 
@@ -34,15 +40,17 @@ union, in order:
                finding with that id (or, for a finding that confirms a prior blocker, that blocker's id):
                rejected -> rejected, needs_validation or a bad decision -> advisory,
                confirmed keeps (severity overrides); the rest of its group stays
-  prior        a finding on a prior blocker's root, or a High/Critical from one of its reviewers in its
+  prior        a finding on a prior blocker's root (a Low/nitpick only when a refuter decided that blocker),
+               or a High/Critical from one of its reviewers in its
                file, confirms it and keeps the higher severity (refuter-decided ones excepted); an
                unconfirmed prior blocker moves to fixed only when it lists
                reviewers and all of them reported this round, else it stays a blocker;
                advisory/deferred/fixed/rejected carry over, deduplicated by id
   wrong-base   a new finding (spec excepted) whose file is not in git diff --name-only B..H is dropped
   round-scope  round >= 2: a new finding with a line that is not an added line of B..H is dropped
-  quoted line  a new High/Critical not confirmed by a refuter needs a \`backtick\` or "> " snippet
-               (3+ chars) found in an added, context or removed diff line within 3 lines of it, or,
+  quoted line  a new High/Critical not confirmed by a refuter needs a \`backtick\` or "> " snippet, or a bare
+               evidence line, (3+ chars, a leading diff +/- ignored) found in an added, context or removed
+               diff line within 3 lines of it, or,
                from bugbot, a start line that is an added line; else it drops to medium
   fail closed  a reviewer whose report says BLOCK lands in unparsed when it has no Critical/High, or one
                that is neither in blockers nor decided by a refuter (now or as prior-rejected); check by hand
@@ -114,13 +122,16 @@ const words = (t) => new Set((t.toLowerCase().match(/[a-z][a-z0-9_]{3,}/g) ?? []
 const sameRoot = (a, b) => a.id === b.id || (a.file === b.file && a.line != null && b.line != null
   && Math.abs(a.line - b.line) <= 3 && [...words(a.finding)].some((w) => words(b.finding).has(w)));
 const rank = (f) => (f.status === "needs_validation" ? 0.5 : SEV[f.severity]);
-const pub = ({ file, line, text, quoted, fp, confirms, refuted, members, high, settled, ...f }) => f;
+const pub = ({ file, line, text, ev, quoted, fp, confirms, refuted, members, high, settled, ...f }) => f;
 const entries = (lines, from, to) => [...(lines ?? [])].filter(([k]) => from == null || (k >= from && k <= to)).flatMap(([, es]) => es);
 const added = (lines, line) => Boolean(lines?.get(line)?.some((e) => e.kind === "+"));
 
 function quotedIn(lines, f) {
   if (f.reviewers[0] === "bugbot" && added(lines, f.line)) return true;
-  const snippets = [...f.text.matchAll(/`([^`\n]+)`/g), ...f.text.matchAll(/^[ \t]*>[ \t]?(.*)$/gm)].map((m) => m[1].trim()).filter((s) => s.length >= 3);
+  // Reviewers paste diff lines with their +/- marker, or put a bare line in the evidence field.
+  const raw = [...f.text.matchAll(/`([^`\n]+)`/g), ...f.text.matchAll(/^[ \t]*>[ \t]?(.*)$/gm)].map((m) => m[1])
+    .concat(/^[ \t]*>|`/m.test(f.ev) ? [] : f.ev.split("\n"));
+  const snippets = raw.flatMap((s) => [s.trim(), s.trim().replace(/^[+-](?![+-])/, "").trim()]).filter((s) => s.length >= 3);
   const near = entries(lines, f.line == null ? null : f.line - 3, f.line + 3).map((e) => e.text);
   return snippets.some((s) => near.some((l) => l.includes(s)));
 }
@@ -135,7 +146,7 @@ function normalize(raw, reviewer, files, names) {
     status: nv ? "needs_validation" : "confirmed",
     ...(nv ? {} : { severity: raw.severity in SEV ? raw.severity : "low" }),
     location: raw.location, finding, reviewers: [reviewer], file, line,
-    fp: Boolean(fp), text: `${finding}\n${raw.evidence ?? ""}`, high: SEV[raw.severity] >= 3,
+    fp: Boolean(fp), text: `${finding}\n${raw.evidence ?? ""}`, ev: raw.evidence ?? "", high: SEV[raw.severity] >= 3,
   };
   f.quoted = quotedIn(files.get(file), f);
   return f;
@@ -202,7 +213,9 @@ export function union({ reports, files, names, expect = [], refuters = [], round
     if (!g.length) continue;
 
     const f = merge(g);
-    const p = priorBlockers.find((b) => sameRoot(b, f))
+    // A Low or nitpick near a fixed blocker is a note, not a re-raise, unless a refuter decided that blocker.
+    const strong = f.status === "needs_validation" || SEV[f.severity] >= 2;
+    const p = priorBlockers.find((b) => sameRoot(b, f) && (strong || decisions.has(b.id)))
       ?? (SEV[f.severity] >= 3 ? priorBlockers.find((b) => !confirmed.has(b.id) && b.file === f.file && b.reviewers?.some((r) => f.reviewers.includes(r))) : null);
     if (p) {
       Object.assign(f, { id: p.id, confirms: true });
@@ -261,6 +274,27 @@ export function union({ reports, files, names, expect = [], refuters = [], round
   };
 }
 
+// The last assistant entry of a Cursor subagent transcript is its final reply.
+export function finalMessage(root, agent) {
+  if (!/^[A-Za-z0-9-]+$/.test(agent)) return null;
+  const dirs = (p) => (fs.existsSync(p) ? fs.readdirSync(p, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => path.join(p, d.name)) : []);
+  const file = dirs(root).flatMap((proj) => dirs(path.join(proj, "agent-transcripts")))
+    .map((conv) => path.join(conv, "subagents", `${agent}.jsonl`)).find((f) => fs.existsSync(f));
+  if (!file) return null;
+  for (const line of fs.readFileSync(file, "utf8").trim().split("\n").reverse()) {
+    let e;
+    try {
+      e = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (e.role !== "assistant") continue;
+    const text = (e.message?.content ?? []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
+    if (text) return text;
+  }
+  return null;
+}
+
 export function artifact(v, { plan, target = "main", source = "andx-execute-and-review" }) {
   const list = (k, extra) => (v[k] ?? []).map(({ reason, ...f }) => ({ ...f, ...(k === "rejected" && reason && { reason }), ...extra }));
   return {
@@ -273,7 +307,7 @@ export function artifact(v, { plan, target = "main", source = "andx-execute-and-
 if (import.meta.main) {
   const { values: o, positionals: [cmd] } = parseArgs({
     allowPositionals: true,
-    options: Object.fromEntries(["base", "head", "out", "repo", "reports", "slug", "expect", "refuters", "round", "prior", "verdict", "plan", "target", "source"]
+    options: Object.fromEntries(["base", "head", "out", "repo", "reports", "slug", "expect", "refuters", "round", "prior", "verdict", "plan", "target", "source", "agent", "reviewer", "transcripts"]
       .map((k) => [k, { type: "string" }]).concat([["help", { type: "boolean", short: "h" }]])),
   });
   if (o.help) {
@@ -323,5 +357,15 @@ if (import.meta.main) {
     }
     fs.writeFileSync(o.out, `${JSON.stringify(a, null, 2)}\n`);
     console.log(`WROTE ${o.out}`);
+  } else if (cmd === "collect") {
+    need("agent", "reviewer", "slug", "reports");
+    if (!REVIEWERS.includes(o.reviewer)) fail(2, `collect: --reviewer takes canonical names: ${REVIEWERS.join(",")}`);
+    const text = finalMessage(o.transcripts ?? path.join(os.homedir(), ".cursor", "projects"), o.agent);
+    if (text == null) fail(2, `collect: no final message for subagent ${o.agent}`);
+    const ext = parse(text, o.reviewer).status !== "UNPARSED" && /^\s*(```(json)?\s*)?\{/.test(text) ? "json" : "txt";
+    const base = path.join(o.reports, `andx-review-${o.slug}-${o.reviewer}`);
+    fs.rmSync(`${base}.${ext === "json" ? "txt" : "json"}`, { force: true });
+    fs.writeFileSync(`${base}.${ext}`, text.endsWith("\n") ? text : `${text}\n`);
+    console.log(`COLLECTED ${base}.${ext}`);
   } else fail(2, USAGE);
 }

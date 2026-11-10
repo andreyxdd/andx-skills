@@ -9,7 +9,8 @@ const HELP = `usage:
   jargon-gate.mjs diff <base> <head> [--repo DIR] [--allow-skill-text]
       scans lines added in git diff <base>...<head> (merge-base to head, like a PR diff)
       for persona names, comment tags, skill-family tags / slash commands / run branches,
-      worktree paths and dated run ids; a bare skill-family name is allowed in code
+      worktree paths and dated run ids; a bare skill-family name is allowed in code;
+      review artifacts (.andx/reviews/*.json, .cursor/reviews/*.json) are skipped
   jargon-gate.mjs text <file|->
       scans commit / MR text with the same list plus any mention of the skill family,
       e.g. git log --format='%s%n%b' main..HEAD | jargon-gate.mjs text -
@@ -28,6 +29,9 @@ export const BASE = [
 export const DIFF_JARGON = new RegExp([...BASE, "an[d]x:", "/an[d]x-", "an[d]x/exe[c]-"].join("|"), "i");
 // Commit and MR text must not mention the skill family at all.
 export const TEXT_JARGON = new RegExp([...BASE, "an[d]x"].join("|"), "i");
+
+// Review artifacts quote reviewer text (comment tags included) by design.
+const REVIEW_ARTIFACT = /^\.(andx|cursor)\/reviews\/[^/]+\.json$/;
 
 const scan = (re, label, lines, first = 1) =>
   lines.flatMap((l, i) => (re.test(l) ? [`${label}:${first + i}: ${l.trim()}`] : []));
@@ -65,6 +69,7 @@ function diffHits(base, head, repo, allowSkillText) {
     return skillDir.get(top);
   };
   return addedLines(diff)
+    .filter(({ file }) => !REVIEW_ARTIFACT.test(file))
     .filter(({ file }) => !(allowSkillText && file.endsWith(".md") && file.includes("/") && isSkill(file.split("/")[0])))
     .flatMap(({ file, line, text }) => scan(DIFF_JARGON, file, [text], line));
 }

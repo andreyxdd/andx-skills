@@ -2,7 +2,8 @@
 // Normalize one reviewer's raw output into {status, findings[]}.
 // Usage: node parse-review.mjs <reviewer-name> [file]   (stdin when no file)
 // Preferred input: a JSON report {"status":"PASS|BLOCK","findings":[{"severity","location","finding","evidence"?}]};
-// extra top-level keys are ignored and "info" reads as nitpick; any other shape, extra finding key or unknown
+// extra top-level keys are ignored and "info" reads as nitpick; file+line, title/issue/detail fold into
+// location/finding and fix/wcag/rule/plan/id are dropped; any other shape, extra finding key or unknown
 // severity in JSON is UNPARSED. Text reports below stay supported.
 // status: BLOCK (VERDICT says BLOCK, or any critical/high incl. table rows) | FIX (medium only) | PASS | UNPARSED
 // UNPARSED also: more than one real VERDICT; a Critical/High line with no VERDICT; bugbot XML with more
@@ -27,6 +28,18 @@ const JSON_SEV = ["critical", "high", "medium", "low", "nitpick", "needs_validat
 const str = (v) => typeof v === "string" && v.trim() !== "";
 const only = (o, keys) => Object.keys(o).every((k) => keys.includes(k));
 
+// Reviewers drift to file+line, title/issue/detail and side keys; fold those into the four canonical keys.
+// Any other key (e.g. `reviewer`) survives the fold, so the schema check still fails closed on it.
+const SIDE = ["fix", "wcag", "rule", "plan", "id"];
+function canonical(f) {
+  if (!f || typeof f !== "object" || Array.isArray(f)) return null;
+  const { file, line, title, issue, detail, ...rest } = f;
+  for (const k of SIDE) delete rest[k];
+  const location = rest.location ?? (str(file) ? (line == null ? file : `${file}:${line}`) : undefined);
+  const finding = rest.finding ?? ([title, issue ?? detail].filter(str).join(": ") || undefined);
+  return { ...rest, ...(location !== undefined && { location }), ...(finding !== undefined && { finding }) };
+}
+
 export function parseJson(text, reviewer) {
   let r;
   try {
@@ -37,10 +50,11 @@ export function parseJson(text, reviewer) {
   // Extra top-level keys are reviewer metadata (passed checks, notes): ignored. Extra finding keys could spoof `reviewer`: fail closed.
   if (!r || typeof r !== "object" || Array.isArray(r)) return UNPARSED;
   if (!["PASS", "BLOCK"].includes(r.status) || !Array.isArray(r.findings)) return UNPARSED;
-  const ok = (f) => f && typeof f === "object" && !Array.isArray(f) && only(f, ["severity", "location", "finding", "evidence"])
+  const all = r.findings.map(canonical);
+  const ok = (f) => f && only(f, ["severity", "location", "finding", "evidence"])
     && (JSON_SEV.includes(f.severity) || f.severity === "info") && str(f.location) && str(f.finding) && (f.evidence === undefined || str(f.evidence));
-  if (!r.findings.every(ok)) return UNPARSED;
-  const findings = r.findings.map((f) => ({ reviewer, ...f, ...(f.severity === "info" && { severity: "nitpick" }) }));
+  if (!all.every(ok)) return UNPARSED;
+  const findings = all.map((f) => ({ reviewer, ...f, ...(f.severity === "info" && { severity: "nitpick" }) }));
   return { status: r.status === "BLOCK" ? "BLOCK" : statusFor(findings), findings };
 }
 
