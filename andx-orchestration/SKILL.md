@@ -37,7 +37,7 @@ First `node "$S/run.mjs" start --slug "$SLUG" --mode <composer's mode>`. Then, b
 
 Per [HARNESS.md](./HARNESS.md). Prompt: `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR`, `PORT` (not for the analyst); role file [WORKER.md](../andx-execute/WORKER.md) for workers, debug-and-fix Phase B for the analyst; anchored plan, verification table, bug/deploy evidence; companions per [SKILL-MAP.md](./SKILL-MAP.md); the Step 3 return schema.
 
-Resume the agent (HARNESS) in the same worktree; new spawn when the role changes (analyst → worker) or the worktree is gone. **Worker died** (`resource_exhausted`, rate limit, timeout): check `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, resume the **same** agent ("continue from current worktree state"). After 2 resumes: new spawn only if the worktree is gone, else report the blocker.
+Resume the agent (HARNESS) in the same worktree; new spawn when the role changes (analyst → worker) or the worktree is gone. **Worker died** (`resource_exhausted`, rate limit, timeout, `Aborted` because a user message cut the spawn): check `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, resume the **same** agent ("continue from current worktree state"). An aborted worker may still be writing: with no agent id to resume, spawn only after `git status --short` is unchanged across 60s, so one worker owns the worktree. After 2 resumes: new spawn only if the worktree is gone, else report the blocker.
 
 ## Step 3 — Subagent handoff schema
 

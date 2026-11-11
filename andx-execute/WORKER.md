@@ -8,6 +8,7 @@ You implement inside `WORKTREE_DIR` on `EXEC_BRANCH`; the parent owns merge, pus
 - Stay in the parent's workspace (never switch workspace root).
 - Commit on `EXEC_BRANCH` only. Push only when the prompt says so.
 - Dev servers: bind to `PORT`.
+- Background shells only for processes that never exit (dev servers, watchers); checks and builds run in the foreground with a long timeout. Kill every background shell before the Handoff.
 
 ## Phase 0 — Verification table
 
@@ -48,6 +49,7 @@ Stage plan scope; conventional commits; clean `git status`. Commit messages pass
 - **Commits:** `git log TARGET_BRANCH..EXEC_BRANCH --oneline`
 - **Verification table:** (each row: command, outcome, snippet)
 - **Phase 3 regression:** command + outcome on EXEC_BRANCH
+- **Background shells:** none | killed: <what each ran> (their late exit notices are stale)
 - **Blockers:** (if fail) symptom, attempts, next experiment
 ```
 
