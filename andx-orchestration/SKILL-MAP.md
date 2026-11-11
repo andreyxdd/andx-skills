@@ -1,6 +1,6 @@
 # Andx skill map
 
-Single source of truth for routing companion skills into the andx stack. Entry `SKILL.md` files link here — do not duplicate full tables.
+Single source for routing companion skills into the andx stack; entry `SKILL.md` files link here, never duplicate its tables.
 
 **Principle:** invoke by path under `~/.agents/skills/` or `~/.cursor/skills-cursor/` (built-ins only). Capture outputs in OKF `knowledge/` and plan frontmatter.
 
@@ -45,9 +45,9 @@ Before: `/andx-plan`. After: `/andx-execute` or `/andx-execute-and-review` (eith
 | `test` / `lint` | Toolchain from preflight | Phase 3 (lint always, even `DOCS_ONLY`) |
 | Doc verifier | `kind: docs` / `workstream: docs`\|`mixed` | Doc gate + Phase 3 |
 | `react-best-practices` | `REACT_STACK` + React paths | Worker Phase 1 |
-| `impeccable` | `kind: ui`\|`mixed` | Worker Phase 1; screenshots per [WORKER.md](../andx-execute/WORKER.md) Screenshots |
+| `impeccable` | `kind: ui`\|`mixed` | Worker Phase 1; screenshots per WORKER.md |
 | `observability` | New service/job/worker | Logs/health in success |
-| `agent-browser` | UI needs browser | Step verification; screenshots per [WORKER.md](../andx-execute/WORKER.md) Screenshots |
+| `agent-browser` | UI needs browser | Step verification; screenshots as above |
 | `dependency-upgrade` | Upgrade-only plan | Dedicated scope |
 
 Load `design_refs` as **immutable contract** in preflight + worker prompt.

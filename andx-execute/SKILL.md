@@ -13,7 +13,7 @@ Vague acceptance → `/andx-plan`. One falsifiable check per step, fresh output,
 
 ## Definition of done
 
-Handoff **pass**; landed; post-merge Phase 3 green; cleanup quoted; lock released (`--deploy`: by andx-deploy); `run.mjs end --terminal DONE` (`--deploy`: `--deployed PASS`), its status line ends the reply.
+Handoff **pass**; landed; post-merge Phase 3 green; cleanup quoted; lock released (`--deploy`: by andx-deploy); `run.mjs end --terminal DONE` (`--deploy`: `--deployed PASS`).
 
 **Umbrella** (`multi_repo: true`): check each child is ready, its repo clean (bar `dirs --ensure`'s line); run each alone, in order, to `DONE` with the user's flags, switching root (HARNESS); stop at a failure.
 
@@ -30,7 +30,7 @@ Handoff **pass**; landed; post-merge Phase 3 green; cleanup quoted; lock release
 
 Orch Step 2 with plan, `REACT_STACK`, `DOCS_ONLY`, OKF block (worker reads [WORKER.md](./WORKER.md) itself). Pass → ledger phase `A`. Fail → report, no merge unless asked.
 
-**EXEC-MATRIX** ([/andx-schedule](../andx-schedule/SKILL.md)): `<slug>.EXEC-MATRIX.md` beside the plan → its waves per its parent spawn contract (merging into `EXEC_BRANCH`; the run lands once); else one worker.
+**EXEC-MATRIX** ([/andx-schedule](../andx-schedule/SKILL.md)): `<slug>.EXEC-MATRIX.md` beside the plan → its waves per its parent spawn contract (SKILL-MAP); else one worker.
 
 ## Phase F — Land
 

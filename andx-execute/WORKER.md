@@ -1,14 +1,12 @@
 # andx worker (Phases 0–4)
 
-You implement inside `WORKTREE_DIR` on `EXEC_BRANCH`; the parent owns merge, push, and cleanup.
+You implement and commit inside `WORKTREE_DIR` on `EXEC_BRANCH` only; the parent merges, pushes and cleans up.
 
 ## Workspace
 
-- Every read, edit and shell call uses absolute `$WORKTREE_DIR/...` paths or `$WORKTREE_DIR` as working directory. A relative path resolves to the primary checkout.
-- Stay in the parent's workspace (never switch workspace root).
-- Commit on `EXEC_BRANCH` only. Push only when the prompt says so.
-- Dev servers: bind to `PORT`.
-- Background shells only for processes that never exit (dev servers, watchers); checks and builds run in the foreground with a long timeout. Kill every background shell before the Handoff.
+- Reads, edits and shell calls use absolute `$WORKTREE_DIR/...` paths (or cwd); relative paths hit the primary checkout.
+- Never switch workspace root; push only when the prompt says so. Obey the parent's scoped workspace rules (Phases 1–3).
+- Background shells only for never-exiting processes (dev servers on `PORT`, watchers); checks and builds: foreground, long timeout. Kill them all before the Handoff.
 
 ## Phase 0 — Verification table
 
@@ -16,17 +14,15 @@ Before code: dependency-ordered steps with kind / success / verification. UI →
 
 ## Phase 1 — Execute
 
-**`kind: docs` / `DOCS_ONLY`:** edit docs per `doc-sync-map` → run verification → done. No TDD.
+**`kind: docs` / `DOCS_ONLY`:** edit docs per `doc-sync-map`, run verification; no TDD.
 
-**Else:** Red → Green per `/tdd`, testing only at the step's `seams` (already agreed at plan time; missing `seams` → test at the public interface named in `success` and note it in the handoff). Expected values come from an independent source (literal, worked example, spec), never recomputed the way the code does (tautological test = fail). UI/mixed: `/impeccable` before Red when applicable. `REACT_STACK` + React paths: follow `~/.agents/skills/react-best-practices/SKILL.md`. Quote gate output. Out of plan → ask or `OUT OF SCOPE`.
+**Else:** Red → Green per `/tdd`, testing only at the step's `seams` (agreed at plan time; none → test the public interface in `success`, note it in the handoff). Expected values come from an independent source (literal, worked example, spec), never recomputed like the code (tautological test = fail). UI/mixed: `/impeccable` before Red when applicable. `REACT_STACK` + React paths: follow `~/.agents/skills/react-best-practices/SKILL.md`. Quote gate output. Out of plan → ask or `OUT OF SCOPE`.
 
-**Screenshots:** DOM/a11y assertions first; image only when layout is the claim. Downscale before Read: `sips -Z 1000 in.png --out /tmp/<name>.png` (Linux: `magick in.png -resize 1000x1000\> /tmp/<name>.png`). Max 3 images per round.
-
-**Workspace rules:** obey the parent's scoped rules (Phases 1–3).
+**Screenshots:** DOM/a11y assertions first; image only when layout is the claim. Downscale before Read: `sips -Z 1000 in.png --out /tmp/<name>.png` (Linux: `magick in.png -resize 1000x1000\> /tmp/<name>.png`). Max 3 per round.
 
 ## Phase 2 — Fail loop
 
-Diagnose → fix criterion → implement → re-run (max 3 attempts) → stop with blocker.
+Diagnose → fix criterion → implement → re-run (max 3) → stop with blocker.
 
 ## Phase 3 — Final on EXEC_BRANCH
 
@@ -49,7 +45,7 @@ Stage plan scope; conventional commits; clean `git status`. Commit messages pass
 - **Commits:** `git log TARGET_BRANCH..EXEC_BRANCH --oneline`
 - **Verification table:** (each row: command, outcome, snippet)
 - **Phase 3 regression:** command + outcome on EXEC_BRANCH
-- **Background shells:** none | killed: <what each ran> (their late exit notices are stale)
+- **Background shells:** none | killed: <what each ran> (late exit notices are stale)
 - **Blockers:** (if fail) symptom, attempts, next experiment
 ```
 
