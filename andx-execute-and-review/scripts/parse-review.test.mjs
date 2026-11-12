@@ -57,6 +57,19 @@ test("JSON reports are schema-checked and fail closed", () => {
   ]) assert.equal(parse("spec", null, bad).status, "UNPARSED", bad);
 });
 
+test("one JSON report amid prose parses; two reports or a broken one fall through", () => {
+  const f = { severity: "high", location: "a.js:1", finding: "a } brace \" quote" };
+  const one = JSON.stringify({ status: "BLOCK", findings: [f] });
+  for (const text of [`Round 2 checked.\n${one}`, `${one}\n\nNext I'm checking the bar logic.`, `Lead-in:\n\`\`\`json\n${one}\n\`\`\`\nTrailing note.`]) {
+    const r = parse("ux-api", null, text);
+    assert.equal(r.status, "BLOCK", text);
+    assert.deepEqual(r.findings.map((x) => x.finding), [f.finding]);
+  }
+  const pass = JSON.stringify({ status: "PASS", findings: [] });
+  assert.equal(parse("react", null, `${pass}\n${pass}`).status, "UNPARSED");
+  assert.equal(parse("react", null, `note ${JSON.stringify({ status: "PASS", findings: [{ ...f, reviewer: "spoof" }] })}`).status, "UNPARSED");
+});
+
 test("file+line, title/issue and side keys fold into the canonical finding", () => {
   const drift = { severity: "high", file: "a.tsx", line: 157, wcag: "2.4.3", title: "Focus lost", detail: "button unmounts", evidence: "> x" };
   const r = parse("a11y", null, JSON.stringify({ status: "BLOCK", findings: [drift, { severity: "low", file: "b.go", issue: "slow", fix: "cache", plan: "step-6" }] }));

@@ -4,7 +4,7 @@
 // Preferred input: a JSON report {"status":"PASS|BLOCK","findings":[{"severity","location","finding","evidence"?}]};
 // extra top-level keys are ignored and "info" reads as nitpick; file+line, title/issue/detail fold into
 // location/finding and fix/wcag/rule/plan/id are dropped; any other shape, extra finding key or unknown
-// severity in JSON is UNPARSED. Text reports below stay supported.
+// severity in JSON is UNPARSED. Prose around exactly one valid JSON report is tolerated. Text reports below stay supported.
 // status: BLOCK (VERDICT says BLOCK, or any critical/high incl. table rows) | FIX (medium only) | PASS | UNPARSED
 // UNPARSED also: more than one real VERDICT; a Critical/High line with no VERDICT; bugbot XML with more
 // than one <answer>, an unclosed one, a <bug> that did not parse, or an unknown severity.
@@ -58,10 +58,35 @@ export function parseJson(text, reviewer) {
   return { status: r.status === "BLOCK" ? "BLOCK" : statusFor(findings), findings };
 }
 
+// Balanced top-level objects starting with {"status" anywhere in the text (string-aware).
+function reportObjects(text) {
+  const out = [];
+  for (let i = text.indexOf('{"status"'); i >= 0; i = text.indexOf('{"status"', i + 1)) {
+    let depth = 0, quoted = false, esc = false;
+    for (let j = i; j < text.length; j++) {
+      const c = text[j];
+      if (quoted) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') quoted = false; continue; }
+      if (c === '"') quoted = true;
+      else if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) { out.push(text.slice(i, j + 1)); i = j; break; }
+    }
+  }
+  return out;
+}
+
 export function parse(text, reviewer) {
-  // One ```json fence around the whole reply is tolerated; any other prose around JSON is not.
+  // One ```json fence around the whole reply is tolerated.
   const bare = text.trim().replace(/^```(?:json)?\r?\n([\s\S]*?)\r?\n```$/, "$1");
-  if (bare.startsWith("{")) return parseJson(bare, reviewer);
+  if (bare.startsWith("{")) {
+    const r = parseJson(bare, reviewer);
+    if (r.status !== "UNPARSED" || reportObjects(bare).length !== 1 || reportObjects(bare)[0] === bare) return r;
+  }
+  // Prose around exactly one valid JSON report: the report wins. Zero or several fall through to the text formats.
+  const objs = reportObjects(text);
+  if (objs.length === 1) {
+    const r = parseJson(objs[0], reviewer);
+    if (r.status !== "UNPARSED") return r;
+  }
   // 1) Bugbot native XML: <answer></answer> = no bugs.
   if (reviewer === "bugbot" && (text.includes("<answer>") || text.includes("</answer>"))) {
     if (count(text, "<answer>") !== 1 || count(text, "</answer>") !== 1) return UNPARSED;
