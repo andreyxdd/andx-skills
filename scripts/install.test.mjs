@@ -62,7 +62,7 @@ test("spec reviewer gets a per-harness model copy; other agents stay linked and 
       const r = install(home);
       assert.equal(r.status, 0, r.stdout + r.stderr);
       assert.equal(fs.readFileSync(src, "utf8"), before, "source untouched through an old symlink");
-      for (const [h, model] of [[".claude", "sonnet"], [".cursor", "claude-sonnet-5-5"]]) {
+      for (const [h, model] of [[".claude", "sonnet"], [".cursor", "inherit"]]) {
         const f = join(home, h, "agents", "andx-spec-reviewer.md");
         assert.equal(fs.lstatSync(f).isSymbolicLink(), false, f);
         assert.equal(fs.readFileSync(f, "utf8"), before.replace("\nmodel: inherit\n", `\nmodel: ${model}\n`), f);

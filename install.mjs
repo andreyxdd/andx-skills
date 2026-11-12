@@ -39,7 +39,8 @@ const RETIRED = ["andx-pr-review"];
 const SKILL_HOMES = [".agents", ".claude"];
 const LEGACY_HOMES = [".cursor", ".codex"];
 // Agents that run a mid-tier model instead of inheriting the parent's: home dir -> model id for that harness.
-const MODELS = { "andx-spec-reviewer.md": { ".claude": "sonnet", ".cursor": "claude-sonnet-5-5" } };
+// Cursor inherits: its plans may not include a pinned model, and its own copy keeps it off the Claude `sonnet` pin.
+const MODELS = { "andx-spec-reviewer.md": { ".claude": "sonnet", ".cursor": "inherit" } };
 
 // Replace `dest` with a link to `target`. Windows: directory junctions (no admin); a file symlink
 // may need Developer Mode, so fall back to a copy. Returns "linked" or "copied".

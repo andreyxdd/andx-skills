@@ -18,11 +18,11 @@ Skills name a capability with "(HARNESS)"; this maps it to tools. Never invent t
 
 **Never on the default path:** Claude `isolation: worktree`, Cursor `best-of-n-runner`, cloud agents, forks (`Task(resume="self")`, Claude `subagent_type: "fork"`): their own branch fights andx landing, resume, cleanup, blind review. One nesting level; the parent spawns every worker, reviewer and refuter (one union, one ledger).
 
-Frontmatter: agent `model: inherit` (install pins spec reviewer: Cursor `claude-sonnet-5-5`, Claude `sonnet`; Kimi ignores `model`). Claude: `"subagentPromptCacheTtl": "1h"` in `settings.json`.
+Frontmatter: agent `model: inherit` (install pins spec reviewer to Claude `sonnet`; Cursor inherits; Kimi ignores `model`). Claude: `"subagentPromptCacheTtl": "1h"` in `settings.json`.
 
 ## Reviewers
 
-Fresh read-only agents, no worker context, judge only `git diff $MERGE_BASE_SHA..$EXEC_HEAD`. Bug review per the table (Claude fallback: `general-purpose` + Bugbot prompt). Security: `andx-security-reviewer`, then one `andx-refuter` per proposed critical/high, all at once; `--deep` adds Cursor `security-review`. Spec: `andx-spec-reviewer` + plan path, diff, verification table. Ponytail: [ponytail resolve](#ponytail-resolve), mid-tier model (Cursor `claude-sonnet-5-5-high`, Claude `sonnet`). Audit / React / A11y: skill path from [SKILL-MAP.md](./SKILL-MAP.md).
+Fresh read-only agents, no worker context, judge only `git diff $MERGE_BASE_SHA..$EXEC_HEAD`. Bug review per the table (Claude fallback: `general-purpose` + Bugbot prompt). Security: `andx-security-reviewer`, then one `andx-refuter` per proposed critical/high, all at once; `--deep` adds Cursor `security-review`. Spec: `andx-spec-reviewer` + plan path, diff, verification table. Ponytail: [ponytail resolve](#ponytail-resolve), mid-tier model (Claude `sonnet`; Cursor inherits). Audit / React / A11y: skill path from [SKILL-MAP.md](./SKILL-MAP.md).
 
 ## Ponytail resolve
 
