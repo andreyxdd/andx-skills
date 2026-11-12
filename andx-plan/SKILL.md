@@ -49,7 +49,8 @@ New module or seam: read `~/.agents/skills/codebase-design/DESIGN-IT-TWICE.md` (
 Same **rounds** as Phase 1. Per step: id, title, `kind`, `depends`, `touch`, `seams`, `success`, `verification`. Explore repo for real `touch` paths.
 
 - **Vertical slices:** each step delivers one observable behavior end to end (schema + API + UI as needed). Never split by layer ("step-1 schema, step-2 API, step-3 UI").
-- **Seams:** for `backend`/`ui`/`mixed` steps, agree the public interfaces the worker may test at (`tdd` tests only at agreed seams). One line each: what it catches, what it misses.
+- **Seams:** for `backend`/`ui`/`mixed` steps, agree the public interfaces the worker may test at (`tdd` tests only at agreed seams). One line each: what it catches, what it misses. A flagged change to an existing screen or route adds a seam pinning its flag-off output.
+- Shortcuts in `success`: plain-English comment with ceiling and upgrade path; the jargon gate bans `ponytail:`.
 - UI: bake a11y/impeccable into success when needed.
 
 Present full step list; **user approves before Phase 3**.
@@ -96,6 +97,4 @@ Reply go → run default on this plan.
 - One question per turn when several are already answerable (use rounds)
 - `touch: unknown` when exploration could resolve
 - Write file before step-list approval
-- Duplicate companion skill prose into plan body
-- Omit Next menu / plan path / `go` contract (silent end after write)
 - Committing a hidden `$PLANS_DIR` by default

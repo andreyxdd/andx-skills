@@ -46,7 +46,7 @@ Fresh agents only; read-only; blocking, all at once (HARNESS). Each gets this pr
 Package: <RUN_DIR>/package.diff (commits, stat, diff). Review only that diff.
 Plan: <plan path>. Evidence: <worker verification table>. Workspace gates: <titles or none>.
 Final message = only the report: JSON {"status":"PASS|BLOCK","findings":[{"severity":"high","location":"f:1","finding":"…","evidence":"> line"}]}
-(Bugbot, Security: native format).
+(Security: native. Bugbot: end with `| Severity | Location | Finding |` rows or `Bugbot found no bugs`.)
 Rules: severity critical|high|medium|low; each High/Critical quotes one exact file line (no diff +/-) in evidence, else Medium; BLOCK needs a High.
 Round 2+: confirm or clear prior blockers <list>; only open or new findings; a new one must sit on a line this round added.
 ```
@@ -68,7 +68,7 @@ Route from `verdict.json` only, never raw reports. Final `PASS` (after any fix l
 
 ## Phase E — Fix loop
 
-**MEDIUM:** fix in the same round when it is in plan scope and reproducible from the diff. Defer only speculative, style-only, or out-of-scope items, each with a one-line reason. The final reply lists every deferred item and asks "fix now?", plus each `rejected` critical/high with the refuter's reason.
+**MEDIUM:** rounds 1–2: fix when in plan scope and reproducible from the diff; defer speculative, style-only, out-of-scope. Round 3+: defer all. A High on lines a MEDIUM fix added → revert that fix, defer the MEDIUM (patch forward only with the user). One-line reason per deferral; the final reply lists them and asks "fix now?", plus each `rejected` critical/high with the refuter's reason.
 
 Resume the worker (HARNESS) with `blockers` + in-scope `advisory` + jargon hits; Phase 3 on EXEC_BRANCH; next round re-reviews only the fix delta with bug review plus the reviewers whose blockers or MEDIUMs this round fixed. Add Spec only when the delta touches paths outside the plan `touch`.
 
@@ -100,10 +100,8 @@ Replaces Phase F's merge with a draft MR. Never merges to the default branch.
 
 ## Definition of done
 
-Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; no open High; merged + post-merge green + cleanup + queue release (`--deploy`: by andx-deploy); `run.mjs end --terminal DONE` (`--deploy`: `--deployed PASS`); reply ends with its status line.
+Worker pass; always-on reviewers PASS; conditionals PASS when their gates ran; no open High; merged + post-merge green + cleanup + queue release (`--deploy`: by andx-deploy); `run.mjs end --terminal DONE` (`--deploy`: `--deployed PASS`).
 
 ## Anti-patterns
 
-- Reviewer shares worker context
-- Parent "just fixes" source
 - Whole-repo ponytail-audit (use `touch`)
