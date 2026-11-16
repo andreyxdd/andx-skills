@@ -359,6 +359,9 @@ test("variants: security's line, trimmed and deduplicated; round 2 adds the prio
   const list = "variants:\r\n  - `a.go:3`\r\n  - pkg/b.go:9\r\n  - free text\r\n  - none\r\nblockers:\r\n  - [MEDIUM] c.go:1 — x\r\n";
   assert.deepEqual(go(sec(list)).variants, ["a.go:3", "pkg/b.go:9"]);
   assert.deepEqual(go(sec("variants: `a.go:3`, a.go:3 , ` b.go:9 `\n")).variants, ["a.go:3", "b.go:9"]);
+  const cafe = "caf" + String.fromCharCode(0xe9) + "/x.go:4";
+  const annotated = `variants:\n- a.go:3 (same concat)\n- \`a.go:3:12\`\n- b.go:9-11\n- ${cafe}\n- none\nblockers:\n- [MEDIUM] c.go:1 — x\n`;
+  assert.deepEqual(go(sec(annotated)).variants, ["a.go:3", "b.go:9", cafe], "column-0 list stops at the first non-item line");
   assert.equal("variants" in go([{ reviewer: "bugbot", text: "## VERDICT\nstatus: PASS\nvariants: a.go:3\n" }]), false);
   const prior = { variants: ["c.go:1", "a.go:3"] };
   assert.deepEqual(go(sec("variants: a.go:3, b.go:9\n"), { round: 2, prior }).variants, ["c.go:1", "a.go:3", "b.go:9"]);

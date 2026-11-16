@@ -57,7 +57,7 @@ union, in order:
   verdict      blockers: Critical/High; advisory: Medium, needs_validation; deferred: Low, nitpick;
                dropped: wrong-base, round-scope, prior-rejected. status BLOCK on blockers or unparsed.
   variants     security's "variants: f:1, g:2" line or "- f:1" list under it (unfixed copies of a fixed
-               pattern) -> variants[], plus V.json's, deduplicated; non path:line entries drop; none -> no field
+               pattern) -> leading path:line of each entry, plus V.json's, deduplicated; none -> no field
   heads        head_sha = H; review_head_sha = V.json's review_head_sha, else its head_sha, else H (round 1)
                pinned at refs/andx/reviewed/<S> so gc keeps it; a failed update only warns
 artifact copies review_head_sha and a non-empty variants[].
@@ -189,12 +189,13 @@ export function union({ reports, files, names, expect = [], refuters = [], round
     if (r.status === "BLOCK") blocking.add(reviewer);
     if (reviewer === "security") {
       secrets = text.match(/secrets_scan:\s*(RAN|NOT_RUN)/)?.[1] ?? secrets;
-      // Same-line comma list or an indented "- f:1" list under the key; keep only path:line entries.
-      const m = text.replace(/\r\n?/g, "\n").match(/^[ \t]*variants:[ \t]*(.*)\n?((?:[ \t]+-.*(?:\n|$))*)/m);
-      const raw = m ? [...m[1].split(","), ...m[2].split("\n").map((l) => l.replace(/^[ \t]+-/, ""))] : [];
+      // Same-line comma list or a "- f:1" list under the key (stops at the first non-item line);
+      // each entry keeps its leading path:line, so "a.go:3:12 (note)" -> a.go:3; none/free text drop.
+      const m = text.replace(/\r\n?/g, "\n").match(/^[ \t]*variants:[ \t]*(.*)\n?((?:[ \t]*-.*(?:\n|$))*)/m);
+      const raw = m ? [...m[1].split(","), ...m[2].split("\n").map((l) => l.replace(/^[ \t]*-/, ""))] : [];
       for (const s of raw) {
-        const e = s.replace(/^[\s`]+|[\s`]+$/g, "");
-        if (/^[\w./@+-]+:\d+$/.test(e)) variants.add(e);
+        const e = s.replace(/^[\s`]+/, "").match(/^([^\s`,]+?:\d+)/)?.[1];
+        if (e) variants.add(e);
       }
     }
     // O(n^2) grouping; fine for tens of findings per round.
