@@ -1,0 +1,172 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/andx-security-review-lfd121-hardening.plan.md",
+  "target_branch": "main",
+  "base_sha": "13c127a02af0128e69847ae9ab1d3d9659088187",
+  "head_sha": "3e7c406d2734e12dbcb0a4927464e4609622f913",
+  "reviewed_at": "2026-11-16T05:36:09.882Z",
+  "verdict": "PASS",
+  "findings": [
+    {
+      "id": "skill-md-this-rule-contradicts-the-gate-s",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-security-review/SKILL.md:87",
+      "finding": "This rule contradicts the gate's parser. review.mjs drops any finding whose file is not in the diff as wrong-base, so in gate mode unfixed variants found elsewhere never reach the artifact; a low variant goes to deferred, not advisory. Fix: send variants to the prose or standalone report, or a separate non-finding field.",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "go-and-validation-md-the-companion-contradicts-itself",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-security-review/references/andx/GO-AND-VALIDATION.md:8",
+      "finding": "The companion contradicts itself: Core discipline says a stricter check in front is not the fix, line 18 accepts uuid.Parse or a strict format check for the internal-URL-path sink. Fix: allow a strict parse into a typed value as an accepted control in Core discipline.",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "go-and-validation-md-flags-normal-in-cluster",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-security-review/references/andx/GO-AND-VALIDATION.md:22",
+      "finding": "Flags normal in-cluster plaintext service URLs (*.svc.cluster.local) as funds-moving TLS findings; the decisive fact (mesh mTLS / NetworkPolicy) lives outside source. Fix: exempt cluster-local hosts or make it needs_validation by default.",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "token-caps-json-the-security-review-cap-was",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "scripts/token-caps.json:24",
+      "finding": "The security-review cap was raised to 32019, but check-skills --tokens measures the chain at 31978. That leaves 41 tokens of unused headroom. Plan decision 3 and step-3 say each cap rises by exactly the measured delta, so the cap should be 31978. The slack lets a later doc edit grow the chain without tripping the gate.",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "measurement-md-the-plan-asks-whether-each-confirmed",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-security-review/MEASUREMENT.md:23",
+      "finding": "The plan asks whether each confirmed finding reappeared at the pre-fix commit. All five replays ran on post-fix code, so the table cannot show recall, and the file says so. The note 'No confirmed fix was re-flagged' reads as a pass but is not a recall measurement. The deviation is acceptable because the plan calls step 4 advisory and the file states it. The case-4 claim 'a human confirmed it later' cannot be checked from this diff.",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "skill-md-govulncheck-scans-the-whole-module-no",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-security-review/SKILL.md:128",
+      "finding": "govulncheck ./... scans the whole module; no rule keeps only vulnerabilities the diff introduces; may fail when go.mod is not at root and may download the vuln DB.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "skill-md-semgrep-config-auto-fetches-rules-from",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-security-review/SKILL.md:129",
+      "finding": "semgrep --config auto fetches rules from semgrep.dev and requires metrics on; with metrics off it errors.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "go-and-validation-md-character-list-reads-as",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-security-review/references/andx/GO-AND-VALIDATION.md:30",
+      "finding": "Character list reads as exhaustive but misses LRM/RLM U+200E/U+200F, ALM U+061C, word joiner U+2060, BOM U+FEFF; say 'for example' or name the Cf/Bidi_Control categories.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "measurement-md-rule-ids-r1-r14-are-not",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-security-review/MEASUREMENT.md:63",
+      "finding": "Rule ids R1-R14 are not defined in any skill file, so a later re-measure cannot map rows to rules.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "andx-security-reviewer-md-the-extra-line-telling",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "agents/andx-security-reviewer.md:12",
+      "finding": "The extra line telling the agent to load router rows under references/andx/ is not named in step 3's success text. It is a few tokens, needed so the agent reads the new companion, and within the 40-token agent budget, so it is acceptable. The other two parent-reported deviations are also acceptable. The security-reviewer cap rose in steps 1 and 2 because that chain includes SKILL.md. The agent file itself grew about 18 tokens.",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "skill-md-in-gate-mode-review-mjs-reads",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-security-review/SKILL.md:86",
+      "finding": "In gate mode review.mjs reads only secrets_scan and findings, so the variants: line never reaches the artifact or final reply; R5 output is silent in execute-and-review.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "go-and-validation-md-only-the-fqdn-form",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-security-review/references/andx/GO-AND-VALIDATION.md:27",
+      "finding": "Only the FQDN form of a cluster-local host is named; short service names (svc, svc.ns, svc.ns.svc) are ambiguous.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "go-and-validation-md-category-cf-reads-as",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-security-review/references/andx/GO-AND-VALIDATION.md:32",
+      "finding": "'category Cf' reads as the defining set; some invisible characters are outside it (U+3164, U+115F Lo; U+2800 So; U+034F Mn).",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "skill-md-h1-cleared-skill-and-severity-agree",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-security-review/SKILL.md:82",
+      "finding": "H1 cleared: SKILL and SEVERITY agree (about 122 bits or more, UUIDv4 a control). Optional: 'e.g. UUIDv4' may be read as any UUIDv4; some generators fall back to a non-CSPRNG source. Add 'from a CSPRNG source'.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "skill-md-wrong-technical-claim-and-it-can",
+      "status": "confirmed",
+      "severity": "high",
+      "location": "andx-security-review/SKILL.md:82",
+      "finding": "The 128-bit control threshold leaves out UUIDv4 (122 random bits), the usual share/invite/reset token; SKILL and SEVERITY rule 4 ('high-entropy') disagree for it. Say ~122 bits (UUIDv4 or wider) or drop the number.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "fixed"
+    }
+  ]
+}
