@@ -5,7 +5,7 @@ import os from "node:os";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { reviewerOf } from "./review.mjs";
+import { reviewerOf, union as unite, artifact } from "./review.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(here, "..", "fixtures", "bugbot");
@@ -349,4 +349,48 @@ test("artifact writes a valid v2 file and refuses an invalid verdict", () => {
   assert.equal(r2.status, 1);
   assert.match(r2.stdout, /INVALID[\s\S]*PASS with unfixed high/);
   assert.equal(fs.existsSync(bad), false);
+});
+
+test("variants: security's line, trimmed and deduplicated; round 2 adds the prior ones", () => {
+  const sec = (line) => [{ reviewer: "security", text: `## VERDICT\nstatus: PASS\nsecrets_scan: RAN\n${line}` }];
+  const go = (reports, extra) => unite({ reports, files: new Map(), names: new Set(), ...extra });
+  assert.deepEqual(go(sec("variants: a.go:3, b.go:9 ,a.go:3\n")).variants, ["a.go:3", "b.go:9"]);
+  for (const line of ["", "variants:\n", "variants:   \nblockers:\n", "variants: none\n"]) assert.equal("variants" in go(sec(line)), false, line);
+  assert.equal("variants" in go([{ reviewer: "bugbot", text: "## VERDICT\nstatus: PASS\nvariants: a.go:3\n" }]), false);
+  const prior = { variants: ["c.go:1", "a.go:3"] };
+  assert.deepEqual(go(sec("variants: a.go:3, b.go:9\n"), { round: 2, prior }).variants, ["c.go:1", "a.go:3", "b.go:9"]);
+  assert.deepEqual(go(sec(""), { round: 2, prior }).variants, ["c.go:1", "a.go:3"]);
+});
+
+test("review_head_sha stays the round-1 head; the artifact carries it and the variants", () => {
+  const r = repo();
+  const dir = tmp();
+  const v1 = union(r, { "security": "## VERDICT\nstatus: PASS\nsecrets_scan: RAN\nvariants: old.go:1, src/x.go:3\n" });
+  assert.deepEqual([v1.head_sha, v1.review_head_sha, v1.variants], [r.head, r.head, ["old.go:1", "src/x.go:3"]]);
+  const prior = join(dir, "v1.json");
+  fs.writeFileSync(prior, JSON.stringify(v1));
+  const fix = commit(r.dir, { "src/x.go": lines(30, (i) => (i === 10 ? "v := items[1]" : `line ${i}`)) }, "fix");
+  const round2 = (p) => union({ ...r, base: r.head, head: fix }, { "bugbot": "## VERDICT\nstatus: PASS\n" }, ["--round", "2", "--prior", p]);
+  const v2 = round2(prior);
+  assert.deepEqual([v2.base_sha, v2.head_sha, v2.review_head_sha, v2.variants], [r.base, fix, r.head, ["old.go:1", "src/x.go:3"]]);
+  const legacy = join(dir, "legacy.json");
+  fs.writeFileSync(legacy, JSON.stringify({ ...v1, review_head_sha: undefined }));
+  assert.equal(round2(legacy).review_head_sha, fix);
+
+  const file = join(dir, "v2.json");
+  fs.writeFileSync(file, JSON.stringify(v2));
+  const out = join(dir, "a.json");
+  const ok = run(["artifact", "--verdict", file, "--plan", "p", "--out", out]);
+  assert.equal(ok.status, 0, ok.stderr);
+  const a = JSON.parse(fs.readFileSync(out, "utf8"));
+  assert.deepEqual([a.schema_version, a.head_sha, a.review_head_sha, a.variants], [2, fix, r.head, ["old.go:1", "src/x.go:3"]]);
+  const check = spawnSync(process.execPath, [VALIDATOR, out, "--head", fix, "--base", r.base], { encoding: "utf8" });
+  assert.equal(check.stdout.trim(), "TRUSTED");
+});
+
+test("no variants: verdict and artifact keys are unchanged apart from review_head_sha", () => {
+  const v = union(repo(), { "bugbot": "## VERDICT\nstatus: PASS\n" });
+  assert.deepEqual(Object.keys(v), ["status", "round", "blockers", "advisory", "deferred", "fixed", "rejected", "dropped", "unparsed", "base_sha", "head_sha", "review_head_sha"]);
+  const a = artifact({ ...v, variants: [] }, { plan: "p" });
+  assert.deepEqual(Object.keys(a), ["schema_version", "source", "plan", "target_branch", "base_sha", "head_sha", "review_head_sha", "reviewed_at", "verdict", "findings"]);
 });

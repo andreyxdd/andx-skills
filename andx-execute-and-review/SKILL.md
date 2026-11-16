@@ -68,7 +68,7 @@ Route from `verdict.json` only, never raw reports. Final `PASS` (after any fix l
 
 ## Phase E — Fix loop
 
-**MEDIUM:** rounds 1–2: fix when in plan scope and reproducible from the diff; defer speculative, style-only, out-of-scope. Round 3+: defer all. A High on lines a MEDIUM fix added → revert that fix, defer the MEDIUM (patch forward only with the user). One-line reason per deferral; the final reply lists them and asks "fix now?", plus each `rejected` critical/high with the refuter's reason.
+**MEDIUM:** rounds 1–2: fix when in plan scope and reproducible from the diff; defer speculative, style-only, out-of-scope. Round 3+: defer all. A High on lines a MEDIUM fix added → revert that fix, defer the MEDIUM (patch forward only with the user). One-line reason per deferral; the final reply lists them and asks "fix now?", plus each `rejected` critical/high with the refuter's reason, and each `variants` entry on its own line.
 
 Resume the worker (HARNESS) with `blockers` + in-scope `advisory` + jargon hits; Phase 3 on EXEC_BRANCH; next round re-reviews only the fix delta with bug review plus the reviewers whose blockers or MEDIUMs this round fixed. Add Spec only when the delta touches paths outside the plan `touch`.
 

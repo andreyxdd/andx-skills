@@ -56,6 +56,10 @@ union, in order:
                that is neither in blockers nor decided by a refuter (now or as prior-rejected); check by hand
   verdict      blockers: Critical/High; advisory: Medium, needs_validation; deferred: Low, nitpick;
                dropped: wrong-base, round-scope, prior-rejected. status BLOCK on blockers or unparsed.
+  variants     security's "variants: f:1, g:2" line (unfixed copies of a fixed pattern) -> variants[], plus
+               V.json's, deduplicated; entries without :<line> drop; none -> no field
+  heads        head_sha = H; review_head_sha = V.json's, else H (the round-1 head, for replay)
+artifact copies review_head_sha and a non-empty variants[].
 Exit: 0 ok, 1 artifact INVALID, 2 usage, 3 empty or unrelated range.`;
 
 const REVIEWERS = ["bugbot", "security", "ponytail", "spec", "audit", "react", "a11y", "ux-api", "refuter"];
@@ -175,13 +179,17 @@ export function union({ reports, files, names, expect = [], refuters = [], round
   const reported = new Set();
   const blocking = new Set();
   let secrets;
+  const variants = new Set(prior?.variants);
   const groups = [];
   for (const { reviewer, text } of reports) {
     const r = parse(text, reviewer);
     if (r.status === "UNPARSED") unparsed.push(reviewer);
     else reported.add(reviewer);
     if (r.status === "BLOCK") blocking.add(reviewer);
-    if (reviewer === "security") secrets = text.match(/secrets_scan:\s*(RAN|NOT_RUN)/)?.[1] ?? secrets;
+    if (reviewer === "security") {
+      secrets = text.match(/secrets_scan:\s*(RAN|NOT_RUN)/)?.[1] ?? secrets;
+      for (const s of text.match(/^[ \t]*variants:[ \t]*(.*)$/m)?.[1].split(",") ?? []) if (/:\d/.test(s)) variants.add(s.trim());
+    }
     // O(n^2) grouping; fine for tens of findings per round.
     for (const f of r.findings.map((x) => normalize(x, reviewer, files, names))) {
       const g = groups.find((x) => x.some((m) => sameRoot(m, f)) && !x.some((m) => m.fp && f.fp && m.id !== f.id));
@@ -264,6 +272,7 @@ export function union({ reports, files, names, expect = [], refuters = [], round
     status: out.blockers.length || unparsed.length ? "BLOCK" : "PASS",
     round,
     ...((secrets ?? prior?.secrets_scan) && { secrets_scan: secrets ?? prior.secrets_scan }),
+    ...(variants.size && { variants: [...variants] }),
     blockers: out.blockers,
     advisory: carry("advisory"),
     deferred: carry("deferred"),
@@ -299,7 +308,9 @@ export function artifact(v, { plan, target = "main", source = "andx-execute-and-
   const list = (k, extra) => (v[k] ?? []).map(({ reason, ...f }) => ({ ...f, ...(k === "rejected" && reason && { reason }), ...extra }));
   return {
     schema_version: 2, source, plan, target_branch: target, base_sha: v.base_sha, head_sha: v.head_sha,
+    ...(v.review_head_sha && { review_head_sha: v.review_head_sha }),
     reviewed_at: new Date().toISOString(), verdict: v.status, ...(v.secrets_scan && { secrets_scan: v.secrets_scan }),
+    ...(v.variants?.length && { variants: v.variants }),
     findings: [...list("blockers"), ...list("advisory"), ...list("deferred", { resolution: "deferred" }), ...list("fixed"), ...list("rejected")],
   };
 }
@@ -346,7 +357,7 @@ if (import.meta.main) {
     if (!Array.isArray(refuters) || !refuters.every((r) => r && typeof r === "object")) fail(2, "union: --refuters must be a JSON array of objects");
     const names = new Set(diff(repo, base, head, "--name-only", "-z").split("\0").filter(Boolean));
     const v = union({ reports, files: diffLines(diff(repo, base, head, "-U10")), names, expect, refuters, round, prior });
-    console.log(JSON.stringify({ ...v, base_sha: prior?.base_sha ?? base, head_sha: head }, null, 2));
+    console.log(JSON.stringify({ ...v, base_sha: prior?.base_sha ?? base, head_sha: head, review_head_sha: prior?.review_head_sha ?? head }, null, 2));
   } else if (cmd === "artifact") {
     need("verdict", "plan", "out");
     const a = artifact(readJson(o.verdict), o);
