@@ -26,8 +26,8 @@ Stacked MR: base is the parent MR head, never the default branch. Findings about
 Probe each scanner with `command -v` and record `RAN` or `NOT_RUN` in the output; `NOT_RUN` never counts as clean.
 
 - gitleaks, both modes: `gitleaks git --no-banner --redact --log-opts="<base>..<head>"`
-- govulncheck, both modes, when the diff touches Go: `govulncheck ./...`
-- gosec and semgrep, standalone only: `gosec ./...`, `semgrep --config auto`
+- govulncheck, both modes, when the diff touches Go: `govulncheck ./...` from the module root. Attribute only vulnerabilities in a module the diff adds or bumps, or on a call path it adds; no vulnerability database → `NOT_RUN`.
+- gosec and semgrep, standalone only: `gosec ./...`, `semgrep scan --config p/default --metrics off`
 
 gitleaks `NOT_RUN` → grep added lines:
 
@@ -79,11 +79,11 @@ Walk Spoofing, Tampering, **Repudiation** (who-did-what logs, tamper-evidence), 
 Per surface, also:
 
 - Enumerate every error and default branch of a new or changed guard; a branch that fails open (allows on error, missing value, unknown enum) defeats the control.
-- A client-side-only check or obscurity (hidden route, unguessable but unauthenticated id) is an absent control.
+- A client-side-only check or obscurity (hidden route; sequential, short, or listed/logged id) is an absent control. A CSPRNG token of at least 128 bits that is itself the credential (reset or invite token, share link, presigned URL, webhook secret) is a control.
 - A privileged action now gated by fewer independent conditions: [SEVERITY.md](SEVERITY.md) rule 5.
 - A value held both as a stored or verified copy and as request input: the sink must take the stored copy.
 - A privileged state change (role, key, limit, approval, withdrawal address) with no audit record is a Repudiation finding.
-- The diff fixes a vulnerability → `rg` the repo for the same pattern; report unfixed variants as advisory.
+- The diff fixes a vulnerability → `rg` the repo for the same pattern; list unfixed variants on the `variants:` output line, not as findings (out-of-diff files drop as wrong-base).
 
 ### 6. Candidate gate (Cloudflare, adapted)
 
@@ -105,6 +105,7 @@ Severity per [SEVERITY.md](SEVERITY.md). Each critical/high is `proposed` until 
 status: BLOCK | PASS
 secrets_scan: RAN | NOT_RUN
 scanners: <name>=RAN|NOT_RUN per other scanner that applies
+variants: <file:line>, … (unfixed copies of a fixed pattern; omit when none)
 blockers:
   - [CRITICAL|HIGH] <file:line> — <one line> (fingerprint)
 advisory:

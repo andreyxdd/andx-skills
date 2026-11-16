@@ -15,6 +15,8 @@ v2 artifacts now record `status` and `reviewers`. When ≥ 10 security critical/
 
 ## 2026-11-16 LFD121 rules replay
 
+Rules: R1 fail-open guard branch, R2 client-side/obscurity, R3 fewer independent conditions, R4 suppressions/deleted deny tests/mock evidence, R5 variant search, R6 stored vs request copy, R7 missing audit record, R8 validator defects, R9 Go sinks, R10 outbound TLS, R11 crypto deny-list, R12 approval-screen Unicode, R13 false-positive filters, R14 scanner prepass and new-dependency check.
+
 Gate mode, 5 merged diffs, scanners `NOT_RUN`. **Deviation:** no pre-fix commits exist (fixes were folded into feature commits), so all replays ran on post-fix code: recall is unmeasured; noise and re-flagging are measured.
 
 | Case | Verdict | New from R1–R14 |
