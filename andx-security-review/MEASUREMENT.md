@@ -12,3 +12,21 @@
 ## Re-measure
 
 v2 artifacts now record `status` and `reviewers`. When ≥ 10 security critical/high candidates have a refuter decision and a human outcome, count flips and false rejections, then apply the rule above (offer via `/retro`).
+
+## 2026-11-16 LFD121 rules replay
+
+Gate mode, 5 merged diffs, scanners `NOT_RUN`. **Deviation:** no pre-fix commits exist (fixes were folded into feature commits), so all replays ran on post-fix code: recall is unmeasured; noise and re-flagging are measured.
+
+| Case | Verdict | New from R1–R14 |
+|------|---------|-----------------|
+| Go wallet MR, 1 confirmed high | PASS | 1 LOW: R5 found a real unfixed sibling panic |
+| C# indexer MR, 3 confirmed highs | PASS | 1 LOW (R5, admin-only); 2 needs_validation (R10, R1) |
+| TypeScript mobile MR, 1 confirmed high | PASS | none |
+| Go wallet MR, clean control | BLOCK | 1 HIGH (R1 with a newer workspace gate): error served as partial 200; a human confirmed it later. 1 MEDIUM (R5) |
+| C# indexer MR, clean control | PASS | none |
+
+No confirmed fix was re-flagged. Blocker/high with no human-confirmed issue: 0, so no rule is downgraded. R13 and the candidate gate dropped 32 candidates, checked only by the reviewers' own reasoning.
+
+**Caveats:** N = 5; post-fix code; R14 untested.
+
+**Next:** replay at the pre-fix head of the next real security finding.
