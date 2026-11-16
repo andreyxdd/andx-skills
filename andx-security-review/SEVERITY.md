@@ -7,7 +7,7 @@ Anchors adapted from Cloudflare security-audit (MIT, `references/cloudflare/`).
 1. **Only proven findings get severity.** `needs_validation` has none; `rejected` has none.
 2. **Overall ≤ demonstrated impact.** Likelihood never raises severity above what the trace shows.
 3. **Cannot state the concrete damage → severity is lower than it feels.**
-4. **High vs medium:** does the result *fully defeat* an explicit control for an action with real consequences (high), or only *weaken* it (medium)? A guard branch that fails open on error or default, and a client-side-only check or obscurity (hidden route, guessable or enumerable id), count as full defeat; a high-entropy secret token that is the credential is a control.
+4. **High vs medium:** does the result *fully defeat* an explicit control for an action with real consequences (high), or only *weaken* it (medium)? A guard branch that fails open on error or default, and a client-side-only check or obscurity (hidden route, guessable or enumerable id), count as full defeat; a high-entropy CSPRNG token (about 122 bits or more, e.g. UUIDv4) that is the credential is a control.
 5. **Fewer independent conditions:** a diff that drops an independent condition gating a privileged action is high only when a reachable path really loses it and the refuter confirms that path. A refactor merging two equivalent checks is not a finding.
 
 ## Anchors
