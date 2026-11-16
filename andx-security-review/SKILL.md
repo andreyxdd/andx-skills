@@ -79,7 +79,7 @@ Walk Spoofing, Tampering, **Repudiation** (who-did-what logs, tamper-evidence), 
 Per surface, also:
 
 - Enumerate every error and default branch of a new or changed guard; a branch that fails open (allows on error, missing value, unknown enum) defeats the control.
-- A client-side-only check or obscurity (hidden route; sequential, short, or listed/logged id) is an absent control. A high-entropy CSPRNG token (about 122 bits or more, e.g. UUIDv4) that is itself the credential (reset or invite token, share link, presigned URL, webhook secret) is a control.
+- A client-side-only check or obscurity (hidden route; sequential, short, or listed/logged id) is an absent control. A token of about 122 bits or more from a CSPRNG source (e.g. UUIDv4; from a non-crypto generator it is guessable) that is itself the credential (reset or invite token, share link, presigned URL, webhook secret) is a control.
 - A privileged action now gated by fewer independent conditions: [SEVERITY.md](SEVERITY.md) rule 5.
 - A value held both as a stored or verified copy and as request input: the sink must take the stored copy.
 - A privileged state change (role, key, limit, approval, withdrawal address) with no audit record is a Repudiation finding.

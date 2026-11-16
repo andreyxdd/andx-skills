@@ -24,12 +24,12 @@ Rules paraphrased from OpenSSF, [Developing Secure Software (LFD121)](https://tr
 
 ## Outbound TLS and crypto
 
-- **TLS:** `tls.Config{InsecureSkipVerify: true}` on any non-test client, or a public or cross-network `http://` URL for an RPC node, identity provider, signer, or indexer. An `http://` cluster-local host (`*.svc.cluster.local`) is `needs_validation`: mesh mTLS or NetworkPolicy lives outside source. A response that moves funds or signing keys over an unauthenticated channel is the impact.
+- **TLS:** `tls.Config{InsecureSkipVerify: true}` on any non-test client, or a public or cross-network `http://` URL for an RPC node, identity provider, signer, or indexer. An `http://` cluster-local host (`http://svc:port`, `svc.ns`, `svc.ns.svc`, `*.svc.cluster.local`) is `needs_validation`: mesh mTLS or NetworkPolicy lives outside source. A response that moves funds or signing keys over an unauthenticated channel is the impact.
 - **Deny-list:** MD5 or SHA-1 for integrity or signatures; ECB (in Go, calling `cipher.Block.Encrypt` per block); a static or reused IV or nonce (GCM nonce reuse leaks the auth key); `math/rand` or JS `Math.random` for tokens, keys, or nonces (`crypto/rand` and `crypto.getRandomValues` are the CSPRNGs); a home-made KDF or password hash instead of HKDF, scrypt, Argon2, or bcrypt. Rate only when a consumer relies on the lost property.
 
 ## Approval screens
 
-Addresses, account names, or amounts that a human approves are a sink. Unicode format characters (category Cf) and Bidi_Control characters (for example U+202A–U+202E, U+2066–U+2069, U+200B–U+200F, U+061C, U+2060, U+FEFF), and confusables (for example Cyrillic U+0430 for Latin `a`), in those fields let the screen show a different value from the one signed. Require rejection or visible escaping on the approval path, and comparison of the exact bytes that get signed.
+Addresses, account names, or amounts that a human approves are a sink. Unicode format characters (category Cf) and Bidi_Control characters (for example U+202A–U+202E, U+2066–U+2069, U+200B–U+200F, U+061C, U+2060, U+FEFF), and confusables (for example Cyrillic U+0430 for Latin `a`), in those fields let the screen show a different value from the one signed. These classes are examples, not the defining set: any invisible or look-alike character counts, some outside Cf (U+3164, U+2800, U+034F). Require rejection or visible escaping on the approval path, and comparison of the exact bytes that get signed.
 
 ## Validation rules
 

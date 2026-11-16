@@ -21,7 +21,7 @@ Gate mode, 5 merged diffs, scanners `NOT_RUN`. **Deviation:** no pre-fix commits
 
 | Case | Verdict | New from R1–R14 |
 |------|---------|-----------------|
-| Go wallet MR, 1 confirmed high | PASS | 1 LOW: R5 found a real unfixed sibling panic |
+| Go wallet MR, 1 confirmed high | PASS | 1 LOW: R5 found an unfixed sibling panic, real at the replayed commit but already unreachable on the target branch, where later strict address validation rejects the short input first (found when a fix was attempted) |
 | C# indexer MR, 3 confirmed highs | PASS | 1 LOW (R5, admin-only); 2 needs_validation (R10, R1) |
 | TypeScript mobile MR, 1 confirmed high | PASS | none |
 | Go wallet MR, clean control | BLOCK | 1 HIGH (R1 with a newer workspace gate): error served as partial 200; a human confirmed it later. 1 MEDIUM (R5) |
@@ -30,5 +30,7 @@ Gate mode, 5 merged diffs, scanners `NOT_RUN`. **Deviation:** no pre-fix commits
 No confirmed fix was re-flagged. Blocker/high with no human-confirmed issue: 0, so no rule is downgraded. R13 and the candidate gate dropped 32 candidates, checked only by the reviewers' own reasoning.
 
 **Caveats:** N = 5; post-fix code; R14 untested.
+
+A variant found on an old commit must be traced at the current branch before it is reported as live.
 
 **Next:** replay at the pre-fix head of the next real security finding.
