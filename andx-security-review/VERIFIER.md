@@ -12,11 +12,13 @@ You may run the repo's existing unit tests offline; nothing else executes.
 1. Verify every trace entry: path, positive line number, described operation. The first
    entry must be a real lower-trust entrypoint, the last the claimed sink or effect.
 2. Reconstruct the strongest source-visible control on the path: validation, identity,
-   authorization, normalization, lifecycle, framework default, containment.
+   authorization, normalization, lifecycle, framework default, containment. A green test
+   that mocks the guarded boundary is not a control.
 3. Check the six-part boundary: lower-trust principal, accepted input/action, intended
    control, crossed boundary, affected principal/resource, concrete result. Any part
    missing or contradicted by source -> rejected.
-4. Check severity against SEVERITY.md: overall <= demonstrated impact.
+4. Check severity against SEVERITY.md: overall <= demonstrated impact. Fewer
+   independent conditions claimed: name the reachable path that lost one, or reject.
 5. If a decisive fact is outside source (proxy, IdP, deploy config, runtime), and source
    does not refute the trace -> needs_validation with the exact missing fact and a
    non-destructive local or owner-observed check.

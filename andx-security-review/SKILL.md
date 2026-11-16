@@ -19,7 +19,7 @@ Stacked MR: base is the parent MR head, never the default branch. Findings about
 
 ### 0. Scope and fast path
 
-`git diff --stat <base>..<head>`. Diff touches only docs/comments/tests with no fixtures of secrets → `PASS`, note "no security surface". Lockfile/CI/Dockerfile/IaC changes always get a pass (supply-chain / cloud class).
+`git diff --stat <base>..<head>`. Diff touches only docs/comments/tests with no fixtures of secrets → `PASS`, note "no security surface". Lockfile/CI/Dockerfile/IaC changes always get a pass (supply-chain / cloud class). An added suppression (`#nosec`, `nolint:gosec`, `nosemgrep`, `gitleaks:allow`, `eslint-disable` of a security rule) or a deleted or loosened deny-path test is review surface: no fast path.
 
 ### 1. Secrets prepass
 
@@ -67,9 +67,18 @@ Walk Spoofing, Tampering, **Repudiation** (who-did-what logs, tamper-evidence), 
 5. affected principal or resource
 6. concrete result (wrong record, unauthorized action, disclosure, outage)
 
+Per surface, also:
+
+- Enumerate every error and default branch of a new or changed guard; a branch that fails open (allows on error, missing value, unknown enum) defeats the control.
+- A client-side-only check or obscurity (hidden route, unguessable but unauthenticated id) is an absent control.
+- A privileged action now gated by fewer independent conditions: [SEVERITY.md](SEVERITY.md) rule 5.
+- A value held both as a stored or verified copy and as request input: the sink must take the stored copy.
+- A privileged state change (role, key, limit, approval, withdrawal address) with no audit record is a Repudiation finding.
+- The diff fixes a vulnerability → `rg` the repo for the same pattern; report unfixed variants as advisory.
+
 ### 6. Candidate gate (Cloudflare, adapted)
 
-1. Complete source trace from entrypoint to sink, including the strongest source-visible control.
+1. Complete source trace from entrypoint to sink, including the strongest source-visible control. Green tests over mocks of the guarded boundary are not evidence of a control.
 2. Do not strengthen a crash into RCE, ordinary work into shared outage, or a same-principal action into privilege gain.
 3. Decisive fact outside source (proxy, IdP, deploy config) → `needs_validation` with the exact missing fact; no severity.
 4. Missing best practice with no affected principal → hardening note, not a finding.
