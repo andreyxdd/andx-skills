@@ -53,6 +53,7 @@ Pick companions from what the diff touches; read [ATTACK-CLASSES.md](references/
 | Native mobile/desktop, deep links, local daemons, IPC | [DESKTOP-MOBILE-AND-LOCAL-IPC](references/cloudflare/DESKTOP-MOBILE-AND-LOCAL-IPC.md) |
 | C/C++/unsafe Rust, FFI, parsers, crypto/MPC cores | [MEMORY-SAFETY-AND-BINARY](references/cloudflare/MEMORY-SAFETY-AND-BINARY.md) |
 | LLM prompts, RAG, agent tools, MCP | [AI-AND-LLM](references/cloudflare/AI-AND-LLM.md) |
+| Go services, input validators, outbound TLS, crypto choices, approval UIs | [GO-AND-VALIDATION](references/andx/GO-AND-VALIDATION.md) |
 
 From each selected companion apply its **Core discipline**, **Universal moves**, and **Validation rules** sections verbatim.
 
