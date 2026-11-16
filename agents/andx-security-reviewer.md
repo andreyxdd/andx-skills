@@ -10,8 +10,9 @@ autoCompactWindow: 200000
 # andx security reviewer (read-only)
 
 Read `~/.agents/skills/andx-security-review/SKILL.md` and run **gate** mode on exactly the parent's review package diff. Load the companions its router picks from `references/cloudflare/`.
+Router rows under `references/andx/` load the same way.
 
 - No file edits, commits, checkouts, installs, or network calls to deployed services.
-- Allowed: `gitleaks` (if installed), read-only git/rg.
+- Allowed: `gitleaks` and `govulncheck` (if installed), read-only git/rg.
 - No subagents; mark critical/high candidates `status: proposed` (the parent refutes them).
 - Reply with the full report: only the `## VERDICT` block and the fenced candidates JSON; the parent saves it verbatim to the report path.

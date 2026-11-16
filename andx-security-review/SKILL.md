@@ -21,13 +21,21 @@ Stacked MR: base is the parent MR head, never the default branch. Findings about
 
 `git diff --stat <base>..<head>`. Diff touches only docs/comments/tests with no fixtures of secrets → `PASS`, note "no security surface". Lockfile/CI/Dockerfile/IaC changes always get a pass (supply-chain / cloud class). An added suppression (`#nosec`, `nolint:gosec`, `nosemgrep`, `gitleaks:allow`, `eslint-disable` of a security rule) or a deleted or loosened deny-path test is review surface: no fast path.
 
-### 1. Secrets prepass
+### 1. Scanner prepass
 
-`command -v gitleaks` → `gitleaks git --no-banner --redact --log-opts="<base>..<head>"`. Absent → report `secrets_scan: NOT_RUN` (never counts as clean) and grep added lines:
+Probe each scanner with `command -v` and record `RAN` or `NOT_RUN` in the output; `NOT_RUN` never counts as clean.
+
+- gitleaks, both modes: `gitleaks git --no-banner --redact --log-opts="<base>..<head>"`
+- govulncheck, both modes, when the diff touches Go: `govulncheck ./...`
+- gosec and semgrep, standalone only: `gosec ./...`, `semgrep --config auto`
+
+gitleaks `NOT_RUN` → grep added lines:
 
 ```bash
 git diff <base>..<head> | rg -n '^\+.*(-----BEGIN|AKIA[0-9A-Z]{16}|xox[baprs]-|ghp_[A-Za-z0-9]{36}|(api[_-]?key|secret|password|token)\s*[:=]\s*["'\''][^"'\'']{8,})'
 ```
+
+Each dependency the diff adds: check for a lookalike of a popular package name, a registry or source that differs from the lockfile norm, and a name missing from the registry or new and little-used there (slopsquatting on AI-suggested names).
 
 ### 2. Surface map
 
@@ -96,6 +104,7 @@ Severity per [SEVERITY.md](SEVERITY.md). Each critical/high is `proposed` until 
 ## VERDICT
 status: BLOCK | PASS
 secrets_scan: RAN | NOT_RUN
+scanners: <name>=RAN|NOT_RUN per other scanner that applies
 blockers:
   - [CRITICAL|HIGH] <file:line> — <one line> (fingerprint)
 advisory:
