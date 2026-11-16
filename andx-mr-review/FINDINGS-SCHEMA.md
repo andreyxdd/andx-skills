@@ -18,6 +18,8 @@ Shared between `/andx-execute-and-review` (writer) and `/andx-mr-review` (reader
 | `reviewed_at` | string | yes | ISO-8601 |
 | `verdict` | string | yes | `PASS` \| `BLOCK` |
 | `secrets_scan` | string | no | `RAN` \| `NOT_RUN` |
+| `review_head_sha` | string | no | full SHA of the round-1 head the reviewers judged; pinned at `refs/andx/reviewed/<slug>` |
+| `variants` | string[] | no | `path:line` unfixed copies of a fixed pattern (security reviewer); omitted when none |
 | `findings` | array | yes | may be empty on clean PASS |
 
 ## Finding object

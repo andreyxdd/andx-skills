@@ -355,7 +355,10 @@ test("variants: security's line, trimmed and deduplicated; round 2 adds the prio
   const sec = (line) => [{ reviewer: "security", text: `## VERDICT\nstatus: PASS\nsecrets_scan: RAN\n${line}` }];
   const go = (reports, extra) => unite({ reports, files: new Map(), names: new Set(), ...extra });
   assert.deepEqual(go(sec("variants: a.go:3, b.go:9 ,a.go:3\n")).variants, ["a.go:3", "b.go:9"]);
-  for (const line of ["", "variants:\n", "variants:   \nblockers:\n", "variants: none\n"]) assert.equal("variants" in go(sec(line)), false, line);
+  for (const line of ["", "variants:\n", "variants:   \nblockers:\n", "variants: none\n", "variants: see a.go:3 and b.go:9\n"]) assert.equal("variants" in go(sec(line)), false, line);
+  const list = "variants:\r\n  - `a.go:3`\r\n  - pkg/b.go:9\r\n  - free text\r\n  - none\r\nblockers:\r\n  - [MEDIUM] c.go:1 — x\r\n";
+  assert.deepEqual(go(sec(list)).variants, ["a.go:3", "pkg/b.go:9"]);
+  assert.deepEqual(go(sec("variants: `a.go:3`, a.go:3 , ` b.go:9 `\n")).variants, ["a.go:3", "b.go:9"]);
   assert.equal("variants" in go([{ reviewer: "bugbot", text: "## VERDICT\nstatus: PASS\nvariants: a.go:3\n" }]), false);
   const prior = { variants: ["c.go:1", "a.go:3"] };
   assert.deepEqual(go(sec("variants: a.go:3, b.go:9\n"), { round: 2, prior }).variants, ["c.go:1", "a.go:3", "b.go:9"]);
@@ -373,9 +376,15 @@ test("review_head_sha stays the round-1 head; the artifact carries it and the va
   const round2 = (p) => union({ ...r, base: r.head, head: fix }, { "bugbot": "## VERDICT\nstatus: PASS\n" }, ["--round", "2", "--prior", p]);
   const v2 = round2(prior);
   assert.deepEqual([v2.base_sha, v2.head_sha, v2.review_head_sha, v2.variants], [r.base, fix, r.head, ["old.go:1", "src/x.go:3"]]);
+  assert.equal(git(r.dir, "rev-parse", "refs/andx/reviewed/s"), r.head, "the round-1 head stays reachable after the exec branch is deleted");
   const legacy = join(dir, "legacy.json");
   fs.writeFileSync(legacy, JSON.stringify({ ...v1, review_head_sha: undefined }));
+  assert.equal(round2(legacy).review_head_sha, r.head);
+  fs.writeFileSync(legacy, JSON.stringify({ ...v1, review_head_sha: undefined, head_sha: undefined }));
   assert.equal(round2(legacy).review_head_sha, fix);
+  const bad = run(["union", "--base", r.base, "--head", r.head, "--reports", tmp(), "--repo", r.dir, "--slug", "x..y", "--expect", "bugbot"]);
+  assert.deepEqual([bad.status, JSON.parse(bad.stdout).review_head_sha], [0, r.head]);
+  assert.match(bad.stderr, /warning: refs\/andx\/reviewed\/x\.\.y not updated/);
 
   const file = join(dir, "v2.json");
   fs.writeFileSync(file, JSON.stringify(v2));

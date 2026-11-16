@@ -56,9 +56,10 @@ union, in order:
                that is neither in blockers nor decided by a refuter (now or as prior-rejected); check by hand
   verdict      blockers: Critical/High; advisory: Medium, needs_validation; deferred: Low, nitpick;
                dropped: wrong-base, round-scope, prior-rejected. status BLOCK on blockers or unparsed.
-  variants     security's "variants: f:1, g:2" line (unfixed copies of a fixed pattern) -> variants[], plus
-               V.json's, deduplicated; entries without :<line> drop; none -> no field
-  heads        head_sha = H; review_head_sha = V.json's, else H (the round-1 head, for replay)
+  variants     security's "variants: f:1, g:2" line or "- f:1" list under it (unfixed copies of a fixed
+               pattern) -> variants[], plus V.json's, deduplicated; non path:line entries drop; none -> no field
+  heads        head_sha = H; review_head_sha = V.json's review_head_sha, else its head_sha, else H (round 1)
+               pinned at refs/andx/reviewed/<S> so gc keeps it; a failed update only warns
 artifact copies review_head_sha and a non-empty variants[].
 Exit: 0 ok, 1 artifact INVALID, 2 usage, 3 empty or unrelated range.`;
 
@@ -188,7 +189,13 @@ export function union({ reports, files, names, expect = [], refuters = [], round
     if (r.status === "BLOCK") blocking.add(reviewer);
     if (reviewer === "security") {
       secrets = text.match(/secrets_scan:\s*(RAN|NOT_RUN)/)?.[1] ?? secrets;
-      for (const s of text.match(/^[ \t]*variants:[ \t]*(.*)$/m)?.[1].split(",") ?? []) if (/:\d/.test(s)) variants.add(s.trim());
+      // Same-line comma list or an indented "- f:1" list under the key; keep only path:line entries.
+      const m = text.replace(/\r\n?/g, "\n").match(/^[ \t]*variants:[ \t]*(.*)\n?((?:[ \t]+-.*(?:\n|$))*)/m);
+      const raw = m ? [...m[1].split(","), ...m[2].split("\n").map((l) => l.replace(/^[ \t]+-/, ""))] : [];
+      for (const s of raw) {
+        const e = s.replace(/^[\s`]+|[\s`]+$/g, "");
+        if (/^[\w./@+-]+:\d+$/.test(e)) variants.add(e);
+      }
     }
     // O(n^2) grouping; fine for tens of findings per round.
     for (const f of r.findings.map((x) => normalize(x, reviewer, files, names))) {
@@ -357,7 +364,13 @@ if (import.meta.main) {
     if (!Array.isArray(refuters) || !refuters.every((r) => r && typeof r === "object")) fail(2, "union: --refuters must be a JSON array of objects");
     const names = new Set(diff(repo, base, head, "--name-only", "-z").split("\0").filter(Boolean));
     const v = union({ reports, files: diffLines(diff(repo, base, head, "-U10")), names, expect, refuters, round, prior });
-    console.log(JSON.stringify({ ...v, base_sha: prior?.base_sha ?? base, head_sha: head, review_head_sha: prior?.review_head_sha ?? head }, null, 2));
+    const reviewed = prior?.review_head_sha ?? prior?.head_sha ?? head;
+    const ref = `refs/andx/reviewed/${o.slug}`;
+    if (git(repo, ["rev-parse", "-q", "--verify", ref]).stdout.trim() !== reviewed) {
+      const u = git(repo, ["update-ref", ref, reviewed]);
+      if (u.status !== 0) console.error(`warning: ${ref} not updated: ${u.stderr.trim()}`);
+    }
+    console.log(JSON.stringify({ ...v, base_sha: prior?.base_sha ?? base, head_sha: head, review_head_sha: reviewed }, null, 2));
   } else if (cmd === "artifact") {
     need("verdict", "plan", "out");
     const a = artifact(readJson(o.verdict), o);
