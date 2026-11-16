@@ -1,0 +1,117 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/review-variants-and-replay-head.plan.md",
+  "target_branch": "main",
+  "base_sha": "7e9fe203428353cc4db6823edcd989a6fa1dbf10",
+  "head_sha": "dbad6f78450693187f6f6dec07b0dc5f9c8a5e50",
+  "reviewed_at": "2026-11-16T08:01:47.939Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "review-mjs-variants-parser-reads-only-the-same",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-execute-and-review/scripts/review.mjs:191",
+      "finding": "Variants parser reads only the same line; a YAML list under `variants:` is silently dropped (probe returned undefined). Collect following indented `- file:line` lines too; no test covers list form.",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "review-mjs-review-head-sha-stores-a-sha",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-execute-and-review/scripts/review.mjs:360",
+      "finding": "review_head_sha stores a SHA with no ref keeping it alive; after exec branch deletion git gc prunes it, so replay cannot use it. Pin with a ref at review time.",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "measurement-md-outside-step-2-s-plan-touch",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-security-review/MEASUREMENT.md:17",
+      "finding": "Outside step-2's plan touch (parent-extended); adds a rule line beyond the row correction.",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "review-mjs-a-legacy-prior-verdict-with-no",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-execute-and-review/scripts/review.mjs:167",
+      "finding": "A legacy prior verdict with no review_head_sha makes round 2 record the fix head as the round-1 head; the real round-1 head is prior.head_sha.",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "review-mjs-strict-whole-entry-filter-drops-annotated",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-execute-and-review/scripts/review.mjs:197",
+      "finding": "Strict whole-entry filter drops annotated (`a.go:3 (same concat)`), line:col, range and non-ASCII path entries; extract the leading path:line token instead and test an annotated entry.",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "review-mjs-beyond-plan-b-head-sha-fallback",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-execute-and-review/scripts/review.mjs:368",
+      "finding": "Beyond plan (b): head_sha fallback and a refs/andx/reviewed/<slug> side effect; no cleanup path; ref not mentioned in SKILL.md (only FINDINGS-SCHEMA and USAGE).",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "review-mjs-prior-variants-never-removed-matches-plan",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-execute-and-review/scripts/review.mjs:182",
+      "finding": "Prior variants never removed; matches plan's union, noted only.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "token-caps-json-deviation-3-acceptable-deltas-recorded",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "scripts/token-caps.json:3",
+      "finding": "Deviation 3 acceptable; deltas recorded.",
+      "reviewers": [
+        "spec"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "review-mjs-column-0-markdown-list-under-variants",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-execute-and-review/scripts/review.mjs:193",
+      "finding": "Column-0 markdown list under variants: is not captured.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "review-mjs-prior-m-and-l-cleared-new",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-execute-and-review/scripts/review.mjs:197",
+      "finding": "Prior M and L cleared. New minor: capture class [^\\s`,] lets markdown wrappers leak (**a.go:3, \"a.go:3, [a.go:3, https://x:80); display-only, nothing validates the field.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    }
+  ]
+}
