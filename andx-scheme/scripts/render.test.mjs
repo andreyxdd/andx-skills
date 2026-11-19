@@ -256,3 +256,56 @@ test("reading notes: one summary line counts every src with no link", () => {
   assert.match(r.stderr, /^1 reading note/);
   assert.match(r.stderr, /2 src with no link/);
 });
+
+test("ticketPattern: an id with a links{} entry passes inside a longer token; one without still fails there", () => {
+  const spec = base({ facts: [fact("Branch feature/SHOP-12-fallback is deployed")] });
+  spec.ticketPattern = "SHOP-\\d+";
+  spec.links = { "SHOP-12": "https://example.com/t/12" };
+  const ok = render(spec);
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.ok(ok.html.includes("Branch feature/SHOP-12-fallback is deployed"));
+
+  spec.variants[0].facts.push(fact("Branch feature/SHOP-77-retry is not"));
+  const r = render(spec);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /^1 problem/);
+  assert.match(r.stderr, /SHOP-77/);
+});
+
+test("ticketPattern: an unlinked id in a case text is an error", () => {
+  const spec = base({ rows: [row("stock is 0", { cases: ["A"] })] });
+  spec.cases = [{ id: "A", text: "the order from SHOP-41" }];
+  spec.ticketPattern = "SHOP-\\d+";
+  const r = render(spec);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /SHOP-41/);
+  assert.equal(r.html, null);
+});
+
+test("a toned first cell keeps the row's seen and case chips", () => {
+  const spec = base({
+    rows: [{ ...row("unused"), cells: [{ text: "stock is 0", tone: "bad" }, "422"], cases: ["A"], seen: "staging 2026-01-10" }],
+  });
+  spec.cases = [{ id: "A", text: "0 in stock" }];
+  const r = render(spec);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(count(r.html, ">seen</span>"), 1);
+  assert.equal(count(r.html, 'aria-label="Case A: 0 in stock">A</span>'), 1);
+});
+
+test("a callers[] id outside letters, digits, _ and - is an error", () => {
+  for (const id of ["</script><img src=x onerror=alert(1)>", "b onmouseover=alert(2) x"]) {
+    const spec = base();
+    spec.callers = [{ id, name: "App" }];
+    const r = render(spec);
+    assert.equal(r.status, 1, id);
+    assert.ok(r.stderr.includes(`callers[0]: id "${id}"`), r.stderr);
+    assert.equal(r.html, null);
+  }
+});
+
+test("the example spec keeps shared examples, notes and a sequence variant", () => {
+  const spec = JSON.parse(readFileSync(EXAMPLE, "utf8"));
+  for (const key of ["requests", "responses", "notes"]) assert.ok(spec[key]?.length, key);
+  assert.equal(spec.variants.filter((v) => v.view === "sequence").length, 1);
+});

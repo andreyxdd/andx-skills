@@ -25,6 +25,14 @@
     { "name": "Gateway", "does": "translates the request for pricing", "src": "gateway/handler.go:61", "link": "https://git.example.com/shop/gateway/blob/5d6e7f8/handler.go#L61" },
     { "name": "Pricing", "does": "decides the answer; rules differ per variant", "src": "pricing/quote.go:88", "link": "https://git.example.com/shop/pricing/blob/1a2b3c4/quote.go#L88" }
   ],
+  "requests": [
+    { "title": "Shop to gateway", "line": "POST /v1/quote", "body": "{\n  \"sku\": \"CHAIR-7\",\n  \"qty\": 2\n}", "src": "gateway/types.go:20", "link": "https://git.example.com/shop/gateway/blob/5d6e7f8/types.go#L20" }
+  ],
+  "responses": [
+    { "title": "Price answer", "tag": "200", "tone": "ok", "body": "{\n  \"price\": \"118.00\"\n}", "status": "example" },
+    { "title": "Refusal from pricing", "tag": "422, from the log", "tone": "bad", "body": "{\n  \"reason_code\": \"OUT_OF_STOCK\"\n}", "src": "incident log 2026-01-10 13:03", "link": "https://tickets.example.com/SHOP-12" }
+  ],
+  "notes": ["The prices are made up; the refusal body is copied from the log"],
   "cases": [
     { "id": "A", "text": "a retail order for 2 chairs, 0 in stock" },
     { "id": "B", "text": "a wholesale order for 2 chairs, 0 in stock" }
@@ -105,6 +113,38 @@
           "cases": ["B"],
           "examples": [
             { "title": "Refusal from pricing", "tag": "422", "tone": "bad", "body": "{\n  \"reason_code\": \"OUT_OF_STOCK\"\n}" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Target, pricing is down",
+      "status": "proposed",
+      "tags": [{ "text": "item page says \"try later\"", "tone": "warn" }],
+      "facts": [
+        { "text": "An outage is the only 502 left; the shop retries once" }
+      ],
+      "view": "sequence",
+      "actors": ["Shop", "Gateway", "Pricing"],
+      "steps": [
+        {
+          "from": "Shop", "to": "Gateway", "text": "POST /v1/quote",
+          "src": "gateway/handler.go:61",
+          "link": "https://git.example.com/shop/gateway/blob/5d6e7f8/handler.go#L61",
+          "examples": [
+            { "title": "Shop to gateway", "line": "POST /v1/quote", "body": "{\n  \"sku\": \"CHAIR-7\",\n  \"qty\": 2\n}", "src": "gateway/types.go:20", "link": "https://git.example.com/shop/gateway/blob/5d6e7f8/types.go#L20" }
+          ]
+        },
+        {
+          "from": "Gateway", "to": "Pricing", "text": "POST /internal/quote, no answer in 2 seconds", "tone": "bad",
+          "examples": [
+            { "title": "Gateway to pricing", "line": "POST /internal/quote", "body": "{\n  \"sku\": \"CHAIR-7\",\n  \"qty\": 2,\n  \"tier\": \"retail\"\n}" }
+          ]
+        },
+        {
+          "from": "Gateway", "to": "Shop", "text": "502 with retry_after", "tone": "warn",
+          "examples": [
+            { "title": "Outage answer", "tag": "502", "tone": "warn", "body": "{\n  \"retry_after\": 5\n}" }
           ]
         }
       ]

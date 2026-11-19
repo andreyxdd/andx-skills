@@ -107,6 +107,10 @@ const evidence = (item, where, sources, label) => {
 };
 // for: "<caller id>" on an item shows it only while that caller is picked in the switch.
 const callerIds = (spec.callers ?? []).map((c) => c.id);
+// An id goes into the page script, an attribute name and a CSS selector, so it stays a plain word.
+callerIds.forEach((id, i) => {
+  if (!/^[A-Za-z0-9_-]+$/.test(id ?? "")) errors.push(`callers[${i}]: id "${id}" may only use letters, digits, _ and -`);
+});
 const fo = (item, where) => {
   if (!item?.for) return "";
   if (!callerIds.includes(item.for)) errors.push(`${where}: for "${item.for}" is not in callers[]`);
@@ -254,7 +258,7 @@ const variants = (spec.variants ?? []).map((v, vi) => {
         const one = (cell, ci, attr, id) => {
           const c = typeof cell === "string" ? { text: cell } : cell;
           const t = esc(text(c?.text, `${where}.cells[${ci}]`));
-          if (c?.tone) return `<div class="plain"${attr}${label(ci, id)}>${chip(plain(c.text), tone(c.tone, where))}</div>`;
+          if (c?.tone) return `<div class="plain"${attr}${label(ci, id)}>${chip(plain(c.text), tone(c.tone, where))}${ci === 0 ? marks : ""}</div>`;
           return `<div class="${ci === 0 ? "cond" : "cell"}"${attr}${label(ci, id)}>${t}${ci === 0 ? marks : ""}</div>`;
         };
         return row((r.cells ?? []).map((cell, ci) => {
@@ -330,7 +334,7 @@ pre{margin:0;padding:10px 12px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Menl
 .row>div{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;padding:8px 10px;border-radius:8px;min-width:0}
 .row>i{display:flex;align-items:center;justify-content:center;color:var(--mute)}.row>i svg{width:14px;height:14px}
 .row.head{margin-top:10px;font-size:12px}.row.head>div{padding:0 10px;color:var(--mute)}.row.head>.hl{padding-left:0}
-.row .chip{white-space:normal;border-radius:12px}.cell{background:var(--soft)}.cond{position:relative;border:1px solid var(--line);font-weight:500}.plain{padding-left:0!important}
+.row .chip{white-space:normal;border-radius:12px}.cell{background:var(--soft)}.cond{position:relative;border:1px solid var(--line);font-weight:500}.plain{position:relative;padding-left:0!important}
 .seq{display:grid;gap:8px;margin-top:8px;font-size:13px}.actor{font-weight:600;padding:4px 10px;border-bottom:1px solid var(--line)}
 .step{position:relative;padding:8px 10px;border-radius:8px;background:var(--soft);color:var(--ink)}
 .step.ok{background:var(--ok-b);color:var(--ok-t)}.step.bad{background:var(--bad-b);color:var(--bad-t)}.step.warn{background:var(--warn-b);color:var(--warn-t)}.step.info{background:var(--info-b);color:var(--info-t)}
@@ -390,7 +394,7 @@ const linked = !names.length ? html : (() => {
 })();
 if (ticketRe) {
   const loose = new Set();
-  mapText(linked, (part) => (part.match(ticketRe) ?? []).forEach((id) => id && loose.add(id)) ?? part);
+  mapText(linked, (part) => (part.match(ticketRe) ?? []).forEach((id) => id && !spec.links?.[id] && loose.add(id)) ?? part);
   if (loose.size) fail([...loose].map((id) => `${id} matches ticketPattern and has no links{} entry`));
 }
 const out = outArg ?? specPath.replace(/(\.scheme)?\.json$/, "") + ".html";
