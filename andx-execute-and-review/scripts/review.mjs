@@ -18,8 +18,9 @@ const USAGE = `review: package a diff for reviewers, union their reports, write 
   artifact --verdict V.json --plan P --out F [--target main] [--source andx-execute-and-review]
                                             v2 REVIEW-ARTIFACT, validated; INVALID prints reasons, exit 1, no file
   collect --agent ID --reviewer R --slug S --reports DIR [--transcripts ROOT]
-                                            Cursor: copies subagent ID's final message from
-                                            ROOT/*/agent-transcripts/*/subagents/ID.jsonl (ROOT default ~/.cursor/projects)
+                                            Cursor, Claude Code: copies subagent ID's final message from
+                                            ROOT/*/agent-transcripts/*/subagents/ID.jsonl or ROOT/*/*/subagents/agent-ID.jsonl
+                                            (ROOT default: ~/.cursor/projects, then ~/.claude/projects)
                                             to DIR/andx-review-<S>-<R>.json when it is a JSON report, else .txt,
                                             removing R's other-extension report; exit 2 when not found
 
@@ -291,12 +292,16 @@ export function union({ reports, files, names, expect = [], refuters = [], round
   };
 }
 
-// The last assistant entry of a Cursor subagent transcript is its final reply.
+// The last assistant entry of a subagent transcript is its final reply. Cursor keeps it at
+// ROOT/<project>/agent-transcripts/<conversation>/subagents/ID.jsonl, Claude Code at
+// ROOT/<project>/<session>/subagents/agent-ID.jsonl, where the reply may be the message of a SubagentHandback call.
 export function finalMessage(root, agent) {
   if (!/^[A-Za-z0-9-]+$/.test(agent)) return null;
   const dirs = (p) => (fs.existsSync(p) ? fs.readdirSync(p, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => path.join(p, d.name)) : []);
-  const file = dirs(root).flatMap((proj) => dirs(path.join(proj, "agent-transcripts")))
-    .map((conv) => path.join(conv, "subagents", `${agent}.jsonl`)).find((f) => fs.existsSync(f));
+  const file = dirs(root).flatMap((proj) => [
+    ...dirs(path.join(proj, "agent-transcripts")).map((conv) => path.join(conv, "subagents", `${agent}.jsonl`)),
+    ...dirs(proj).map((session) => path.join(session, "subagents", `agent-${agent}.jsonl`)),
+  ]).find((f) => fs.existsSync(f));
   if (!file) return null;
   for (const line of fs.readFileSync(file, "utf8").trim().split("\n").reverse()) {
     let e;
@@ -305,8 +310,10 @@ export function finalMessage(root, agent) {
     } catch {
       continue;
     }
-    if (e.role !== "assistant") continue;
-    const text = (e.message?.content ?? []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
+    if ((e.role ?? e.message?.role) !== "assistant") continue;
+    const content = Array.isArray(e.message?.content) ? e.message.content : [];
+    const handback = content.find((c) => c.type === "tool_use" && c.name === "SubagentHandback")?.input?.message;
+    const text = (typeof handback === "string" ? handback : content.filter((c) => c.type === "text").map((c) => c.text).join("\n")).trim();
     if (text) return text;
   }
   return null;
@@ -385,7 +392,8 @@ if (import.meta.main) {
   } else if (cmd === "collect") {
     need("agent", "reviewer", "slug", "reports");
     if (!REVIEWERS.includes(o.reviewer)) fail(2, `collect: --reviewer takes canonical names: ${REVIEWERS.join(",")}`);
-    const text = finalMessage(o.transcripts ?? path.join(os.homedir(), ".cursor", "projects"), o.agent);
+    const roots = o.transcripts ? [o.transcripts] : [".cursor", ".claude"].map((d) => path.join(os.homedir(), d, "projects"));
+    const text = roots.map((r) => finalMessage(r, o.agent)).find((t) => t != null);
     if (text == null) fail(2, `collect: no final message for subagent ${o.agent}`);
     const ext = parse(text, o.reviewer).status !== "UNPARSED" && /^\s*(```(json)?\s*)?\{/.test(text) ? "json" : "txt";
     const base = path.join(o.reports, `andx-review-${o.slug}-${o.reviewer}`);

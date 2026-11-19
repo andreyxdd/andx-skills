@@ -214,6 +214,26 @@ test("collect copies a subagent's final message, as .json when it is a JSON repo
   assert.equal(go("a1", "nobody").status, 2);
 });
 
+test("collect reads a Claude Code subagent transcript, where the report is the handback message", () => {
+  const root = tmp();
+  const subs = join(root, "proj", "session-1", "subagents");
+  fs.mkdirSync(subs, { recursive: true });
+  const report = JSON.stringify({ status: "PASS", findings: [] });
+  const entry = (content) => JSON.stringify({ type: "assistant", message: { role: "assistant", content } });
+  fs.writeFileSync(join(subs, "agent-c3.jsonl"), [
+    entry([{ type: "text", text: "looking at the diff" }]),
+    entry([{ type: "tool_use", name: "SubagentHandback", input: { message: report } }]),
+    JSON.stringify({ type: "user", message: { role: "user", content: [{ type: "tool_result" }] } }),
+  ].join("\n"));
+  fs.writeFileSync(join(subs, "agent-d4.jsonl"), entry([{ type: "text", text: "## VERDICT\nstatus: PASS\n" }]));
+  const dir = tmp();
+  const go = (agent, reviewer) => run(["collect", "--agent", agent, "--reviewer", reviewer, "--slug", "s", "--reports", dir, "--transcripts", root]);
+  assert.equal(go("c3", "spec").status, 0);
+  assert.equal(fs.readFileSync(join(dir, "andx-review-s-spec.json"), "utf8"), `${report}\n`);
+  assert.equal(go("d4", "security").status, 0);
+  assert.match(fs.readFileSync(join(dir, "andx-review-s-security.txt"), "utf8"), /status: PASS/);
+});
+
 test("a nearby lower-severity confirmation keeps the prior blocker's severity", () => {
   const r = repo();
   const prior = join(tmp(), "prior.json");

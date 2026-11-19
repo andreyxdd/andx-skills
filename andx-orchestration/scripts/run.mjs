@@ -75,10 +75,14 @@ const USAGE = `run: one ledger per run at <primary checkout>/.worktrees/.andx-ru
   start --slug S --mode M [--plan P]
                              write a fresh ledger and print REPO_ROOT, TARGET_BRANCH, STAMP, EXEC_BRANCH,
                              WORKTREE_DIR, SHIP_ID, PUSH_POLICY, EXECUTION_LOCATION as KEY=value lines;
+                             tracked files changed in the primary checkout are listed on stderr as
+                             DIRTY_PRIMARY (land refuses when the run touches one: commit them first);
                              the policies come from P's frontmatter (push_policy ${POLICY.push_policy.join("|")},
                              execution_location ${POLICY.execution_location.join("|")}; first value is the default)
   phase <slug> <id>          set the current phase and add it to the recorded phases (' is read as ′);
                              marks every run branch 🤖 in wt list (git config worktrunk.state.<branch>.marker)
+  wait <slug> [--minutes N]  the parent is waiting on a background worker or reviewer: the Stop hook stays
+                             quiet for N minutes (default 30, max 120) or until the next phase
   landed <slug> <sha>        record the commit that landed on TARGET_BRANCH
   check <slug> <id> --kind K --status C [--evidence E]
                              record one deploy verification check (K: ${CHECK_KINDS.join("|")}; C: ${CHECK_STATUS.join("|")});
@@ -149,7 +153,7 @@ function main(args) {
       args,
       allowPositionals: true,
       options: Object.fromEntries([
-        ...["repo", "slug", "mode", "plan", "terminal", "merged", "pushed", "mr", "deployed", "kind", "status", "evidence"].map((k) => [k, { type: "string" }]),
+        ...["repo", "slug", "mode", "plan", "terminal", "merged", "pushed", "mr", "deployed", "kind", "status", "evidence", "minutes"].map((k) => [k, { type: "string" }]),
         ["help", { type: "boolean", short: "h" }],
         ["ensure", { type: "boolean" }],
       ]),
@@ -203,6 +207,8 @@ function main(args) {
       continues: 0, terminal: null, landed: null, vars,
     });
     for (const [k, v] of Object.entries(vars)) console.log(`${k}=${v}`);
+    const dirty = git(root, "status", "--porcelain", "--untracked-files=no").stdout?.split("\n").filter(Boolean).map((l) => l.slice(3)) ?? [];
+    if (dirty.length) console.error(`DIRTY_PRIMARY ${dirty.join(",")}`);
     return;
   }
 
@@ -214,9 +220,16 @@ function main(args) {
     const id = arg.replaceAll("'", "′");
     data.phase = id;
     data.phases = [...new Set([...(data.phases ?? []), id])];
+    delete data.waiting_until;
     writeLedger(file, data);
     for (const b of runBranches(data)) setMarker(root, b, "🤖");
     console.log(`PHASE ${slug} ${id}`);
+  } else if (cmd === "wait") {
+    const min = Number(o.minutes ?? 30);
+    if (!(min > 0 && min <= 120)) fail(2, `--minutes must be above 0 and at most 120, got: ${o.minutes}`);
+    data.waiting_until = new Date(Date.now() + min * 60000).toISOString();
+    writeLedger(file, data);
+    console.log(`WAIT ${slug} until ${data.waiting_until}`);
   } else if (cmd === "landed") {
     if (!/^[0-9a-f]{7,64}$/i.test(arg ?? "")) fail(2, `landed needs a commit sha, got: ${arg ?? ""}`);
     data.landed = arg;

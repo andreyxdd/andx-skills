@@ -60,6 +60,14 @@ test("continue: terminal allows", () => {
   assert.deepEqual(cont(), { code: 0, out: "" });
 });
 
+test("continue: quiet while the parent waits on a background worker, back after the wait ends", () => {
+  ledger("feat", { waiting_until: new Date(Date.now() + 60000).toISOString() });
+  writeFileSync(transcript, ".andx-run/feat.json");
+  assert.deepEqual(cont(), { code: 0, out: "" });
+  ledger("feat", { waiting_until: new Date(Date.now() - 1000).toISOString() });
+  assert.equal(JSON.parse(cont().out).decision, "block");
+});
+
 test("continue: cap allows", () => {
   ledger("feat", { continues: 5 });
   writeFileSync(transcript, ".andx-run/feat.json");

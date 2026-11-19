@@ -51,7 +51,7 @@ Rules: severity critical|high|medium|low; each High/Critical quotes one exact fi
 Round 2+: confirm or clear prior blockers <list>; only open or new findings; a new one must sit on a line this round added.
 ```
 
-Parent saves each reply to `<RUN_DIR>/andx-review-<SLUG>-<reviewer>.json` (Bugbot, Security: `.txt`); `<reviewer>`: `bugbot security ponytail spec audit react a11y ux-api`. Cursor: `review.mjs collect --agent <id> --reviewer <r> --slug "$SLUG" --reports "$RUN_DIR"`.
+Parent saves each reply to `<RUN_DIR>/andx-review-<SLUG>-<reviewer>.json` (Bugbot, Security: `.txt`); `<reviewer>`: `bugbot security ponytail spec audit react a11y ux-api`. Cursor, Claude: `review.mjs collect --agent <id> --reviewer <r> --slug "$SLUG" --reports "$RUN_DIR"`.
 
 **Security refutation:** one `andx-refuter` per security candidate with `status: proposed` (critical/high), foreground, one message. Save their JSON decisions as one array to `$RUN_DIR/refuters.json` (`[]` when none).
 **Harness jargon (parent):** `node ~/.agents/skills/andx-execute/scripts/jargon-gate.mjs diff "$MERGE_BASE_SHA" "$EXEC_HEAD" --repo "$WORKTREE_DIR"`; each hit is a MEDIUM (skill repos add `--allow-skill-text`).

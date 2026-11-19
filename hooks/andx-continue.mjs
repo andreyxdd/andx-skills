@@ -45,6 +45,8 @@ function decide({ TERMINAL, STALE_MS, ledgers, readLedger, writeLedger }, input)
     const continues = Number.parseInt(data.continues ?? 0, 10) || 0;
     if (TERMINAL.includes(String(data.terminal ?? ""))) continue;
     if (continues >= MAX_CONTINUES) continue;
+    // run.mjs wait: the parent is waiting on a background worker, a re-prompt would only burn a turn.
+    if (Date.now() < Date.parse(data.waiting_until ?? "")) continue;
     if (Date.now() - fs.statSync(p).mtimeMs > STALE_MS) continue;
     const base = path.basename(p);
     if (!log.includes(`.andx-run/${base}`) && !log.includes(`.andx-run\\${base}`)) continue;

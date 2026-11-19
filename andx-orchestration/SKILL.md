@@ -35,7 +35,7 @@ First `node "$S/run.mjs" start --slug "$SLUG" --mode <composer's mode>`. Then, b
 
 ## Step 2 — Spawn subagent
 
-Spawn (HARNESS) after reading [WORKSPACE-RULES.md](./WORKSPACE-RULES.md) (also before reviewers). Prompt: `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR`, `PORT` (not for the analyst); role file [WORKER.md](../andx-execute/WORKER.md) for workers, debug-and-fix Phase B for the analyst; anchored plan, verification table, bug/deploy evidence; companions per SKILL-MAP; the Step 3 return schema.
+Spawn (HARNESS) after reading [WORKSPACE-RULES.md](./WORKSPACE-RULES.md) (also before reviewers). Prompt: `REPO_ROOT`, `TARGET_BRANCH`, `EXEC_BRANCH`, `WORKTREE_DIR`, `PORT` (not for the analyst); role file [WORKER.md](../andx-execute/WORKER.md) for workers, debug-and-fix Phase B for the analyst; anchored plan, verification table, bug/deploy evidence; companions per SKILL-MAP; the Step 3 return schema. Background spawn: `run.mjs wait "$SLUG"` first (quiets the Stop hook).
 
 Resume the agent (HARNESS) in the same worktree; new spawn when the role changes (analyst → worker) or the worktree is gone. **Worker died** (`resource_exhausted`, rate limit, timeout, or `Aborted` by a user message): check `git -C "$WORKTREE_DIR" status --short` and `git log "$TARGET_BRANCH..$EXEC_BRANCH" --oneline`, wait 60s, resume the **same** agent ("continue from current worktree state"). An aborted worker may still write: with no agent id, spawn only once `git status --short` holds still for 60s (one worker per worktree). After 2 resumes: new spawn only if the worktree is gone, else report the blocker.
 
