@@ -1,0 +1,89 @@
+{
+  "title": "Price quote for an out-of-stock item",
+  "question": "The shop asks for a price before the item is back in stock. What does each service answer?",
+  "refs": ["pricing-service origin/main 1a2b3c4", "gateway origin/main 5d6e7f8"],
+  "phrases": {
+    "gw_502": "Gateway: any pricing error becomes 502",
+    "fee_ok": "200 price"
+  },
+  "terms": [
+    { "term": "default price", "means": "the list price from the catalog, used when the live price cannot be worked out" },
+    { "term": "502", "means": "\"something on our side is down\", as opposed to \"your request is refused\"" }
+  ],
+  "route": [
+    { "name": "Shop", "does": "asks the price, then shows it on the page", "src": "shop/src/quote.ts:14" },
+    { "name": "Gateway", "does": "translates the request for pricing", "src": "gateway/handler.go:61" },
+    { "name": "Pricing", "does": "decides the answer; rules differ per variant", "src": "pricing/quote.go:88" }
+  ],
+  "requests": [
+    {
+      "title": "Shop to gateway",
+      "line": "POST /v1/quote",
+      "body": "{\n  \"sku\": \"CHAIR-7\",\n  \"qty\": 2\n}",
+      "src": "gateway/types.go:20"
+    }
+  ],
+  "responses": [
+    {
+      "title": "Price answer",
+      "tag": "200",
+      "tone": "ok",
+      "body": "{\n  \"price\": \"118.00\"\n}",
+      "status": "example"
+    },
+    {
+      "title": "Refusal from pricing",
+      "tag": "422, real log",
+      "tone": "bad",
+      "body": "{\n  \"reason_code\": \"OUT_OF_STOCK\"\n}",
+      "src": "incident log 2026-01-10 13:03"
+    }
+  ],
+  "notes": ["The price in the example is made up; the refusal body is copied from the log"],
+  "cases": [
+    { "id": "A", "text": "the item has 0 in stock" },
+    { "id": "B", "text": "the item is in stock, but the tax service is down" }
+  ],
+  "variants": [
+    {
+      "title": "Now",
+      "tags": [{ "text": "shop page breaks on A", "tone": "bad" }],
+      "facts": [
+        { "text": "The quote runs the same stock check as checkout", "src": "pricing/quote.go:102" },
+        { "text": "@gw_502", "src": "gateway/handler.go:77" }
+      ],
+      "columns": ["if", "pricing does", "answers", "shop receives"],
+      "rows": [
+        {
+          "cells": ["stock < qty", "refuse", { "text": "422", "tone": "bad" }, { "text": "502", "tone": "bad" }],
+          "cases": ["A"],
+          "src": "pricing/quote.go:110"
+        },
+        {
+          "cells": ["stock ≥ qty, tax call fails", "return the error", { "text": "500", "tone": "bad" }, { "text": "502", "tone": "bad" }],
+          "cases": ["B"],
+          "src": "pricing/quote.go:131"
+        },
+        {
+          "cells": ["stock ≥ qty, tax call works", "live price", { "text": "@fee_ok", "tone": "ok" }, { "text": "@fee_ok", "tone": "ok" }],
+          "src": "pricing/quote.go:140"
+        }
+      ]
+    },
+    {
+      "title": "Target",
+      "tags": [{ "text": "shop page works", "tone": "ok" }],
+      "facts": [
+        { "text": "Gateway passes a pricing refusal on as 4xx; only an outage is 502", "status": "proposed" }
+      ],
+      "view": "sequence",
+      "actors": ["Shop", "Gateway", "Pricing"],
+      "steps": [
+        { "from": "Shop", "to": "Gateway", "text": "POST /v1/quote", "src": "shop/src/quote.ts:14" },
+        { "from": "Gateway", "to": "Pricing", "text": "POST /internal/quote", "src": "gateway/client.go:40" },
+        { "from": "Pricing", "to": "Pricing", "text": "stock < qty: use the default price", "cases": ["A"], "status": "proposed" },
+        { "from": "Pricing", "to": "Shop", "text": "@fee_ok", "tone": "ok", "cases": ["A"], "status": "proposed" }
+      ]
+    }
+  ]
+}

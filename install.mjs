@@ -23,6 +23,7 @@ const SKILLS = [
   "andx-execute",
   "andx-orchestration",
   "andx-debug-and-fix",
+  "andx-scheme",
   "andx-deploy",
   "andx-deploy-init",
   "andx-execute-and-deploy",

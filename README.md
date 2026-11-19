@@ -14,6 +14,7 @@ Canonical **andx** agent skills for any coding-agent harness. Full support (skil
 | `andx-execute-and-deploy` | Alias of `/andx-execute --deploy` |
 | `andx-execute-review-and-deploy` | Alias of `/andx-execute-and-review --deploy` |
 | `andx-debug-and-fix` | Readonly debug analysis → execute worker |
+| `andx-scheme` | One call traced through the services as an HTML scheme, one card per variant |
 | `andx-deploy` | Deploy + health check (discover from **this** repo) |
 | `andx-deploy-init` | First-time CI/CD grill, checklist, review-gated plan |
 | `andx-mr-review` | Remote MR review + comment posting |

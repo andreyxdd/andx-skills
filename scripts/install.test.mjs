@@ -10,7 +10,7 @@ import { link } from "../install.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, "..");
-const SKILLS = `andx-init andx-plan andx-schedule andx-execute andx-orchestration andx-debug-and-fix andx-deploy
+const SKILLS = `andx-init andx-plan andx-schedule andx-execute andx-orchestration andx-debug-and-fix andx-scheme andx-deploy
   andx-deploy-init andx-execute-and-deploy andx-execute-and-review andx-execute-review-and-deploy andx-mr-review
   andx-mr-babysit andx-mr-create andx-security-review andx-listen-start andx-listen-end`.split(/\s+/);
 const tmp = (p) => fs.mkdtempSync(join(tmpdir(), p));
