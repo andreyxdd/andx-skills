@@ -20,13 +20,15 @@ Spec fields (see example.scheme.json):
                              a column or cell written { by: { <id>: ... } } has one version per caller
   links{}                    name -> URL (a ticket id, "repo !12"); every mention of a name on the page
                              becomes a link to it
-  related[]                  { name, link, state?, text }: optional list of tickets and merge requests,
-                             shown as its own section; its names are linked like links{}
+  ticketPattern              regular expression source, e.g. "(SHOP|OPS)-\\d+": every match in the page text
+                             must be a links{} name, or the render fails naming the id
   topics[]                   { title, for?, facts[] }: a short bulleted block in the top section, for what
                              holds in every variant
   cases[]                    { id, text }: named test inputs, tagged on the rows they hit; a case chip
                              shows its text on hover or focus
-  variants[]                 { title, tags[]?, facts[], view?, ... }
+  variants[]                 { title, status?, tags[]?, facts[], view?, ... }
+    status "proposed"        the whole variant is a proposal: one chip by its title, and its items need
+                             no src or status of their own
     facts[]                  { text, src|status }: about six a variant, about ten words each; the
                              renderer prints a note when a block goes over
     more                     { title?, facts[] }: bullets folded under a toggle (reasons, side notes)
@@ -35,14 +37,20 @@ Spec fields (see example.scheme.json):
     view "sequence"          actors[] and steps[]: { from, to, text, tone?, cases[]?, examples[]?, src|status }
     rows[] group             { group: "title", open? } in place of a row starts a named block: the rows
                              after it fold under the title (open: true shows them at first); a block
-                             with no rows is a plain line
+                             with no rows is a plain line. Every rows variant carries the same group
+                             titles in the same order
     examples[]               request/response cards under one row or step, same shape as requests[];
                              folded behind an "Examples (n)" toggle so the rows stay readable
   tone                       ok | bad | warn | info
   evidence                   every route hop, request, response, fact, row and step carries
                              src ("path:line") or status ("proposed" | "example")
   link                       optional http(s) URL next to src or status: a permalink to the code line,
-                             the MR or the ticket; the Sources list shows it as a link`;
+                             the MR or the ticket; the Sources list shows it as a link
+  seen                       optional string next to src, on a fact, row, step or example card: where and
+                             when this was observed on a running system ("staging 2026-01-10, direct
+                             request"); shown as a "seen" chip and in the Sources list
+  reading notes              printed for a long fact block, a row or step with no examples[], and a src
+                             with no link; the page is still written`;
 
 const [specPath, outArg] = process.argv.slice(2);
 if (!specPath || specPath === "--help" || specPath === "-h") {
@@ -68,13 +76,32 @@ const tone = (t, where) => {
 // Returns the chip for an untraced item, or "" for a traced one; records the source for the list.
 const plain = (t) => (typeof t === "string" && t.startsWith("@") ? spec.phrases?.[t.slice(1)] ?? t : t ?? "");
 // label: what the reader sees in the Sources list, in the scheme's own words (never a spec position).
+let inherited = false; // true while rendering a variant marked status: "proposed"
+let anySeen = false;
+let unlinked = 0;
 const evidence = (item, where, sources, label) => {
   if (item?.link && !/^https?:\/\//.test(item.link)) errors.push(`${where}: link must be an http(s) URL`);
-  if (typeof item?.src === "string" && item.src.trim()) return sources.push({ label: plain(label), text: item.src, link: item.link }), "";
+  const hasSrc = typeof item?.src === "string" && item.src.trim();
+  let seen = "";
+  if (item?.seen !== undefined) {
+    if (typeof item.seen !== "string" || !item.seen.trim()) errors.push(`${where}: seen must be a non-empty string`);
+    else if (!hasSrc || item.status) errors.push(`${where}: seen goes only with src, never with status`);
+    else {
+      anySeen = true;
+      const tip = esc(item.seen);
+      seen = ` <span class="chip ok case seen" tabindex="0" data-tip="${tip}" aria-label="seen: ${tip}">seen</span>`;
+    }
+  }
+  if (hasSrc) {
+    if (!item.link) unlinked++;
+    sources.push({ label: plain(label), text: item.src, link: item.link, seen: seen && item.seen });
+    return seen;
+  }
   if (item?.status === "proposed" || item?.status === "example") {
     if (item.link) sources.push({ label: plain(label), text: item.status, link: item.link });
-    return ` <span class="chip info">${item.status}</span>`;
+    return inherited && item.status === "proposed" ? "" : ` <span class="chip info">${item.status}</span>`;
   }
+  if (inherited) return "";
   errors.push(`${where}: needs src ("path:line") or status ("proposed" | "example")`);
   return "";
 };
@@ -93,8 +120,12 @@ const caseChips = (ids, where) =>
     const tip = esc(plain((spec.cases ?? []).find((c) => c.id === id)?.text));
     return ` <span class="chip info case" tabindex="0" data-tip="${tip}" aria-label="Case ${esc(id)}: ${tip}">${esc(id)}</span>`;
   }).join("");
+const sourceItem = (s) => {
+  const src = s.link ? `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.text)}</a>` : esc(s.text);
+  return `<li>${esc(s.label)}: ${src}${s.seen ? `, seen: ${esc(s.seen)}` : ""}</li>`;
+};
 const sourceList = (sources) =>
-  sources.length ? `<details><summary><span>Sources (${sources.length})</span></summary><ol>${sources.map((s) => `<li>${esc(s.label)}: ${s.link ? `<a href="${esc(s.link)}" target="_blank" rel="noopener">${esc(s.text)}</a>` : esc(s.text)}</li>`).join("")}</ol></details>` : "";
+  sources.length ? `<details><summary><span>Sources (${sources.length})</span></summary><ol>${sources.map(sourceItem).join("")}</ol></details>` : "";
 
 // One request/response card; used for the shared examples and for a row's or step's own examples.
 const card = (ex, where, sources) => {
@@ -116,6 +147,19 @@ const exampleCards = (list, where, sources) =>
 
 for (const key of ["title", "question"]) if (!spec[key]) errors.push(`${key} is missing`);
 if (!spec.variants?.length) errors.push("variants[] is empty");
+if (spec.related !== undefined) errors.push("related[] is gone: put each name in links{} and mention it where it belongs");
+let ticketRe = null;
+if (spec.ticketPattern !== undefined) {
+  try {
+    if (typeof spec.ticketPattern !== "string" || !spec.ticketPattern) throw new Error("empty");
+    ticketRe = new RegExp(spec.ticketPattern, "g");
+  } catch {
+    errors.push("ticketPattern is not a valid regular expression");
+  }
+}
+// Every mention of a links{} name in the page text becomes a link to it.
+const names = Object.entries(spec.links ?? {}).map(([name, link]) => ({ name, link })).sort((a, b) => b.name.length - a.name.length);
+for (const r of names) if (!/^https?:\/\//.test(r.link)) errors.push(`links: "${r.name}" must map to an http(s) URL`);
 
 const top = [];
 const topSources = [];
@@ -152,16 +196,18 @@ for (const [i, t] of (spec.topics ?? []).entries()) {
   ceiling(t.facts, where);
   top.push(`<div${fo(t, where)}><h3>${esc(text(t.title, where))}</h3><ul>${factList(t.facts, `${where}.facts`, topSources)}</ul></div>`);
 }
-if (spec.related?.length) top.push(`<h3>Related tickets and merge requests</h3><ul>${spec.related.map((r, i) => {
-  const where = `related[${i}]`;
-  if (!/^https?:\/\//.test(r.link ?? "")) errors.push(`${where}: link must be an http(s) URL`);
-  return `<li><a href="${esc(r.link)}" target="_blank" rel="noopener">${esc(text(r.name, where))}</a>${r.state ? ` ${chip(r.state, "")}` : ""}: ${esc(text(r.text, where))}</li>`;
-}).join("")}</ul>`);
 if (spec.terms?.length) top.push(`<h3>Definitions</h3><ul>${spec.terms.map((t) => `<li><b>${esc(t.term)}</b>: ${esc(t.means)}</li>`).join("")}</ul>`);
 
+const groupsOf = []; // per rows-view variant: its group titles, to compare across variants
 const variants = (spec.variants ?? []).map((v, vi) => {
   const at = `variants[${vi}]`;
+  const name = `${at} "${plain(v.title)}"`;
   const sources = [];
+  if (v.status !== undefined && v.status !== "proposed") errors.push(`${at}: status on a variant can only be "proposed"`);
+  inherited = v.status === "proposed";
+  const items = v.view === "sequence" ? v.steps ?? [] : (v.rows ?? []).filter((r) => !r.group);
+  const bare = items.filter((r) => !r.examples?.length).length;
+  if (bare) notes.push(`${name}: ${bare} of ${items.length} ${v.view === "sequence" ? "steps" : "rows"} have no example; give each one request and response`);
   const tags = (v.tags ?? []).map((t) => `<span${fo(t, at)}>${chip(t.text, tone(t.tone, at))}</span>`).join("");
   ceiling(v.facts, `${at}.facts`);
   const facts = factList(v.facts, `${at}.facts`, sources);
@@ -191,6 +237,7 @@ const variants = (spec.variants ?? []).map((v, vi) => {
       : Object.entries(c.by ?? {}).map(([id, name]) => `<div${fo({ for: id }, at)}>${esc(name)}</div>`).join(""))).join("<i></i>")}</div>`;
     // A { group } row starts a block: the rows after it fold under its title; a block with no rows is a plain line.
     const blocks = [{ rows: [] }];
+    groupsOf.push({ name, titles: (v.rows ?? []).filter((r) => r.group).map((r) => plain(r.group)) });
     (v.rows ?? []).forEach((r, i) => {
         const where = `${at}.rows[${i}]`;
         if (r.group) return blocks.push({ title: esc(text(r.group, where)), open: r.open === true, rows: [] });
@@ -222,13 +269,27 @@ const variants = (spec.variants ?? []).map((v, vi) => {
       return `<details class="blk"${b.open ? " open" : ""}><summary><span>${b.title}</span></summary>${head}${b.rows.join("")}</details>`;
     }).join("");
   }
-  return `<section id="v${vi + 1}"><h2>${esc(text(v.title, at))}</h2>${tags ? `<p class="tags">${tags}</p>` : ""}${facts ? `<ul>${facts}</ul>` : ""}${more}${body}${sourceList(sources)}</section>`;
+  const proposed = inherited ? ' <span class="chip info">proposed</span>' : "";
+  const lead = `${tags ? `<p class="tags">${tags}</p>` : ""}${facts ? `<ul>${facts}</ul>` : ""}`;
+  return `<section id="v${vi + 1}"><h2>${esc(text(v.title, at))}${proposed}</h2>${lead}${more}${body}${sourceList(sources)}</section>`;
 });
-
-if (errors.length) {
-  console.error(`${errors.length} problem(s) in ${specPath}:\n- ${errors.join("\n- ")}`);
-  process.exit(1);
+const ref = groupsOf.find((g) => g.titles.length);
+for (const g of ref ? groupsOf : []) {
+  const missing = ref.titles.filter((t) => !g.titles.includes(t));
+  const extra = g.titles.filter((t) => !ref.titles.includes(t));
+  for (const t of missing) errors.push(`${g.name}: group "${t}" is missing (${ref.name} has it)`);
+  for (const t of extra) errors.push(`${g.name}: group "${t}" is extra (${ref.name} has no such group)`);
+  const sameSet = !missing.length && !extra.length;
+  if (sameSet && g.titles.join("\n") !== ref.titles.join("\n")) errors.push(`${g.name}: groups are in a different order than in ${ref.name}`);
 }
+if (anySeen) top.push('<p class="legend">seen = observed on a running system; everything else is read from code</p>');
+if (unlinked) notes.push(`${unlinked} src with no link; add a permalink "link" next to each`);
+
+const fail = (list) => {
+  console.error(`${list.length} problem(s) in ${specPath}:\n- ${list.join("\n- ")}`);
+  process.exit(1);
+};
+if (errors.length) fail(errors);
 
 const CSS = `:root{--bg:#f6f5f1;--card:#fff;--soft:#f1f0ea;--line:#dddbd3;--ink:#1c1b19;--dim:#55534e;--mute:#6b6962;
 --ok-b:#e6f2dc;--ok-t:#2c5a0c;--bad-b:#fbe6e6;--bad-t:#8a2020;--warn-b:#fbeed2;--warn-t:#6e4406;--info-b:#e3eefb;--info-t:#0f4a86;
@@ -284,11 +345,22 @@ details.blk{color:var(--ink)}details.blk>summary{font-weight:600}details.blk>sum
 .case{cursor:help;transition:box-shadow .15s var(--ease)}.case:hover,.case.on{box-shadow:0 0 0 1.5px var(--info-t)}
 .case:hover::after,.case:focus-visible::after,.case.on::after{content:attr(data-tip);position:absolute;left:8px;top:calc(100% - 2px);z-index:5;width:max-content;max-width:min(320px,calc(100vw - 64px));white-space:normal;text-align:left;
 background:var(--ink);color:var(--bg);padding:8px 10px;border-radius:8px;font-size:12.5px;font-weight:400;line-height:1.45;box-shadow:var(--pop)}
+.seen{position:relative}.case.seen::after{left:0;top:calc(100% + 4px)}.codetop .case.seen::after{left:auto;right:0}
+.code:has(.seen){overflow:visible}.code:has(.seen) pre{border-radius:0 0 9px 9px}
+.legend{margin:14px 0 0;font-size:13px;color:var(--mute)}
 @media(max-width:680px){main{padding:24px 14px 56px}.sw{margin:0 -14px 16px;padding:8px 14px}h1{font-size:23px}section{padding:16px}
 .row{grid-template-columns:1fr!important;gap:2px;padding:6px;border:1px solid var(--line);border-radius:10px;margin-top:10px}.row>i,.row.head{display:none}
 .row>div{padding:6px 8px}.row>div::before{content:attr(data-label);flex-basis:100%;font-size:11.5px;font-weight:400;color:var(--mute)}.cond{border:0}.cell{background:none}.plain{padding-left:8px!important}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
 @media print{.sw{position:static}section{break-inside:avoid}}`;
+
+const PICK = `const pick=(id)=>{document.body.dataset.caller=id;document.querySelectorAll("[data-pick]").forEach((b)=>{
+const on=b.dataset.pick===id;b.classList.toggle("on",on);b.setAttribute("aria-pressed",on)})};
+pick(${JSON.stringify(callerIds[0])});
+document.addEventListener("click",(e)=>{const b=e.target.closest("[data-pick]");b&&pick(b.dataset.pick)});
+`;
+const SCRIPT = `${callerIds.length ? PICK : ""}document.addEventListener("click",(e)=>{const c=e.target.closest(".case");
+document.querySelectorAll(".case.on").forEach((x)=>x!==c&&x.classList.remove("on"));c&&c.classList.toggle("on")})`;
 
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -299,29 +371,28 @@ ${spec.refs?.length ? `<details class="refs"><summary><span>Code read at</span><
 <nav class="nav" aria-label="Variants">${(spec.variants ?? []).map((v, i) => `<a href="#v${i + 1}" title="${esc(plain(v.title))}">${esc(plain(v.title).split(/[.:(]/)[0].trim() || `Variant ${i + 1}`)}</a>`).join("")}</nav></div>
 ${top.length ? `<section>${top.join("")}${sourceList(topSources)}</section>` : ""}
 ${variants.join("\n")}
-</main><script>${callerIds.length ? `const pick=(id)=>{document.body.dataset.caller=id;document.querySelectorAll("[data-pick]").forEach((b)=>{const on=b.dataset.pick===id;b.classList.toggle("on",on);b.setAttribute("aria-pressed",on)})};pick(${JSON.stringify(callerIds[0])});document.addEventListener("click",(e)=>{const b=e.target.closest("[data-pick]");b&&pick(b.dataset.pick)});` : ""}document.addEventListener("click",(e)=>{const c=e.target.closest(".case");document.querySelectorAll(".case.on").forEach((x)=>x!==c&&x.classList.remove("on"));c&&c.classList.toggle("on")})</script></body></html>
+</main><script>${SCRIPT}</script></body></html>
 `;
-// Every mention of a links{} or related[] name in the page text becomes a link to it (not inside links, code or <title>).
-const names = [...Object.entries(spec.links ?? {}).map(([name, link]) => ({ name, link })), ...(spec.related ?? [])]
-  .filter((r) => r.name && r.link).sort((a, b) => b.name.length - a.name.length);
-for (const r of names) {
-  if (/^https?:\/\//.test(r.link)) continue;
-  console.error(`1 problem(s) in ${specPath}:\n- links: "${r.name}" must map to an http(s) URL`);
-  process.exit(1);
-}
+// Runs fn over the page text a reader sees as prose: outside links, code, <title>, styles and scripts.
+const mapText = (page, fn) => {
+  let skip = 0;
+  return page.split(/(<[^>]+>)/).map((part) => {
+    if (!part.startsWith("<")) return skip ? part : fn(part);
+    const tag = /^<(\/?)(a|pre|title|style|script)[\s>]/.exec(part);
+    if (tag) skip += tag[1] ? -1 : 1;
+    return part;
+  }).join("");
+};
 const linked = !names.length ? html : (() => {
   const pattern = new RegExp(`(?<![\\w-])(${names.map((r) => esc(r.name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![\\w-])`, "g");
   const byName = new Map(names.map((r) => [esc(r.name), r.link]));
-  let skip = 0;
-  return html.split(/(<[^>]+>)/).map((part) => {
-    if (part.startsWith("<")) {
-      if (/^<(a|pre|title|style)[\s>]/.test(part)) skip++;
-      else if (/^<\/(a|pre|title|style)>/.test(part)) skip--;
-      return part;
-    }
-    return skip ? part : part.replace(pattern, (m) => `<a href="${esc(byName.get(m))}" target="_blank" rel="noopener">${m}</a>`);
-  }).join("");
+  return mapText(html, (part) => part.replace(pattern, (m) => `<a href="${esc(byName.get(m))}" target="_blank" rel="noopener">${m}</a>`));
 })();
+if (ticketRe) {
+  const loose = new Set();
+  mapText(linked, (part) => (part.match(ticketRe) ?? []).forEach((id) => id && loose.add(id)) ?? part);
+  if (loose.size) fail([...loose].map((id) => `${id} matches ticketPattern and has no links{} entry`));
+}
 const out = outArg ?? specPath.replace(/(\.scheme)?\.json$/, "") + ".html";
 fs.writeFileSync(out, linked);
 if (notes.length) console.error(`${notes.length} reading note(s), the page was still written:\n- ${notes.join("\n- ")}`);
