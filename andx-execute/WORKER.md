@@ -26,7 +26,7 @@ Diagnose → fix criterion → implement → re-run (max 3) → stop with blocke
 
 ## Phase 3 — Final on EXEC_BRANCH
 
-Full regression + lint (even docs) + doc verifier if needed + every table row, fresh.
+Full regression + lint (even docs) + doc verifier if needed + every table row, fresh. Check output whole to a file, no `| tail`.
 
 **Jargon gate:** `G=~/.agents/skills/andx-execute/scripts/jargon-gate.mjs; node "$G" diff "$TARGET_BRANCH" HEAD --repo "$WORKTREE_DIR"` (`--allow-skill-text` in a skill repo). Hits → fix per [CODE-COMMENTS.md](./CODE-COMMENTS.md).
 

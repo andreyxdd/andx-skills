@@ -24,7 +24,7 @@ Handoff **pass**; landed; post-merge Phase 3 green; cleanup quoted; lock release
 3. Load `knowledge_refs` / `design_refs` / `pipeline/<stage>/CONTEXT.md` into the worker prompt.
 4. Toolchain (test/lint/build/e2e/doc verifier) → verification table per plan `verification` / CI.
 5. **`REACT_STACK`:** true (unless `stack: none` or docs) when stack ∈ {react,react-next,next}, package.json has react/next, or touch matches `.tsx|.jsx|app|pages|components|src/`. Flag impeccable / react-best-practices (SKILL-MAP).
-6. Orch Step 1: `node "$S/run.mjs" start --slug "$SLUG" --mode execute --plan "$PLAN"` (`--deploy`: `deploy`); `EXECUTION_LOCATION=local` → no cloud agents.
+6. Orch Step 1: `node "$S/run.mjs" start --slug "$SLUG" --mode execute --plan "$PLAN"` (`--deploy`: `deploy`); `EXECUTION_LOCATION=local` → no cloud agents. `--deploy`: before `start`, name what the deploy ships beyond this plan and get any in-chat deploy go the workspace rules want (HARNESS).
 
 ## Phase A — Execute
 
@@ -34,4 +34,4 @@ Orch Step 2 with plan, `REACT_STACK`, `DOCS_ONLY`, OKF block (worker reads [WORK
 
 ## Phase F — Land
 
-Orch Step 4 (ship-queue land; post-merge Phase 3 + doc verifier if docs changed), then ledger phase `F` (every mode). `--deploy`: keep the lock; [/andx-deploy](../andx-deploy/SKILL.md) records `A′`–`D`, releases or halts.
+Orch Step 4 (ship-queue land; post-merge Phase 3 + doc verifier if docs changed), then ledger phase `F` (every mode). `--deploy`: keep the lock (no deploy go yet → `release --after-deploy`, end `AWAITING_USER`; on go, deploy lock-free if `TARGET_BRANCH` is the landed sha); [/andx-deploy](../andx-deploy/SKILL.md) records `A′`–`D`, releases or halts.

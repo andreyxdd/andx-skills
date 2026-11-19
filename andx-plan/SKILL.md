@@ -59,7 +59,7 @@ Present full step list; **user approves before Phase 3**.
 
 Write `$PLANS_DIR/<slug>.plan.md` per PLAN-FORMAT (frontmatter + steps). Absolute path in reply.
 
-Hidden `$PLANS_DIR` stays gitignored and uncommitted unless the user demands it; `docs/plans`/`plans` follow the project.
+Hidden `$PLANS_DIR` stays gitignored and uncommitted unless the user demands it; `docs/plans`/`plans` follow the project. Commit this plan's `knowledge/` writes: uncommitted ones block landing.
 
 ### Session-end Next + `go` (hard gate)
 

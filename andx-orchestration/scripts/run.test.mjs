@@ -114,6 +114,29 @@ test("start rejects unsafe slugs and unknown modes", () => {
   assert.equal(fs.existsSync(join(repo, ".worktrees", ".andx-run", "feat.json")), false);
 });
 
+test("wait sets a bounded quiet time that the next phase clears", () => {
+  ok("start", "--slug", "feat", "--mode", "review");
+  const before = Date.now();
+  ok("wait", "feat", "--minutes", "10");
+  const until = Date.parse(ledger("feat").waiting_until);
+  assert.ok(until >= before + 10 * 60000 && until <= Date.now() + 10 * 60000, String(until));
+  for (const m of ["0", "121", "x"]) assert.equal(run(["wait", "feat", "--minutes", m]).status, 2, m);
+  ok("phase", "feat", "A");
+  assert.equal("waiting_until" in ledger("feat"), false);
+});
+
+test("start names tracked files changed in the primary checkout on stderr", () => {
+  assert.equal(run(["start", "--slug", "clean", "--mode", "review"]).stderr, "");
+  fs.writeFileSync(join(repo, "tracked.txt"), "a\n");
+  git("add", "tracked.txt");
+  git("commit", "-qm", "tracked");
+  fs.writeFileSync(join(repo, "tracked.txt"), "b\n");
+  fs.writeFileSync(join(repo, "untracked.txt"), "x\n");
+  const r = run(["start", "--slug", "feat", "--mode", "review"]);
+  assert.equal(r.status, 0);
+  assert.equal(r.stderr, "DIRTY_PRIMARY tracked.txt\n");
+});
+
 test("end DONE is refused until every required phase is recorded", () => {
   ok("start", "--slug", "feat", "--mode", "review");
   ok("phase", "feat", "A");
