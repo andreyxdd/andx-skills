@@ -41,9 +41,10 @@ const base = (variant = {}) => ({
   variants: [{ title: "Now", facts: [fact("Stock is checked first")], columns: ["if", "answers"], rows: [row("stock is 0")], ...variant }],
 });
 
-test("the example spec renders", () => {
+test("the example spec renders with no errors and no reading notes", () => {
   const r = render(JSON.parse(readFileSync(EXAMPLE, "utf8")));
   assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stderr, "");
   assert.ok(r.html.startsWith("<!doctype html>"));
 });
 

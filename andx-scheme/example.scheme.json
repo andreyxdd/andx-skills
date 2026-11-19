@@ -1,88 +1,112 @@
 {
   "title": "Price quote for an out-of-stock item",
   "question": "The shop asks for a price before the item is back in stock. What does each service answer?",
-  "refs": ["pricing-service origin/main 1a2b3c4", "gateway origin/main 5d6e7f8"],
+  "refs": ["pricing-service origin/main 1a2b3c4, runs on staging as image pricing:2.4.0", "gateway origin/main 5d6e7f8"],
+  "ticketPattern": "SHOP-\\d+",
+  "links": {
+    "SHOP-12": "https://tickets.example.com/SHOP-12"
+  },
+  "callers": [
+    { "id": "web", "name": "Web shop" },
+    { "id": "app", "name": "Mobile app" }
+  ],
   "phrases": {
     "gw_502": "Gateway: any pricing error becomes 502",
-    "fee_ok": "200 price"
+    "price_ok": "200 price",
+    "no_stock": "stock 0, order asks 2",
+    "in_stock": "stock 5, order asks 2"
   },
   "terms": [
-    { "term": "default price", "means": "the list price from the catalog, used when the live price cannot be worked out" },
-    { "term": "502", "means": "\"something on our side is down\", as opposed to \"your request is refused\"" }
+    { "term": "default price", "means": "the list price from the catalog, used when the live price cannot be worked out" }
   ],
   "route": [
-    { "name": "Shop", "does": "asks the price, then shows it on the page", "src": "shop/src/quote.ts:14" },
-    { "name": "Gateway", "does": "translates the request for pricing", "src": "gateway/handler.go:61" },
-    { "name": "Pricing", "does": "decides the answer; rules differ per variant", "src": "pricing/quote.go:88" }
+    { "name": "Web shop", "for": "web", "does": "asks the price, then shows it on the item page", "src": "shop/src/quote.ts:14", "link": "https://git.example.com/shop/web/blob/9a8b7c6/src/quote.ts#L14" },
+    { "name": "Mobile app", "for": "app", "does": "asks the price when the cart opens", "src": "app/cart/quote.kt:31", "link": "https://git.example.com/shop/app/blob/3c2d1e0/cart/quote.kt#L31" },
+    { "name": "Gateway", "does": "translates the request for pricing", "src": "gateway/handler.go:61", "link": "https://git.example.com/shop/gateway/blob/5d6e7f8/handler.go#L61" },
+    { "name": "Pricing", "does": "decides the answer; rules differ per variant", "src": "pricing/quote.go:88", "link": "https://git.example.com/shop/pricing/blob/1a2b3c4/quote.go#L88" }
   ],
-  "requests": [
-    {
-      "title": "Shop to gateway",
-      "line": "POST /v1/quote",
-      "body": "{\n  \"sku\": \"CHAIR-7\",\n  \"qty\": 2\n}",
-      "src": "gateway/types.go:20"
-    }
-  ],
-  "responses": [
-    {
-      "title": "Price answer",
-      "tag": "200",
-      "tone": "ok",
-      "body": "{\n  \"price\": \"118.00\"\n}",
-      "status": "example"
-    },
-    {
-      "title": "Refusal from pricing",
-      "tag": "422, real log",
-      "tone": "bad",
-      "body": "{\n  \"reason_code\": \"OUT_OF_STOCK\"\n}",
-      "src": "incident log 2026-01-10 13:03"
-    }
-  ],
-  "notes": ["The price in the example is made up; the refusal body is copied from the log"],
   "cases": [
-    { "id": "A", "text": "the item has 0 in stock" },
-    { "id": "B", "text": "the item is in stock, but the tax service is down" }
+    { "id": "A", "text": "a retail order for 2 chairs, 0 in stock" },
+    { "id": "B", "text": "a wholesale order for 2 chairs, 0 in stock" }
   ],
   "variants": [
     {
       "title": "Now",
-      "tags": [{ "text": "shop page breaks on A", "tone": "bad" }],
+      "tags": [{ "text": "item page breaks on A", "tone": "bad" }],
       "facts": [
-        { "text": "The quote runs the same stock check as checkout", "src": "pricing/quote.go:102" },
-        { "text": "@gw_502", "src": "gateway/handler.go:77" }
+        { "text": "The quote runs the same stock check as checkout", "src": "pricing/quote.go:102", "link": "https://git.example.com/shop/pricing/blob/1a2b3c4/quote.go#L102" },
+        { "text": "@gw_502", "src": "gateway/handler.go:77", "link": "https://git.example.com/shop/gateway/blob/5d6e7f8/handler.go#L77" },
+        { "text": "Reported in SHOP-12", "src": "incident log 2026-01-10 13:03", "link": "https://tickets.example.com/SHOP-12" }
       ],
-      "columns": ["if", "pricing does", "answers", "shop receives"],
+      "columns": ["if", "pricing answers", { "by": { "web": "item page shows", "app": "cart shows" } }],
       "rows": [
+        { "group": "Retail", "open": true },
         {
-          "cells": ["stock < qty", "refuse", { "text": "422", "tone": "bad" }, { "text": "502", "tone": "bad" }],
+          "cells": ["@no_stock", { "text": "422", "tone": "bad" }, { "by": { "web": { "text": "error page", "tone": "bad" }, "app": { "text": "\"try again\" banner", "tone": "bad" } } }],
           "cases": ["A"],
-          "src": "pricing/quote.go:110"
+          "src": "pricing/quote.go:110",
+          "link": "https://git.example.com/shop/pricing/blob/1a2b3c4/quote.go#L110",
+          "seen": "staging 2026-01-10, direct request",
+          "examples": [
+            { "title": "Web shop to gateway", "for": "web", "line": "POST /v1/quote", "body": "{\n  \"sku\": \"CHAIR-7\",\n  \"qty\": 2\n}", "src": "gateway/types.go:20", "link": "https://git.example.com/shop/gateway/blob/5d6e7f8/types.go#L20" },
+            { "title": "Mobile app to gateway", "for": "app", "line": "POST /v1/quote?client=app", "body": "{\n  \"sku\": \"CHAIR-7\",\n  \"qty\": 2\n}", "src": "gateway/types.go:20", "link": "https://git.example.com/shop/gateway/blob/5d6e7f8/types.go#L20" },
+            { "title": "Refusal from pricing", "tag": "422, from the log", "tone": "bad", "body": "{\n  \"reason_code\": \"OUT_OF_STOCK\"\n}", "src": "incident log 2026-01-10 13:03", "link": "https://tickets.example.com/SHOP-12" }
+          ]
         },
         {
-          "cells": ["stock ≥ qty, tax call fails", "return the error", { "text": "500", "tone": "bad" }, { "text": "502", "tone": "bad" }],
+          "cells": ["@in_stock", { "text": "@price_ok", "tone": "ok" }, { "by": { "web": { "text": "118.00", "tone": "ok" }, "app": { "text": "118.00", "tone": "ok" } } }],
+          "src": "pricing/quote.go:140",
+          "link": "https://git.example.com/shop/pricing/blob/1a2b3c4/quote.go#L140",
+          "examples": [
+            { "title": "Price answer", "tag": "200", "tone": "ok", "body": "{\n  \"price\": \"118.00\"\n}", "status": "example" }
+          ]
+        },
+        { "group": "Wholesale" },
+        {
+          "cells": ["@no_stock", { "text": "422", "tone": "bad" }, { "by": { "web": { "text": "error page", "tone": "bad" }, "app": { "text": "\"try again\" banner", "tone": "bad" } } }],
           "cases": ["B"],
-          "src": "pricing/quote.go:131"
-        },
-        {
-          "cells": ["stock ≥ qty, tax call works", "live price", { "text": "@fee_ok", "tone": "ok" }, { "text": "@fee_ok", "tone": "ok" }],
-          "src": "pricing/quote.go:140"
+          "src": "pricing/quote.go:110",
+          "link": "https://git.example.com/shop/pricing/blob/1a2b3c4/quote.go#L110",
+          "examples": [
+            { "title": "Refusal from pricing", "tag": "422", "tone": "bad", "body": "{\n  \"reason_code\": \"OUT_OF_STOCK\"\n}", "status": "example" }
+          ]
         }
       ]
     },
     {
       "title": "Target",
-      "tags": [{ "text": "shop page works", "tone": "ok" }],
+      "status": "proposed",
+      "tags": [{ "text": "item page works", "tone": "ok" }],
       "facts": [
-        { "text": "Gateway passes a pricing refusal on as 4xx; only an outage is 502", "status": "proposed" }
+        { "text": "Gateway passes a pricing refusal on as 4xx; only an outage is 502" },
+        { "text": "Retail quotes fall back to the default price" }
       ],
-      "view": "sequence",
-      "actors": ["Shop", "Gateway", "Pricing"],
-      "steps": [
-        { "from": "Shop", "to": "Gateway", "text": "POST /v1/quote", "src": "shop/src/quote.ts:14" },
-        { "from": "Gateway", "to": "Pricing", "text": "POST /internal/quote", "src": "gateway/client.go:40" },
-        { "from": "Pricing", "to": "Pricing", "text": "stock < qty: use the default price", "cases": ["A"], "status": "proposed" },
-        { "from": "Pricing", "to": "Shop", "text": "@fee_ok", "tone": "ok", "cases": ["A"], "status": "proposed" }
+      "columns": ["if", "pricing answers", { "by": { "web": "item page shows", "app": "cart shows" } }],
+      "rows": [
+        { "group": "Retail", "open": true },
+        {
+          "cells": ["@no_stock", { "text": "@price_ok", "tone": "warn" }, { "by": { "web": { "text": "120.00, \"back soon\"", "tone": "warn" }, "app": { "text": "120.00", "tone": "warn" } } }],
+          "cases": ["A"],
+          "examples": [
+            { "title": "Price answer", "tag": "200", "tone": "warn", "body": "{\n  \"price\": \"120.00\",\n  \"basis\": \"default\"\n}", "status": "example" }
+          ]
+        },
+        {
+          "cells": ["@in_stock", { "text": "@price_ok", "tone": "ok" }, { "by": { "web": { "text": "118.00", "tone": "ok" }, "app": { "text": "118.00", "tone": "ok" } } }],
+          "src": "pricing/quote.go:140",
+          "link": "https://git.example.com/shop/pricing/blob/1a2b3c4/quote.go#L140",
+          "examples": [
+            { "title": "Price answer", "tag": "200", "tone": "ok", "body": "{\n  \"price\": \"118.00\"\n}", "status": "example" }
+          ]
+        },
+        { "group": "Wholesale" },
+        {
+          "cells": ["@no_stock", { "text": "422", "tone": "bad" }, { "by": { "web": { "text": "\"out of stock\" note", "tone": "info" }, "app": { "text": "\"out of stock\" note", "tone": "info" } } }],
+          "cases": ["B"],
+          "examples": [
+            { "title": "Refusal from pricing", "tag": "422", "tone": "bad", "body": "{\n  \"reason_code\": \"OUT_OF_STOCK\"\n}" }
+          ]
+        }
       ]
     }
   ]

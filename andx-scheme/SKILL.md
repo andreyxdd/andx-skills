@@ -16,21 +16,25 @@ Fields: `node render.mjs --help` · Worked spec: [example.scheme.json](./example
 
 ## 1. Frame
 
-Settle these four from the conversation; ask once, in one message, for any that is missing.
+Settle these six from the conversation; ask once, in one message, for any that is missing.
 
 - **Question**: the one sentence the caller asks ("what is the fee for this transfer?").
 - **Route**: the hops the call passes, caller first. The same in every variant.
 - **Variants**: 2–4 of them. Versions in time order, or hypotheses, or options.
 - **Cases**: 2–3 concrete inputs, lettered A, B, C, chosen so the variants answer them differently.
+- **Callers**: every client that calls the endpoint, found by searching for its callers; one `callers[]` entry each.
+- **Spread**: the dimension the answer varies along (networks, tenants, plans). Every member is a group in every variant with its own rows: the main one open, the rest folded.
 
 ## 2. Trace
 
 Two kinds of evidence, both read-only:
 
-- **Code**: for every variant × case, read the code that decides the answer at a named ref (`git show <ref>:<path>`, no fetch) and note `path:line`. Read what the next hop does with that answer, up to the caller. Request and response shapes come from the request types.
+- **Code**: for every variant × case, read the code that decides the answer at a named ref (`git show <ref>:<path>`, no fetch) and note `path:line`. Read what the next hop does with that answer, up to each caller, and that caller's own handling at every step of its flow (form, review, submit). Request and response shapes come from the request types.
 - **Runtime**: what the running system actually said. Reach for it when a variant is deployed and the question is about a real event (a bug, an incident, a stuck order), or when the code leaves a branch open (config, flags, data). Sources, whichever the workspace gives access to: service logs (log search, `kubectl logs`), the incident ticket, traces, a debug endpoint, a read-only query. Note it as `src` with what and when: `log: {service} "fee estimate failed" 2026-01-10 13:03`. Copy status codes and bodies exactly; mask secrets, tokens and personal data.
 
-Code says what can happen; runtime says what did. When they disagree (the log shows a status the code at that ref cannot produce), the deployed build differs from the ref: find the deployed version and trace that one, and say so in `refs`.
+Code says what can happen; runtime says what did. When they disagree (the log shows a status the code at that ref cannot produce), the deployed build differs from the ref: find the deployed version and trace that one, and say so in `refs`. For every deployed variant `refs` names where its build runs: environment and image or tag.
+
+`seen` marks what was observed on a running system, with where and when. A consequence read from code stays unmarked, and chat words it as read from code.
 
 Runtime access that is missing, or needs a grant the workspace rules put behind the user, is a one-line note in chat, and the row stays code-traced.
 
@@ -47,11 +51,18 @@ Done when every route hop, request, response, fact, row and step carries a `src`
 
 Wording, for a reader outside the team:
 
-- Plain words. Each word that needs explaining gets one line in `terms`, with an everyday comparison when the idea is abstract.
+- Plain words. Each line makes sense to someone who has never used the third-party product behind it. A word specific to this system gets one line in `terms`, with an everyday comparison when the idea is abstract; domain basics stay out.
+- Conditions use concrete numbers: "wallet holds 0.001, transfer asks 0.01".
 - Same behavior, same words: a sentence that holds in two or more variants lives once in `phrases` and is written `@key` everywhere.
 - `facts` are read, rows are scanned. Keep each block of `facts` to about six bullets of about ten words; the renderer prints a note when one goes over. Cut by moving, not deleting: a sentence that says "if … then …" is a row, a reason or side note goes in `more`, and what holds in every variant goes once in `topics`.
 - Label things by what they are: "Example request", "Example response", "Test cases".
 - Tone marks the outcome for the caller: `ok` works, `bad` breaks, `warn` works on a guess, `info` neutral.
+
+Evidence a reader can follow:
+
+- Every ticket or merge request mention is a `links{}` name; `ticketPattern` is the workspace's ticket id format.
+- Every `src` gets a permalink `link`, and each row or step one example request and response.
+- A variant that is wholly a proposal takes `status: "proposed"` once.
 
 ## 4. Render
 
@@ -66,4 +77,5 @@ It prints the HTML path, or lists every problem and writes nothing. Fix the spec
 Open the HTML for the user with the harness's file preview when it has one; in every harness print the absolute path. Then, in chat:
 
 - the answer to the question in one or two lines (which variant breaks which case);
-- every row marked `proposed` or `example`, so the reader knows what is not yet real.
+- every row marked `proposed` or `example`, so the reader knows what is not yet real;
+- an offer to attach the HTML to the ticket or thread it belongs to, as a snapshot to re-attach after each re-render.
