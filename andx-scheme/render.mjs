@@ -37,8 +37,8 @@ Spec fields (see example.scheme.json):
     view "sequence"          actors[] and steps[]: { from, to, text, tone?, cases[]?, examples[]?, src|status }
     rows[] group             { group: "title", open? } in place of a row starts a named block: the rows
                              after it fold under the title (open: true shows them at first); a block
-                             with no rows is a plain line. Every rows variant carries the same group
-                             titles in the same order
+                             with no rows is a plain line. A title is "name: state"; every rows variant
+                             carries the same group names in the same order, the state may differ
     examples[]               request/response cards under one row or step, same shape as requests[];
                              folded behind an "Examples (n)" toggle so the rows stay readable
   tone                       ok | bad | warn | info
@@ -202,7 +202,7 @@ for (const [i, t] of (spec.topics ?? []).entries()) {
 }
 if (spec.terms?.length) top.push(`<h3>Definitions</h3><ul>${spec.terms.map((t) => `<li><b>${esc(t.term)}</b>: ${esc(t.means)}</li>`).join("")}</ul>`);
 
-const groupsOf = []; // per rows-view variant: its group titles, to compare across variants
+const groupsOf = []; // per rows-view variant: its group names (the title up to the first ":"), to compare across variants
 const variants = (spec.variants ?? []).map((v, vi) => {
   const at = `variants[${vi}]`;
   const name = `${at} "${plain(v.title)}"`;
@@ -241,7 +241,7 @@ const variants = (spec.variants ?? []).map((v, vi) => {
       : Object.entries(c.by ?? {}).map(([id, name]) => `<div${fo({ for: id }, at)}>${esc(name)}</div>`).join(""))).join("<i></i>")}</div>`;
     // A { group } row starts a block: the rows after it fold under its title; a block with no rows is a plain line.
     const blocks = [{ rows: [] }];
-    groupsOf.push({ name, titles: (v.rows ?? []).filter((r) => r.group).map((r) => plain(r.group)) });
+    groupsOf.push({ name, names: (v.rows ?? []).filter((r) => r.group).map((r) => plain(r.group).split(":")[0].trim()) });
     (v.rows ?? []).forEach((r, i) => {
         const where = `${at}.rows[${i}]`;
         if (r.group) return blocks.push({ title: esc(text(r.group, where)), open: r.open === true, rows: [] });
@@ -277,14 +277,14 @@ const variants = (spec.variants ?? []).map((v, vi) => {
   const lead = `${tags ? `<p class="tags">${tags}</p>` : ""}${facts ? `<ul>${facts}</ul>` : ""}`;
   return `<section id="v${vi + 1}"><h2>${esc(text(v.title, at))}${proposed}</h2>${lead}${more}${body}${sourceList(sources)}</section>`;
 });
-const ref = groupsOf.find((g) => g.titles.length);
+const ref = groupsOf.find((g) => g.names.length);
 for (const g of ref ? groupsOf : []) {
-  const missing = ref.titles.filter((t) => !g.titles.includes(t));
-  const extra = g.titles.filter((t) => !ref.titles.includes(t));
+  const missing = ref.names.filter((t) => !g.names.includes(t));
+  const extra = g.names.filter((t) => !ref.names.includes(t));
   for (const t of missing) errors.push(`${g.name}: group "${t}" is missing (${ref.name} has it)`);
   for (const t of extra) errors.push(`${g.name}: group "${t}" is extra (${ref.name} has no such group)`);
   const sameSet = !missing.length && !extra.length;
-  if (sameSet && g.titles.join("\n") !== ref.titles.join("\n")) errors.push(`${g.name}: groups are in a different order than in ${ref.name}`);
+  if (sameSet && g.names.join("\n") !== ref.names.join("\n")) errors.push(`${g.name}: groups are in a different order than in ${ref.name}`);
 }
 if (anySeen) top.push('<p class="legend">seen = observed on a running system; everything else is read from code</p>');
 if (unlinked) notes.push(`${unlinked} src with no link; add a permalink "link" next to each`);

@@ -161,6 +161,37 @@ test("groups: variants must carry the same group titles in the same order", () =
   assert.match(none.stderr, /"Target".*"Retail".*missing/);
 });
 
+test("groups: a title is \"name: state\"; only the name must match across variants", () => {
+  const variant = (title, groups) => ({
+    title,
+    facts: [fact("Stock is checked first")],
+    columns: ["if", "answers"],
+    rows: groups.flatMap((g) => [{ group: g }, row("stock is 0")]),
+  });
+  const spec = (second) => ({
+    ...base(),
+    variants: [variant("Now", ["Retail, Outlet: only Retail exists at this point", "Loyalty: not available yet"]), variant("Target", second)],
+  });
+
+  const same = render(spec(["Retail, Outlet : pricing decides", "Loyalty: new, pricing decides"]));
+  assert.equal(same.status, 0, same.stderr);
+  assert.equal(same.stderr, "");
+  assert.ok(same.html.includes("Loyalty: new, pricing decides"));
+
+  const missing = render(spec(["Retail, Outlet: pricing decides"]));
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /"Target".*group "Loyalty" is missing/);
+
+  const extra = render(spec(["Retail, Outlet: pricing decides", "Loyalty", "Gift cards: new"]));
+  assert.equal(extra.status, 1);
+  assert.match(extra.stderr, /^1 problem/);
+  assert.match(extra.stderr, /"Target".*group "Gift cards" is extra/);
+
+  const order = render(spec(["Loyalty: new", "Retail, Outlet: pricing decides"]));
+  assert.equal(order.status, 1);
+  assert.match(order.stderr, /"Target".*order/);
+});
+
 test("groups: a @phrase title counts as its expanded text; a sequence variant is exempt", () => {
   const spec = base({ rows: [{ group: "@retail" }, row("stock is 0")] });
   spec.phrases = { retail: "Retail" };

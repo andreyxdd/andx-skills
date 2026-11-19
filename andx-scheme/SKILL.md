@@ -23,7 +23,7 @@ Settle these six from the conversation; ask once, in one message, for any that i
 - **Variants**: 2–4 of them. Versions in time order, or hypotheses, or options.
 - **Cases**: 2–3 concrete inputs, lettered A, B, C, chosen so the variants answer them differently.
 - **Callers**: every client that calls the endpoint, found by searching for its callers; one `callers[]` entry each.
-- **Spread**: the dimension the answer varies along (networks, tenants, plans). Every member is a group in every variant with its own rows: the main one open, the rest folded.
+- **Spread**: the dimension the answer varies along (networks, tenants, plans). Every member is a group in every variant with its own rows: the main one open, the rest folded. A group title is the member's name, a colon, then its state in that variant.
 
 ## 2. Trace
 
