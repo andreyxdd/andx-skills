@@ -1,0 +1,109 @@
+{
+  "schema_version": 2,
+  "source": "andx-execute-and-review",
+  "plan": ".cursor/plans/andx-scheme-retro-fixes.plan.md",
+  "target_branch": "main",
+  "base_sha": "cc60d73b60ae8d3603f42fb963a0233e1a27c2a8",
+  "head_sha": "b04edd26ad7a155d622ec67673cb105a0a4d783d",
+  "review_head_sha": "7fdb4a982605f31558e3aef4b135f6fd81f67739",
+  "reviewed_at": "2026-11-19T19:03:25.347Z",
+  "verdict": "PASS",
+  "secrets_scan": "NOT_RUN",
+  "findings": [
+    {
+      "id": "render-mjs-the-ticketpattern-check-and-the-links",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-scheme/render.mjs:393",
+      "finding": "The ticketPattern check and the links{} linker disagree on word boundaries. The linker only links a name that is not touching \\w or '-' (`(?<![\\w-])…(?![\\w-])`), the checker runs the raw user regex with no boundary. A linked id inside a longer token (branch name in refs[] such as `feature/SHOP-12-fallback`, a src path `docs/SHOP-12-notes.md:3` with no link) is left unlinked and then fails the render with a message that is false: the id does have a links{} entry. Reproduced: spec with links {\"SHOP-12\": …}, ticketPattern \"SHOP-\\\\d+\", fact text \"Branch feature/SHOP-12-fallback is deployed\" -> exit 1, `SHOP-12 matches ticketPattern and has no links{} entry`. Adding the links entry the message asks for cannot fix it; only rewording or adding the whole token as a links name does. No test covers an id adjacent to '-' or a word character.",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "render-mjs-a-seen-on-a-row-whose",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-scheme/render.mjs:249",
+      "finding": "A `seen` on a row whose first cell has a tone renders no seen chip. The chip is returned by evidence() into `marks`, and `marks` is only appended in the untoned branch of `one()` (line 258); the toned branch (line 257) returns before it. Reproduced: row { cells: [{ text: \"stock is 0\", tone: \"bad\" }, \"422\"], src, link, seen: \"staging 2026-01-10\" } -> exit 0, zero `class=\"chip ok case seen\"` in the page, while the legend line and the Sources `seen:` text are both printed. The page then explains a mark that is not on the row. Dropping marks on a toned first cell predates this diff (case chips), but the seen chip is new and no test covers it.",
+      "reviewers": [
+        "bugbot"
+      ]
+    },
+    {
+      "id": "scheme-caller-id-unvalidated-markup-sink",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-scheme/render.mjs:359",
+      "finding": "`callers[].id` reaches the inline `<script>` through `JSON.stringify`, which does not neutralise `</script>`; a hostile id closes the script block and injects markup",
+      "reviewers": [
+        "security",
+        "spec"
+      ]
+    },
+    {
+      "id": "example-scheme-json-behavior-no-step-asked-for",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-scheme/example.scheme.json:1",
+      "finding": "Behavior no step asked for: the example lost its sequence-view variant and also its top-level requests[], responses[] and notes[] blocks. Step-2 lists what the example must use and says nothing about removing these. SKILL.md still tells the reader to copy this file and still describes the sequence view. The worker noted the missing sequence variant, but the other removals are not noted. The renderer tests do build a sequence variant inline, so the code is still covered, but the worked spec no longer shows it. (plan: step-2)",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "render-mjs-the-ticketpattern-check-scans-text-nodes",
+      "status": "confirmed",
+      "severity": "medium",
+      "location": "andx-scheme/render.mjs:621",
+      "finding": "The ticketPattern check scans text nodes only. A ticket id in a case text (shown as a hover tooltip through data-tip and aria-label) is never checked, so an unlinked id there passes. The plan says visible page text. This is a small gap against the claim that every unlinked id is an error, and no test covers it. (plan: step-1)",
+      "reviewers": [
+        "spec"
+      ]
+    },
+    {
+      "id": "render-mjs-inside-a-variant-with-status-proposed",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-scheme/render.mjs:104",
+      "finding": "Inside a variant with status \"proposed\" any unrecognized status or blank src is accepted silently. A typo such as status: \"exmaple\" (or src: \"  \") on an item renders with exit 0 and no chip, so an illustrative value loses its `example` mark with no error. Reproduced with facts [{ text, status: \"exmaple\" }, { text, src: \"  \" }] under a proposed variant: exit 0, bare <li>. The plan says such items need no status, so this matches its letter; the lost check is only for a status that is present and invalid.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "render-mjs-the-old-filter-r-r-name",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-scheme/render.mjs:161",
+      "finding": "The old `.filter((r) => r.name && r.link)` was dropped with related[]. A links{} entry with an empty name now puts an empty alternative into the linker regex, which matches at every boundary: links {\"\": \"https://example.com/\"} renders exit 0 with 92 empty `<a href=…></a>` anchors in a minimal page. An empty URL value is now a proper error (better than before); the empty name is not checked.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "render-mjs-group-comparison-uses-set-membership-so",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-scheme/render.mjs:283",
+      "finding": "Group comparison uses set membership, so a variant that is missing a repeated title is reported as an ordering problem. Reference [\"A\",\"B\",\"A\"] against [\"A\",\"B\"] -> `groups are in a different order than in variants[0]`, when a group is actually missing. The render still fails, only the message misleads.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    },
+    {
+      "id": "render-mjs-the-ticket-check-passes-an-id",
+      "status": "confirmed",
+      "severity": "low",
+      "location": "andx-scheme/render.mjs:381",
+      "finding": "The ticket check passes an id inside any <a>, not only one made from links{} as the plan states. A src text carrying an id with its own `link` (src: \"SHOP-99 comment\", link: …) renders with exit 0 and no links{} entry for SHOP-99; nav anchors behave the same. Arguably fine since the id is clickable, but it is looser than the plan's wording and untested.",
+      "reviewers": [
+        "bugbot"
+      ],
+      "resolution": "deferred"
+    }
+  ]
+}
